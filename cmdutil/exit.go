@@ -1,0 +1,34 @@
+package cmdutil
+
+import "os"
+
+type exitCode struct {
+	code int
+}
+
+// Exit causes the current program to exit with the given status code. On the
+// contrary to os.Exit, it respects defer statements. It requires the
+// HandleExit function to be deferred in top of the main function.
+//
+// Internally this is done by throwing a panic with the ExitCode type, which
+// gets recovered in the HandleExit function.
+func Exit(code int) {
+	panic(exitCode{code: code})
+}
+
+// HandleExit recovers from Exit calls and terminates the current program with
+// a proper exit code. It should get deferred at the beginning of the main
+// function.
+//
+//   func main() {
+//     defer cmdutil.HandleExit()
+//     run() // this function might call Exit anytime
+//   }
+func HandleExit() {
+	if e := recover(); e != nil {
+		if exit, ok := e.(exitCode); ok == true {
+			os.Exit(exit.code)
+		}
+		panic(e) // not an Exit, bubble up
+	}
+}
