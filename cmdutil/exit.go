@@ -19,11 +19,6 @@ func Exit(code int) {
 // HandleExit recovers from Exit calls and terminates the current program with
 // a proper exit code. It should get deferred at the beginning of the main
 // function.
-//
-//   func main() {
-//     defer cmdutil.HandleExit()
-//     run() // this function might call Exit anytime
-//   }
 func HandleExit() {
 	if e := recover(); e != nil {
 		if exit, ok := e.(exitCode); ok == true {
