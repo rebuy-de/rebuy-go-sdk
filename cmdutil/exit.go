@@ -1,6 +1,14 @@
 package cmdutil
 
-import "os"
+import (
+	"os"
+
+	log "github.com/sirupsen/logrus"
+)
+
+const (
+	mustExitCode = 1
+)
 
 type exitCode struct {
 	code int
@@ -26,4 +34,18 @@ func HandleExit() {
 		}
 		panic(e) // not an Exit, bubble up
 	}
+}
+
+// Must exits the application via Exit(1) and logs the error, if err does not
+// equal nil. Additionally it logs the error with `%+v` to the debug log, so it
+// can used together with github.com/pkg/errors to retrive more details about
+// the error.
+func Must(err error) {
+	if err == nil {
+		return
+	}
+
+	log.Debugf("%+v", err)
+	log.Error(err)
+	Exit(mustExitCode)
 }
