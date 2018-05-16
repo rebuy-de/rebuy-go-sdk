@@ -26,6 +26,7 @@ func NewRootCommand(app Application) *cobra.Command {
 	var (
 		gelfAddress string
 		verbose     bool
+		jsonLogs    bool
 	)
 
 	cmd := &cobra.Command{
@@ -37,6 +38,16 @@ func NewRootCommand(app Application) *cobra.Command {
 
 			if verbose {
 				log.SetLevel(log.DebugLevel)
+			}
+
+			if jsonLogs {
+				log.SetFormatter(&log.JSONFormatter{
+					FieldMap: log.FieldMap{
+						log.FieldKeyTime:  "Time",
+						log.FieldKeyLevel: "Level",
+						log.FieldKeyMsg:   "Message",
+					},
+				})
 			}
 
 			if gelfAddress != "" {
@@ -68,6 +79,9 @@ func NewRootCommand(app Application) *cobra.Command {
 	cmd.PersistentFlags().StringVar(
 		&gelfAddress, "gelf-address", "",
 		`Address to Graylog for logging (format: "ip:port").`)
+	cmd.PersistentFlags().BoolVar(
+		&jsonLogs, "json-logs", false,
+		"Prints logs to stdout as JSON.")
 
 	app.Bind(cmd)
 
