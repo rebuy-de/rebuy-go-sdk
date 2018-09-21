@@ -7,11 +7,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Application provides the basic behaviour for NewRootCommand.
-type Application interface {
+// ApplicationRunner is an optional interface for NewRootCommand.
+type ApplicationRunner interface {
 	// Run contains the actual application code. It is equivalent to
 	// the Run command of Cobra.
 	Run(cmd *cobra.Command, args []string)
+}
+
+// ApplicationBinder is an optional interface for NewRootCommand.
+type ApplicationBinder interface {
 
 	// Bind is used to bind command line flags to fields of the
 	// application struct.
@@ -21,16 +25,24 @@ type Application interface {
 // NewRootCommand creates a Cobra command, which reflects our current best
 // practices. It adds a verbose flag, sets up logrus and registers a Graylog
 // hook. Also it registers the NewVersionCommand and prints the version on
-// startup.
-func NewRootCommand(app Application) *cobra.Command {
+// startup. The provided app might implement ApplicationRunner and
+// ApplicationBinder.
+func NewRootCommand(app interface{}) *cobra.Command {
 	var (
 		gelfAddress string
 		verbose     bool
 	)
 
+	var run func(cmd *cobra.Command, args []string)
+
+	runner, ok := app.(ApplicationRunner)
+	if ok {
+		run = runner.Run
+	}
+
 	cmd := &cobra.Command{
 		Use: BuildName,
-		Run: app.Run,
+		Run: run,
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			log.SetLevel(log.InfoLevel)
@@ -69,7 +81,10 @@ func NewRootCommand(app Application) *cobra.Command {
 		&gelfAddress, "gelf-address", "",
 		`Address to Graylog for logging (format: "ip:port").`)
 
-	app.Bind(cmd)
+	binder, ok := app.(ApplicationBinder)
+	if ok {
+		binder.Bind(cmd)
+	}
 
 	cmd.AddCommand(NewVersionCommand())
 
