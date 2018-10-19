@@ -2,9 +2,6 @@ package cmdutil
 
 import (
 	"context"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -34,28 +31,6 @@ type ApplicationBinder interface {
 	Bind(cmd *cobra.Command)
 }
 
-// wrapContext uses a ApplicationRunnerWithContext and implements a
-// ApplicationRunner. It passes a context, that gets cancels on SIGINT or
-// SIGTERM, to the ApplicationRunnerWithContext.Run function.
-type wrapContext struct {
-	runner ApplicationRunnerWithContext
-}
-
-func (w wrapContext) Run(cmd *cobra.Command, args []string) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-signals
-		logrus.Warnf("received signal '%v'; cleaning up", sig)
-		cancel()
-	}()
-
-	w.runner.Run(ctx, cmd, args)
-}
-
 // NewRootCommand creates a Cobra command, which reflects our current best
 // practices. It adds a verbose flag, sets up logrus and registers a Graylog
 // hook. Also it registers the NewVersionCommand and prints the version on
@@ -79,7 +54,9 @@ func NewRootCommand(app interface{}) *cobra.Command {
 
 	runnerWithContext, ok := app.(ApplicationRunnerWithContext)
 	if ok {
-		run = wrapContext{runner: runnerWithContext}.Run
+		run = func(cmd *cobra.Command, args []string) {
+			runnerWithContext.Run(SignalRootContext(), cmd, args)
+		}
 	}
 
 	cmd := &cobra.Command{
