@@ -1,0 +1,33 @@
+package cmdutil
+
+import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/sirupsen/logrus"
+)
+
+// SignalRootContext returns a new empty context, that gets canneld on SIGINT
+// or SIGTEM.
+func SignalRootContext() context.Context {
+	return SignalContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+}
+
+// SignalContext returns a copy of the parent context that gets cancelled if
+// the application gets any of the given signals.
+func SignalContext(ctx context.Context, signals ...os.Signal) context.Context {
+	ctx, cancel := context.WithCancel(ctx)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, signals...)
+
+	go func() {
+		sig := <-c
+		logrus.Warnf("received signal '%v'; cleaning up", sig)
+		cancel()
+	}()
+
+	return ctx
+}
