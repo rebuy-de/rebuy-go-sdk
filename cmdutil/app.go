@@ -1,10 +1,14 @@
 package cmdutil
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	graylog "gopkg.in/gemnasium/logrus-graylog-hook.v2"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // ApplicationRunner is an optional interface for NewRootCommand.
@@ -14,12 +18,42 @@ type ApplicationRunner interface {
 	Run(cmd *cobra.Command, args []string)
 }
 
+// ApplicationRunnerWithContext is an optional interface for NewRootCommand.
+type ApplicationRunnerWithContext interface {
+	// Run contains the actual application code. It is equivalent to
+	// the Run command of Cobra plus adding a context. The context gets
+	// cancelled, if the application receives a SIGINT or SIGTERM.
+	Run(ctx context.Context, cmd *cobra.Command, args []string)
+}
+
 // ApplicationBinder is an optional interface for NewRootCommand.
 type ApplicationBinder interface {
 
 	// Bind is used to bind command line flags to fields of the
 	// application struct.
 	Bind(cmd *cobra.Command)
+}
+
+// wrapContext uses a ApplicationRunnerWithContext and implements a
+// ApplicationRunner. It passes a context, that gets cancels on SIGINT or
+// SIGTERM, to the ApplicationRunnerWithContext.Run function.
+type wrapContext struct {
+	runner ApplicationRunnerWithContext
+}
+
+func (w wrapContext) Run(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-signals
+		logrus.Warnf("received signal '%v'; cleaning up", sig)
+		cancel()
+	}()
+
+	w.runner.Run(ctx, cmd, args)
 }
 
 // NewRootCommand creates a Cobra command, which reflects our current best
@@ -35,9 +69,17 @@ func NewRootCommand(app interface{}) *cobra.Command {
 
 	var run func(cmd *cobra.Command, args []string)
 
+	// Note: since ApplicationRunnerWithContext and ApplicationRunner require
+	// the same function Run with different parameters, they are mutually
+	// exclusive.
 	runner, ok := app.(ApplicationRunner)
 	if ok {
 		run = runner.Run
+	}
+
+	runnerWithContext, ok := app.(ApplicationRunnerWithContext)
+	if ok {
+		run = wrapContext{runner: runnerWithContext}.Run
 	}
 
 	cmd := &cobra.Command{
@@ -45,10 +87,10 @@ func NewRootCommand(app interface{}) *cobra.Command {
 		Run: run,
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			log.SetLevel(log.InfoLevel)
+			logrus.SetLevel(logrus.InfoLevel)
 
 			if verbose {
-				log.SetLevel(log.DebugLevel)
+				logrus.SetLevel(logrus.DebugLevel)
 			}
 
 			if gelfAddress != "" {
@@ -58,11 +100,11 @@ func NewRootCommand(app interface{}) *cobra.Command {
 					"commit-sha": BuildHash,
 				}
 				hook := graylog.NewGraylogHook(gelfAddress, labels)
-				hook.Level = log.DebugLevel
-				log.AddHook(hook)
+				hook.Level = logrus.DebugLevel
+				logrus.AddHook(hook)
 			}
 
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Version": BuildVersion,
 				"Date":    BuildDate,
 				"Commit":  BuildHash,
@@ -70,7 +112,7 @@ func NewRootCommand(app interface{}) *cobra.Command {
 		},
 
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			log.Infof("%s stopped", BuildName)
+			logrus.Infof("%s stopped", BuildName)
 		},
 	}
 
