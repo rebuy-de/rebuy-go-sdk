@@ -42,6 +42,54 @@ func NewRootCommand(app interface{}) *cobra.Command {
 		verbose     bool
 	)
 
+	cmd := NewCommand(app)
+	cmd.Use = BuildName
+
+	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		logrus.SetLevel(logrus.InfoLevel)
+
+		if verbose {
+			logrus.SetLevel(logrus.DebugLevel)
+		}
+
+		if gelfAddress != "" {
+			labels := map[string]interface{}{
+				"facility":   BuildName,
+				"version":    BuildVersion,
+				"commit-sha": BuildHash,
+			}
+			hook := graylog.NewGraylogHook(gelfAddress, labels)
+			hook.Level = logrus.DebugLevel
+			logrus.AddHook(hook)
+		}
+
+		logrus.WithFields(logrus.Fields{
+			"Version": BuildVersion,
+			"Date":    BuildDate,
+			"Commit":  BuildHash,
+		}).Infof("%s started", BuildName)
+	}
+
+	cmd.PersistentPostRun = func(cmd *cobra.Command, args []string) {
+		logrus.Infof("%s stopped", BuildName)
+	}
+
+	cmd.PersistentFlags().BoolVarP(
+		&verbose, "verbose", "v", false,
+		`Show debug logs.`)
+	cmd.PersistentFlags().StringVar(
+		&gelfAddress, "gelf-address", "",
+		`Address to Graylog for logging (format: "ip:port").`)
+
+	cmd.AddCommand(NewVersionCommand())
+
+	return cmd
+}
+
+// NewCommand creates a Cobra command, which reflects our current best
+// practices. The provided app might implement ApplicationRunner and
+// ApplicationBinder.
+func NewCommand(app interface{}) *cobra.Command {
 	var run func(cmd *cobra.Command, args []string)
 
 	// Note: since ApplicationRunnerWithContext and ApplicationRunner require
@@ -60,52 +108,13 @@ func NewRootCommand(app interface{}) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use: BuildName,
 		Run: run,
-
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			logrus.SetLevel(logrus.InfoLevel)
-
-			if verbose {
-				logrus.SetLevel(logrus.DebugLevel)
-			}
-
-			if gelfAddress != "" {
-				labels := map[string]interface{}{
-					"facility":   BuildName,
-					"version":    BuildVersion,
-					"commit-sha": BuildHash,
-				}
-				hook := graylog.NewGraylogHook(gelfAddress, labels)
-				hook.Level = logrus.DebugLevel
-				logrus.AddHook(hook)
-			}
-
-			logrus.WithFields(logrus.Fields{
-				"Version": BuildVersion,
-				"Date":    BuildDate,
-				"Commit":  BuildHash,
-			}).Infof("%s started", BuildName)
-		},
-
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			logrus.Infof("%s stopped", BuildName)
-		},
 	}
-
-	cmd.PersistentFlags().BoolVarP(
-		&verbose, "verbose", "v", false,
-		`Show debug logs.`)
-	cmd.PersistentFlags().StringVar(
-		&gelfAddress, "gelf-address", "",
-		`Address to Graylog for logging (format: "ip:port").`)
 
 	binder, ok := app.(ApplicationBinder)
 	if ok {
 		binder.Bind(cmd)
 	}
-
-	cmd.AddCommand(NewVersionCommand())
 
 	return cmd
 }
