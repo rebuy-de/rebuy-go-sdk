@@ -3,6 +3,7 @@ package cmdutil
 import (
 	"fmt"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -36,4 +37,24 @@ func NewVersionCommand() *cobra.Command {
 	}
 
 	return cmd
+}
+
+func WithVersionCommand() Option {
+	return func(cmd *cobra.Command) error {
+		cmd.AddCommand(NewVersionCommand())
+		return nil
+	}
+}
+
+func WithVersionLog(level logrus.Level) Option {
+	return func(cmd *cobra.Command) error {
+		cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+			logrus.WithFields(logrus.Fields{
+				"Version": BuildVersion,
+				"Date":    BuildDate,
+				"Commit":  BuildHash,
+			}).Logf(level, "%s started", BuildName)
+		}
+		return nil
+	}
 }
