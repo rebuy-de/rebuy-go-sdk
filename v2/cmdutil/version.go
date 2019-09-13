@@ -10,12 +10,13 @@ import (
 // The Build* variables are used by NewVersionCommand and NewRootCommand. They
 // should be overwritten on build time by using ldflags.
 var (
-	BuildVersion     = "unknown"
-	BuildPackage     = "unknown"
-	BuildDate        = "unknown"
-	BuildHash        = "unknown"
-	BuildEnvironment = "unknown"
-	BuildName        = "unknown"
+	Name       = "unknown"
+	Version    = "unknown"
+	GoModule   = "unknown"
+	GoPackage  = "unknown"
+	BuildDate  = "unknown"
+	CommitDate = "unknown"
+	CommitHash = "unknown"
 )
 
 // NewVersionCommand creates a Cobra command, which prints the version
@@ -27,12 +28,13 @@ func NewVersionCommand() *cobra.Command {
 		PersistentPreRun:  func(cmd *cobra.Command, args []string) {},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("name:        %s\n", BuildName)
-			fmt.Printf("package:     %s\n", BuildPackage)
-			fmt.Printf("version:     %s\n", BuildVersion)
-			fmt.Printf("build date:  %s\n", BuildDate)
-			fmt.Printf("scm hash:    %s\n", BuildHash)
-			fmt.Printf("environment: %s\n", BuildEnvironment)
+			fmt.Printf("Name:       %s\n", Name)
+			fmt.Printf("Version:    %s\n", Version)
+			fmt.Printf("GoModule:   %s\n", GoModule)
+			fmt.Printf("GoPackage:  %s\n", GoPackage)
+			fmt.Printf("BuildDate:  %s\n", BuildDate)
+			fmt.Printf("CommitDate: %s\n", CommitDate)
+			fmt.Printf("CommitHash: %s\n", CommitHash)
 		},
 	}
 
@@ -50,10 +52,10 @@ func WithVersionLog(level logrus.Level) Option {
 	return func(cmd *cobra.Command) error {
 		cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 			logrus.WithFields(logrus.Fields{
-				"Version": BuildVersion,
-				"Date":    BuildDate,
-				"Commit":  BuildHash,
-			}).Logf(level, "%s started", BuildName)
+				"Version": Version,
+				"Date":    CommitHash,
+				"Commit":  CommitHash,
+			}).Logf(level, "%s started", Name)
 		}
 		return nil
 	}

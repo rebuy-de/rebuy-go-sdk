@@ -60,9 +60,9 @@ func WithSubCommand(sub *cobra.Command) Option {
 	}
 }
 
-func RunFunc(run func(cmd *cobra.Command, args []string)) Option {
+func WithRun(run RunFuncWithContext) Option {
 	return func(cmd *cobra.Command) error {
-		cmd.Run = run
+		cmd.Run = wrapRootConext(run)
 		return nil
 	}
 }
@@ -106,7 +106,7 @@ func (o *LoggerOption) Bind(cmd *cobra.Command) error {
 			hook := graylog.NewGraylogHook(flagGELFAddress,
 				map[string]interface{}{
 					"uuid":     uuid.New(),
-					"facility": BuildName,
+					"facility": Name,
 				})
 			hook.Level = logrus.DebugLevel
 			logrus.AddHook(hook)
