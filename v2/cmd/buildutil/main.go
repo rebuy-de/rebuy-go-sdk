@@ -27,7 +27,8 @@ func NewRootCommand() *cobra.Command {
 			cmdutil.WithRun(app.RunVendor),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
-			"build", "Build binary",
+			"build", "Build binaries",
+			app.BindBuildFlags,
 			cmdutil.WithRun(app.RunBuild),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(

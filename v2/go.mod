@@ -9,6 +9,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.2 // indirect
+	golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/gemnasium/logrus-graylog-hook.v2 v2.0.7
 	gopkg.in/yaml.v2 v2.2.1

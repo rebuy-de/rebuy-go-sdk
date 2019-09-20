@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/tools/go/packages"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v2/cmdutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v2/executil"
@@ -26,15 +26,21 @@ func call(ctx context.Context, command string, args ...string) {
 	cmdutil.Must(executil.Run(ctx, c))
 }
 
+type SystemInfo struct {
+	OS   string
+	Arch string
+	Ext  string
+}
+
+func (i SystemInfo) FileSufix() string {
+	return fmt.Sprintf("%s-%s%s", i.OS, i.Arch, i.Ext)
+}
+
 type BuildInfo struct {
 	Module    string
 	BuildDate string
 
-	Go struct {
-		OS   string
-		Arch string
-		Ext  string
-	}
+	System SystemInfo
 
 	Commit struct {
 		Hash    string
@@ -44,13 +50,23 @@ type BuildInfo struct {
 }
 
 type TargetInfo struct {
-	Target  string
 	Package string
 	Name    string
+	System  SystemInfo
 }
 
 type App struct {
-	Info BuildInfo
+	Info       BuildInfo
+	Parameters struct {
+		TargetSystems []string
+	}
+}
+
+func (app *App) BindBuildFlags(cmd *cobra.Command) error {
+	cmd.PersistentFlags().StringSliceVarP(
+		&app.Parameters.TargetSystems, "cross-compile", "x", []string{},
+		"Targets for cross compilation (eg linux/amd64). Can be used multiple times.")
+	return nil
 }
 
 func (app *App) collectBuildInformation(ctx context.Context) {
@@ -62,33 +78,16 @@ func (app *App) collectBuildInformation(ctx context.Context) {
 
 	app.Info.BuildDate = time.Now().Format(time.RFC3339)
 	app.Info.Module = e.GetString("go", "list", "-m")
-	app.Info.Go.OS = e.GetString("go", "env", "GOOS")
-	app.Info.Go.Arch = e.GetString("go", "env", "GOARCH")
-	app.Info.Go.Ext = e.GetString("go", "env", "GOEXE")
+	app.Info.System.OS = e.GetString("go", "env", "GOOS")
+	app.Info.System.Arch = e.GetString("go", "env", "GOARCH")
+	app.Info.System.Ext = e.GetString("go", "env", "GOEXE")
 	app.Info.Commit.Version = e.GetString("git", "describe", "--always", "--dirty", "--tags")
 	app.Info.Commit.Date = time.Unix(e.GetInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
 	app.Info.Commit.Hash = e.GetString("git", "rev-parse", "HEAD")
 
 	cmdutil.Must(e.Err())
 
-	b, err := json.MarshalIndent(app.Info, "", "    ")
-	cmdutil.Must(err)
-	fmt.Println(string(b))
-}
-
-func (app *App) collectTargetInformation(ctx context.Context, target string) TargetInfo {
-	logrus.WithField("target", target).Info("Collecting target information")
-
-	info := TargetInfo{}
-	info.Target = target
-	info.Package = path.Join(app.Info.Module, target)
-	info.Name = path.Base(info.Package)
-
-	b, err := json.MarshalIndent(info, "", "    ")
-	cmdutil.Must(err)
-	fmt.Println(string(b))
-
-	return info
+	dumpJSON(app.Info)
 }
 
 func (app *App) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
@@ -106,24 +105,71 @@ func (app *App) RunVendor(ctx context.Context, cmd *cobra.Command, args []string
 }
 
 func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {
-	targets := args
-	if len(targets) == 0 {
-		targets = append(targets, ".")
-	}
-
 	app.collectBuildInformation(ctx)
 
+	if len(args) == 0 {
+		logrus.Info("No targets specified. Discovering all packages.")
+		args = []string{"./..."}
+	}
+
+	targetSystems := []SystemInfo{}
+	for _, target := range app.Parameters.TargetSystems {
+		parts := strings.Split(target, "/")
+		if len(parts) != 2 {
+			logrus.Errorf("Invalid format for cross compiling target '%s'.", target)
+			cmdutil.Exit(1)
+		}
+
+		info := SystemInfo{}
+		info.OS = parts[0]
+		info.Arch = parts[1]
+		if info.OS == "windows" {
+			info.Ext = ".exe"
+		}
+
+		targetSystems = append(targetSystems, info)
+	}
+
+	if len(targetSystems) == 0 {
+		logrus.Info("No cross compiling targets specified. Using local machine.")
+		targetSystems = append(targetSystems, app.Info.System)
+	}
+
+	targets := []TargetInfo{}
+	for _, arg := range args {
+		pkgs, err := packages.Load(nil, arg)
+		cmdutil.Must(err)
+
+		for _, pkg := range pkgs {
+			if pkg.Name != "main" {
+				continue
+			}
+			logrus.Infof("Found Package %s", pkg.PkgPath)
+
+			for _, targetSystem := range targetSystems {
+				info := TargetInfo{
+					Package: pkg.PkgPath,
+					Name:    path.Base(pkg.PkgPath),
+					System:  targetSystem,
+				}
+
+				targets = append(targets, info)
+			}
+		}
+	}
+
 	for _, target := range targets {
-		info := app.collectTargetInformation(ctx, target)
+		logrus.Infof("Building %s", target.Package)
+		dumpJSON(target)
 
 		ldData := []struct {
 			name  string
 			value string
 		}{
-			{name: "Name", value: info.Name},
+			{name: "Name", value: target.Name},
 			{name: "Version", value: app.Info.Commit.Version},
 			{name: "GoModule", value: app.Info.Module},
-			{name: "GoPackage", value: info.Package},
+			{name: "GoPackage", value: target.Package},
 			{name: "BuildDate", value: app.Info.BuildDate},
 			{name: "CommitDate", value: app.Info.Commit.Date},
 			{name: "CommitHash", value: app.Info.Commit.Hash},
@@ -137,17 +183,26 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 			))
 		}
 
-		outfile := fmt.Sprintf("%s-%s-%s-%s%s",
-			info.Name, app.Info.Commit.Version,
-			app.Info.Go.OS, app.Info.Go.Arch, app.Info.Go.Ext)
-		link := path.Join("dist", info.Name)
+		outfile := fmt.Sprintf("%s-%s-%s",
+			target.Name, app.Info.Commit.Version,
+			target.System.FileSufix())
+		link := path.Join("dist", target.Name)
+		linkCC := path.Join("dist", fmt.Sprintf("%s-%s",
+			target.Name, target.System.FileSufix()))
 
-		os.Remove(link)
+		os.Remove(linkCC)
+
+		os.Setenv("GOOS", target.System.OS)
+		os.Setenv("GOARCH", target.System.Arch)
 		call(ctx, "go", "build",
 			"-o", path.Join("dist", outfile),
 			"-ldflags", strings.Join(ldFlags, " "),
-			target)
+			target.Package)
 
-		cmdutil.Must(os.Symlink(outfile, link))
+		cmdutil.Must(os.Symlink(outfile, linkCC))
+		if target.System.OS == app.Info.System.OS && target.System.Arch == app.Info.System.Arch {
+			os.Remove(link)
+			cmdutil.Must(os.Symlink(outfile, link))
+		}
 	}
 }
