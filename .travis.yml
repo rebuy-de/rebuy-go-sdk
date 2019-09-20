@@ -7,15 +7,7 @@ go_import_path: github.com/rebuy-de/rebuy-go-sdk
 
 before_install:
 - cd v2
-- GOFILES=$(find . -iname '*.go' -type f | grep -v /vendor/)
-- GOPKGS=$(go list ./...)
 - go get golang.org/x/lint/golint
 
-install:
-- go mod vendor
-
 script:
-- gofmt -l $GOFILES
-- go build $GOPKGS
-- go test -v $GOPKGS
-- golint -set_exit_status $GOPKGS
+- ./buildutilw build -x linux/amd64 -x darwin/amd64 -x windows/amd64
