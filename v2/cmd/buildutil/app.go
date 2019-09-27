@@ -24,7 +24,7 @@ import (
 )
 
 func call(ctx context.Context, command string, args ...string) {
-	logrus.Infof("$ %s %s", command, strings.Join(args, " "))
+	logrus.Debugf("$ %s %s", command, strings.Join(args, " "))
 	c := exec.Command(command, args...)
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
@@ -192,7 +192,7 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 	app.collectBuildInformation(ctx)
 
 	if len(args) == 0 {
-		logrus.Info("No targets specified. Discovering all packages.")
+		logrus.Debug("No targets specified. Discovering all packages.")
 		args = []string{"./..."}
 	}
 
@@ -228,7 +228,7 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 			if pkg.Name != "main" {
 				continue
 			}
-			logrus.Infof("Found Package %s", pkg.PkgPath)
+			logrus.Debugf("Found Package %s", pkg.PkgPath)
 
 			for _, targetSystem := range targetSystems {
 				info := TargetInfo{
@@ -284,6 +284,7 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 
 		dist := path.Join(app.Info.Go.Dir, "dist")
 
+		start := time.Now()
 		call(ctx, "go", "build",
 			"-o", path.Join(dist, target.Outfile.Name),
 			"-ldflags", strings.Join(ldFlags, " "),
@@ -294,6 +295,13 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 			os.Remove(fullLink)
 			cmdutil.Must(os.Symlink(target.Outfile.Name, fullLink))
 		}
+
+		stat, err := os.Stat(path.Join(dist, target.Outfile.Name))
+		cmdutil.Must(err)
+
+		logrus.Infof("Build finished in %v with a size of %s",
+			time.Since(start).Truncate(10*time.Millisecond),
+			byteFormat(stat.Size()))
 	}
 
 	if app.Parameters.S3Bucket != "" {
@@ -311,6 +319,7 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 			f, err := os.Open(path.Join(dist, target.Outfile.Name))
 			cmdutil.Must(err)
 
+			start := time.Now()
 			_, err = uploader.Upload(&s3manager.UploadInput{
 				Bucket: &app.Parameters.S3Bucket,
 				Key:    &target.Outfile.Name,
@@ -324,6 +333,9 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 				},
 			})
 			cmdutil.Must(err)
+
+			logrus.Infof("Upload finished in %v", time.Since(start).Truncate(10*time.Millisecond))
+
 		}
 	}
 }
