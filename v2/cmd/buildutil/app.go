@@ -7,9 +7,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/go/packages"
@@ -19,7 +21,7 @@ import (
 )
 
 func call(ctx context.Context, command string, args ...string) {
-	logrus.Infof("$ %s", strings.Join(args, " "))
+	logrus.Infof("$ %s %s", command, strings.Join(args, " "))
 	c := exec.Command(command, args...)
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
@@ -36,16 +38,67 @@ func (i SystemInfo) FileSufix() string {
 	return fmt.Sprintf("%s-%s%s", i.OS, i.Arch, i.Ext)
 }
 
-type BuildInfo struct {
-	Module    string
-	BuildDate string
+type Version struct {
+	Major, Minor, Patch int
+	PreRelease          string
+}
 
-	System SystemInfo
+func ParseVersion(s string) (Version, error) {
+	var (
+		v   Version
+		err error
+	)
+
+	s = strings.ReplaceAll(s, "-", ".")
+	p := strings.Split(s, ".")
+
+	if len(p) < 3 {
+		return Version{}, errors.Errorf("invalid version '%s': not enough parts", s)
+	}
+
+	v.Major, err = strconv.Atoi(strings.TrimLeft(p[0], "v"))
+	if err != nil {
+		return Version{}, errors.WithStack(err)
+	}
+
+	v.Minor, err = strconv.Atoi(p[1])
+	if err != nil {
+		return Version{}, errors.WithStack(err)
+	}
+
+	v.Patch, err = strconv.Atoi(p[2])
+	if err != nil {
+		return Version{}, errors.WithStack(err)
+	}
+
+	if len(p) > 3 {
+		v.PreRelease = strings.Join(p[3:], "-")
+	}
+
+	return v, nil
+}
+
+func (v Version) String() string {
+	s := fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
+	if v.PreRelease != "" {
+		s = fmt.Sprintf("%s-%s", s, v.PreRelease)
+	}
+	return s
+}
+
+type BuildInfo struct {
+	BuildDate string
+	System    SystemInfo
+	Version   Version
+
+	Go struct {
+		Module string
+		Dir    string
+	}
 
 	Commit struct {
 		Hash       string
 		Date       string
-		Version    string
 		DirtyFiles []string `json:",omitempty"`
 	}
 }
@@ -54,6 +107,11 @@ type TargetInfo struct {
 	Package string
 	Name    string
 	System  SystemInfo
+
+	Outfile struct {
+		Name    string
+		Aliases []string
+	}
 }
 
 type App struct {
@@ -71,6 +129,8 @@ func (app *App) BindBuildFlags(cmd *cobra.Command) error {
 }
 
 func (app *App) collectBuildInformation(ctx context.Context) {
+	var err error
+
 	os.Setenv("GOPATH", "")
 
 	logrus.Info("Collecting build information")
@@ -78,13 +138,18 @@ func (app *App) collectBuildInformation(ctx context.Context) {
 	e := NewExecutor(ctx)
 
 	app.Info.BuildDate = time.Now().Format(time.RFC3339)
-	app.Info.Module = e.GetString("go", "list", "-m")
+	app.Info.Go.Module = e.GetString("go", "list", "-m")
+	app.Info.Go.Dir = e.GetString("go", "list", "-m", "-f", "{{.Dir}}")
 	app.Info.System.OS = e.GetString("go", "env", "GOOS")
 	app.Info.System.Arch = e.GetString("go", "env", "GOARCH")
 	app.Info.System.Ext = e.GetString("go", "env", "GOEXE")
-	app.Info.Commit.Version = e.GetString("git", "describe", "--always", "--dirty", "--tags")
 	app.Info.Commit.Date = time.Unix(e.GetInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
 	app.Info.Commit.Hash = e.GetString("git", "rev-parse", "HEAD")
+
+	app.Info.Version, err = ParseVersion(e.GetString("git", "describe", "--always", "--dirty", "--tags"))
+	if err != nil {
+		logrus.WithError(err).Error("Failed to parse version")
+	}
 
 	status := strings.TrimSpace(e.GetString("git", "status", "-s"))
 	if status != "" {
@@ -163,6 +228,18 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 					System:  targetSystem,
 				}
 
+				info.Outfile.Name = fmt.Sprintf("%s-%s-%s",
+					info.Name, app.Info.Version.String(),
+					info.System.FileSufix())
+
+				info.Outfile.Aliases = []string{
+					fmt.Sprintf("%s-%s", info.Name, info.System.FileSufix()),
+				}
+
+				if info.System.OS == app.Info.System.OS && info.System.Arch == app.Info.System.Arch {
+					info.Outfile.Aliases = append(info.Outfile.Aliases, info.Name)
+				}
+
 				targets = append(targets, info)
 			}
 		}
@@ -177,8 +254,8 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 			value string
 		}{
 			{name: "Name", value: target.Name},
-			{name: "Version", value: app.Info.Commit.Version},
-			{name: "GoModule", value: app.Info.Module},
+			{name: "Version", value: app.Info.Version.String()},
+			{name: "GoModule", value: app.Info.Go.Module},
 			{name: "GoPackage", value: target.Package},
 			{name: "BuildDate", value: app.Info.BuildDate},
 			{name: "CommitDate", value: app.Info.Commit.Date},
@@ -193,26 +270,20 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 			))
 		}
 
-		outfile := fmt.Sprintf("%s-%s-%s",
-			target.Name, app.Info.Commit.Version,
-			target.System.FileSufix())
-		link := path.Join("dist", target.Name)
-		linkCC := path.Join("dist", fmt.Sprintf("%s-%s",
-			target.Name, target.System.FileSufix()))
-
-		os.Remove(linkCC)
-
 		os.Setenv("GOOS", target.System.OS)
 		os.Setenv("GOARCH", target.System.Arch)
+
+		dist := path.Join(app.Info.Go.Dir, "dist")
+
 		call(ctx, "go", "build",
-			"-o", path.Join("dist", outfile),
+			"-o", path.Join(dist, target.Outfile.Name),
 			"-ldflags", strings.Join(ldFlags, " "),
 			target.Package)
 
-		cmdutil.Must(os.Symlink(outfile, linkCC))
-		if target.System.OS == app.Info.System.OS && target.System.Arch == app.Info.System.Arch {
-			os.Remove(link)
-			cmdutil.Must(os.Symlink(outfile, link))
+		for _, link := range target.Outfile.Aliases {
+			fullLink := path.Join(dist, link)
+			os.Remove(fullLink)
+			cmdutil.Must(os.Symlink(target.Outfile.Name, fullLink))
 		}
 	}
 }
