@@ -22,14 +22,20 @@ func NewRootCommand() *cobra.Command {
 		cmdutil.WithVersionCommand(),
 		cmdutil.WithVersionLog(logrus.DebugLevel),
 
+		app.Bind,
+		cmdutil.WithRun(app.RunAll),
+
 		cmdutil.WithSubCommand(cmdutil.New(
 			"vendor", "Update vendor directory",
 			cmdutil.WithRun(app.RunVendor),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
 			"build", "Build binaries",
-			app.BindBuildFlags,
 			cmdutil.WithRun(app.RunBuild),
+		)),
+		cmdutil.WithSubCommand(cmdutil.New(
+			"upload", "Upload artifacts to S3",
+			cmdutil.WithRun(app.RunUpload),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
 			"clean", "Clean workspace",

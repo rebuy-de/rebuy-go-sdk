@@ -37,7 +37,7 @@ type App struct {
 	}
 }
 
-func (app *App) BindBuildFlags(cmd *cobra.Command) error {
+func (app *App) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringSliceVarP(
 		&app.Parameters.TargetSystems, "cross-compile", "x", []string{},
 		"Targets for cross compilation (eg linux/amd64). Can be used multiple times.")
@@ -47,6 +47,11 @@ func (app *App) BindBuildFlags(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringVar(
 		&app.Parameters.S3Bucket, "s3-bucket", "",
 		"S3 Bucket to upload compiled releases.")
+
+	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		app.collectBuildInformation(context.Background())
+	}
+
 	return nil
 }
 
@@ -65,6 +70,12 @@ func (app *App) collectBuildInformation(ctx context.Context) {
 	app.Info = info
 }
 
+func (app *App) RunAll(ctx context.Context, cmd *cobra.Command, args []string) {
+	app.RunVendor(ctx, cmd, args)
+	app.RunBuild(ctx, cmd, args)
+	app.RunUpload(ctx, cmd, args)
+}
+
 func (app *App) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
 	files, err := filepath.Glob("dist/*")
 	cmdutil.Must(err)
@@ -80,8 +91,6 @@ func (app *App) RunVendor(ctx context.Context, cmd *cobra.Command, args []string
 }
 
 func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {
-	app.collectBuildInformation(ctx)
-
 	for _, target := range app.Info.Targets {
 		logrus.Infof("Building %s for %s", target.Package, target.System.Name())
 
@@ -131,39 +140,43 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 			time.Since(start).Truncate(10*time.Millisecond),
 			byteFormat(stat.Size()))
 	}
+}
 
-	if app.Parameters.S3Bucket != "" {
-		sess, err := session.NewSessionWithOptions(session.Options{
-			SharedConfigState: session.SharedConfigEnable,
+func (app *App) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
+	if app.Parameters.S3Bucket == "" {
+		logrus.Warn("No S3 Bucket specified. Skipping upload.")
+		return
+	}
+
+	sess, err := session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	})
+	cmdutil.Must(err)
+
+	uploader := s3manager.NewUploader(sess)
+	dist := path.Join(app.Info.Go.Dir, "dist")
+
+	for _, target := range app.Info.Targets {
+		logrus.Infof("Uploading %s to s3://%s/", target.Outfile.Name, app.Parameters.S3Bucket)
+
+		f, err := os.Open(path.Join(dist, target.Outfile.Name))
+		cmdutil.Must(err)
+
+		start := time.Now()
+		_, err = uploader.Upload(&s3manager.UploadInput{
+			Bucket: &app.Parameters.S3Bucket,
+			Key:    &target.Outfile.Name,
+			Body:   f,
+
+			Metadata: map[string]*string{
+				"GoModule":  aws.String(app.Info.Go.Module),
+				"GoPackage": aws.String(target.Package),
+				"Branch":    aws.String(app.Info.Commit.Branch),
+				"System":    aws.String(target.System.Name()),
+			},
 		})
 		cmdutil.Must(err)
 
-		uploader := s3manager.NewUploader(sess)
-		dist := path.Join(app.Info.Go.Dir, "dist")
-
-		for _, target := range app.Info.Targets {
-			logrus.Infof("Uploading %s to s3://%s/", target.Outfile.Name, app.Parameters.S3Bucket)
-
-			f, err := os.Open(path.Join(dist, target.Outfile.Name))
-			cmdutil.Must(err)
-
-			start := time.Now()
-			_, err = uploader.Upload(&s3manager.UploadInput{
-				Bucket: &app.Parameters.S3Bucket,
-				Key:    &target.Outfile.Name,
-				Body:   f,
-
-				Metadata: map[string]*string{
-					"GoModule":  aws.String(app.Info.Go.Module),
-					"GoPackage": aws.String(target.Package),
-					"Branch":    aws.String(app.Info.Commit.Branch),
-					"System":    aws.String(target.System.Name()),
-				},
-			})
-			cmdutil.Must(err)
-
-			logrus.Infof("Upload finished in %v", time.Since(start).Truncate(10*time.Millisecond))
-
-		}
+		logrus.Infof("Upload finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 	}
 }
