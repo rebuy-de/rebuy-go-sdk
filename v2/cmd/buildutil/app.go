@@ -281,13 +281,14 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 
 		os.Setenv("GOOS", target.System.OS)
 		os.Setenv("GOARCH", target.System.Arch)
+		os.Setenv("CGO_ENABLED", "0")
 
 		dist := path.Join(app.Info.Go.Dir, "dist")
 
 		start := time.Now()
 		call(ctx, "go", "build",
 			"-o", path.Join(dist, target.Outfile.Name),
-			"-ldflags", strings.Join(ldFlags, " "),
+			"-ldflags", "-s -w "+strings.Join(ldFlags, " "),
 			target.Package)
 
 		for _, link := range target.Outfile.Aliases {
