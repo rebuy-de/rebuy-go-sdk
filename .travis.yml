@@ -10,7 +10,7 @@ install:
 - cd v2
 
 script:
-- ./buildutilw build -v -x linux/amd64 -x darwin/amd64 -x windows/amd64
+- ./buildutilw build -v -x linux/amd64 -x darwin/amd64
 
 cache:
   directories:

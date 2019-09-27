@@ -4,9 +4,13 @@ go 1.13
 
 require (
 	github.com/aws/aws-sdk-go v1.25.0
+	github.com/fatih/color v1.7.0 // indirect
 	github.com/google/uuid v1.0.0
+	github.com/hokaccha/go-prettyjson v0.0.0-20190818114111-108c894c2c0e // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/mattn/go-colorable v0.1.2 // indirect
+	github.com/mattn/go-isatty v0.0.9 // indirect
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sirupsen/logrus v1.4.2

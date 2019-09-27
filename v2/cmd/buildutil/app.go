@@ -7,17 +7,14 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/tools/go/packages"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v2/cmdutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v2/executil"
@@ -31,98 +28,12 @@ func call(ctx context.Context, command string, args ...string) {
 	cmdutil.Must(executil.Run(ctx, c))
 }
 
-type Version struct {
-	Major, Minor, Patch int
-	PreRelease          string
-}
-
-func ParseVersion(s string) (Version, error) {
-	var (
-		v   Version
-		err error
-	)
-
-	s = strings.ReplaceAll(s, "-", ".")
-	p := strings.Split(s, ".")
-
-	if len(p) < 3 {
-		return Version{}, errors.Errorf("invalid version '%s': not enough parts", s)
-	}
-
-	v.Major, err = strconv.Atoi(strings.TrimLeft(p[0], "v"))
-	if err != nil {
-		return Version{}, errors.WithStack(err)
-	}
-
-	v.Minor, err = strconv.Atoi(p[1])
-	if err != nil {
-		return Version{}, errors.WithStack(err)
-	}
-
-	v.Patch, err = strconv.Atoi(p[2])
-	if err != nil {
-		return Version{}, errors.WithStack(err)
-	}
-
-	if len(p) > 3 {
-		v.PreRelease = strings.Join(p[3:], "-")
-	}
-
-	return v, nil
-}
-
-func (v Version) String() string {
-	s := fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
-	if v.PreRelease != "" {
-		s = fmt.Sprintf("%s-%s", s, v.PreRelease)
-	}
-	return s
-}
-
-type SystemInfo struct {
-	OS   string
-	Arch string
-	Ext  string `json:",omitempty"`
-}
-
-func (i SystemInfo) FileSufix() string {
-	return fmt.Sprintf("%s-%s%s", i.OS, i.Arch, i.Ext)
-}
-
-type BuildInfo struct {
-	BuildDate string
-	System    SystemInfo
-	Version   Version
-
-	Go struct {
-		Module string
-		Dir    string
-	}
-
-	Commit struct {
-		Hash       string
-		Branch     string
-		Date       string
-		DirtyFiles []string `json:",omitempty"`
-	}
-}
-
-type TargetInfo struct {
-	Package string
-	Name    string
-	System  SystemInfo
-
-	Outfile struct {
-		Name    string
-		Aliases []string
-	}
-}
-
 type App struct {
 	Info       BuildInfo
 	Parameters struct {
-		TargetSystems []string
-		S3Bucket      string
+		TargetSystems  []string
+		TargetPackages []string
+		S3Bucket       string
 	}
 }
 
@@ -130,6 +41,9 @@ func (app *App) BindBuildFlags(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringSliceVarP(
 		&app.Parameters.TargetSystems, "cross-compile", "x", []string{},
 		"Targets for cross compilation (eg linux/amd64). Can be used multiple times.")
+	cmd.PersistentFlags().StringSliceVarP(
+		&app.Parameters.TargetSystems, "package", "p", []string{},
+		"Packages to build.")
 	cmd.PersistentFlags().StringVar(
 		&app.Parameters.S3Bucket, "s3-bucket", "",
 		"S3 Bucket to upload compiled releases.")
@@ -137,41 +51,18 @@ func (app *App) BindBuildFlags(cmd *cobra.Command) error {
 }
 
 func (app *App) collectBuildInformation(ctx context.Context) {
-	var err error
+	info, err := CollectBuildInformation(ctx,
+		app.Parameters.TargetPackages,
+		app.Parameters.TargetSystems,
+	)
+	cmdutil.Must(err)
 
-	os.Setenv("GOPATH", "")
-
-	logrus.Info("Collecting build information")
-
-	e := NewExecutor(ctx)
-
-	app.Info.BuildDate = time.Now().Format(time.RFC3339)
-	app.Info.Go.Module = e.GetString("go", "list", "-m")
-	app.Info.Go.Dir = e.GetString("go", "list", "-m", "-f", "{{.Dir}}")
-	app.Info.System.OS = e.GetString("go", "env", "GOOS")
-	app.Info.System.Arch = e.GetString("go", "env", "GOARCH")
-	app.Info.System.Ext = e.GetString("go", "env", "GOEXE")
-	app.Info.Commit.Date = time.Unix(e.GetInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
-	app.Info.Commit.Hash = e.GetString("git", "rev-parse", "HEAD")
-	app.Info.Commit.Branch = e.GetString("git", "rev-parse", "--abbrev-ref", "HEAD")
-
-	app.Info.Version, err = ParseVersion(e.GetString("git", "describe", "--always", "--dirty", "--tags"))
-	if err != nil {
-		logrus.WithError(err).Error("Failed to parse version")
-	}
-
-	status := strings.TrimSpace(e.GetString("git", "status", "-s"))
-	if status != "" {
-		app.Info.Commit.DirtyFiles = strings.Split(status, "\n")
-	}
-
-	cmdutil.Must(e.Err())
-
-	dumpJSON(app.Info)
-
-	if len(app.Info.Commit.DirtyFiles) > 0 {
+	dumpJSON(info)
+	if len(info.Commit.DirtyFiles) > 0 {
 		logrus.Warn("The repository contains uncommitted files!")
 	}
+
+	app.Info = info
 }
 
 func (app *App) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
@@ -191,72 +82,8 @@ func (app *App) RunVendor(ctx context.Context, cmd *cobra.Command, args []string
 func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {
 	app.collectBuildInformation(ctx)
 
-	if len(args) == 0 {
-		logrus.Debug("No targets specified. Discovering all packages.")
-		args = []string{"./..."}
-	}
-
-	targetSystems := []SystemInfo{}
-	for _, target := range app.Parameters.TargetSystems {
-		parts := strings.Split(target, "/")
-		if len(parts) != 2 {
-			logrus.Errorf("Invalid format for cross compiling target '%s'.", target)
-			cmdutil.Exit(1)
-		}
-
-		info := SystemInfo{}
-		info.OS = parts[0]
-		info.Arch = parts[1]
-		if info.OS == "windows" {
-			info.Ext = ".exe"
-		}
-
-		targetSystems = append(targetSystems, info)
-	}
-
-	if len(targetSystems) == 0 {
-		logrus.Info("No cross compiling targets specified. Using local machine.")
-		targetSystems = append(targetSystems, app.Info.System)
-	}
-
-	targets := []TargetInfo{}
-	for _, arg := range args {
-		pkgs, err := packages.Load(nil, arg)
-		cmdutil.Must(err)
-
-		for _, pkg := range pkgs {
-			if pkg.Name != "main" {
-				continue
-			}
-			logrus.Debugf("Found Package %s", pkg.PkgPath)
-
-			for _, targetSystem := range targetSystems {
-				info := TargetInfo{
-					Package: pkg.PkgPath,
-					Name:    path.Base(pkg.PkgPath),
-					System:  targetSystem,
-				}
-
-				info.Outfile.Name = fmt.Sprintf("%s-%s-%s",
-					info.Name, app.Info.Version.String(),
-					info.System.FileSufix())
-
-				info.Outfile.Aliases = []string{
-					fmt.Sprintf("%s-%s", info.Name, info.System.FileSufix()),
-				}
-
-				if info.System.OS == app.Info.System.OS && info.System.Arch == app.Info.System.Arch {
-					info.Outfile.Aliases = append(info.Outfile.Aliases, info.Name)
-				}
-
-				targets = append(targets, info)
-			}
-		}
-	}
-
-	for _, target := range targets {
-		logrus.Infof("Building %s", target.Package)
-		dumpJSON(target)
+	for _, target := range app.Info.Targets {
+		logrus.Infof("Building %s for %s", target.Package, target.System.Name())
 
 		ldData := []struct {
 			name  string
@@ -314,7 +141,7 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 		uploader := s3manager.NewUploader(sess)
 		dist := path.Join(app.Info.Go.Dir, "dist")
 
-		for _, target := range targets {
+		for _, target := range app.Info.Targets {
 			logrus.Infof("Uploading %s to s3://%s/", target.Outfile.Name, app.Parameters.S3Bucket)
 
 			f, err := os.Open(path.Join(dist, target.Outfile.Name))
@@ -330,7 +157,7 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 					"GoModule":  aws.String(app.Info.Go.Module),
 					"GoPackage": aws.String(target.Package),
 					"Branch":    aws.String(app.Info.Commit.Branch),
-					"System":    aws.String(fmt.Sprintf("%s/%s", target.System.OS, target.System.Arch)),
+					"System":    aws.String(target.System.Name()),
 				},
 			})
 			cmdutil.Must(err)
