@@ -11,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,16 +29,6 @@ func call(ctx context.Context, command string, args ...string) {
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
 	cmdutil.Must(executil.Run(ctx, c))
-}
-
-type SystemInfo struct {
-	OS   string
-	Arch string
-	Ext  string
-}
-
-func (i SystemInfo) FileSufix() string {
-	return fmt.Sprintf("%s-%s%s", i.OS, i.Arch, i.Ext)
 }
 
 type Version struct {
@@ -86,6 +79,16 @@ func (v Version) String() string {
 	return s
 }
 
+type SystemInfo struct {
+	OS   string
+	Arch string
+	Ext  string `json:",omitempty"`
+}
+
+func (i SystemInfo) FileSufix() string {
+	return fmt.Sprintf("%s-%s%s", i.OS, i.Arch, i.Ext)
+}
+
 type BuildInfo struct {
 	BuildDate string
 	System    SystemInfo
@@ -98,6 +101,7 @@ type BuildInfo struct {
 
 	Commit struct {
 		Hash       string
+		Branch     string
 		Date       string
 		DirtyFiles []string `json:",omitempty"`
 	}
@@ -118,6 +122,7 @@ type App struct {
 	Info       BuildInfo
 	Parameters struct {
 		TargetSystems []string
+		S3Bucket      string
 	}
 }
 
@@ -125,6 +130,9 @@ func (app *App) BindBuildFlags(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringSliceVarP(
 		&app.Parameters.TargetSystems, "cross-compile", "x", []string{},
 		"Targets for cross compilation (eg linux/amd64). Can be used multiple times.")
+	cmd.PersistentFlags().StringVar(
+		&app.Parameters.S3Bucket, "s3-bucket", "",
+		"S3 Bucket to upload compiled releases.")
 	return nil
 }
 
@@ -145,6 +153,7 @@ func (app *App) collectBuildInformation(ctx context.Context) {
 	app.Info.System.Ext = e.GetString("go", "env", "GOEXE")
 	app.Info.Commit.Date = time.Unix(e.GetInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
 	app.Info.Commit.Hash = e.GetString("git", "rev-parse", "HEAD")
+	app.Info.Commit.Branch = e.GetString("git", "rev-parse", "--abbrev-ref", "HEAD")
 
 	app.Info.Version, err = ParseVersion(e.GetString("git", "describe", "--always", "--dirty", "--tags"))
 	if err != nil {
@@ -284,6 +293,37 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 			fullLink := path.Join(dist, link)
 			os.Remove(fullLink)
 			cmdutil.Must(os.Symlink(target.Outfile.Name, fullLink))
+		}
+	}
+
+	if app.Parameters.S3Bucket != "" {
+		sess, err := session.NewSessionWithOptions(session.Options{
+			SharedConfigState: session.SharedConfigEnable,
+		})
+		cmdutil.Must(err)
+
+		uploader := s3manager.NewUploader(sess)
+		dist := path.Join(app.Info.Go.Dir, "dist")
+
+		for _, target := range targets {
+			logrus.Infof("Uploading %s to s3://%s/", target.Outfile.Name, app.Parameters.S3Bucket)
+
+			f, err := os.Open(path.Join(dist, target.Outfile.Name))
+			cmdutil.Must(err)
+
+			_, err = uploader.Upload(&s3manager.UploadInput{
+				Bucket: &app.Parameters.S3Bucket,
+				Key:    &target.Outfile.Name,
+				Body:   f,
+
+				Metadata: map[string]*string{
+					"GoModule":  aws.String(app.Info.Go.Module),
+					"GoPackage": aws.String(target.Package),
+					"Branch":    aws.String(app.Info.Commit.Branch),
+					"System":    aws.String(fmt.Sprintf("%s/%s", target.System.OS, target.System.Arch)),
+				},
+			})
+			cmdutil.Must(err)
 		}
 	}
 }

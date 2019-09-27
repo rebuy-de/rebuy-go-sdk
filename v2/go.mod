@@ -3,6 +3,7 @@ module github.com/rebuy-de/rebuy-go-sdk/v2
 go 1.13
 
 require (
+	github.com/aws/aws-sdk-go v1.25.0
 	github.com/google/uuid v1.0.0
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
