@@ -43,9 +43,10 @@ type BuildInfo struct {
 	System SystemInfo
 
 	Commit struct {
-		Hash    string
-		Date    string
-		Version string
+		Hash       string
+		Date       string
+		Version    string
+		DirtyFiles []string `json:",omitempty"`
 	}
 }
 
@@ -85,9 +86,18 @@ func (app *App) collectBuildInformation(ctx context.Context) {
 	app.Info.Commit.Date = time.Unix(e.GetInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
 	app.Info.Commit.Hash = e.GetString("git", "rev-parse", "HEAD")
 
+	status := strings.TrimSpace(e.GetString("git", "status", "-s"))
+	if status != "" {
+		app.Info.Commit.DirtyFiles = strings.Split(status, "\n")
+	}
+
 	cmdutil.Must(e.Err())
 
 	dumpJSON(app.Info)
+
+	if len(app.Info.Commit.DirtyFiles) > 0 {
+		logrus.Warn("The repository contains uncommitted files!")
+	}
 }
 
 func (app *App) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
