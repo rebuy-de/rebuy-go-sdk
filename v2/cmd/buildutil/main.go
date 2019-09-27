@@ -30,6 +30,22 @@ func NewRootCommand() *cobra.Command {
 			cmdutil.WithRun(app.RunVendor),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
+			"test", "Run unit tests",
+			cmdutil.WithRun(app.RunTest),
+			cmdutil.WithSubCommand(cmdutil.New(
+				"fmt", "Tests file formatting",
+				cmdutil.WithRun(app.RunTestFormat),
+			)),
+			cmdutil.WithSubCommand(cmdutil.New(
+				"vet", "Tests for suspicious constructs",
+				cmdutil.WithRun(app.RunTestVet),
+			)),
+			cmdutil.WithSubCommand(cmdutil.New(
+				"packages", "Tests Packages",
+				cmdutil.WithRun(app.RunTestPackages),
+			)),
+		)),
+		cmdutil.WithSubCommand(cmdutil.New(
 			"build", "Build binaries",
 			cmdutil.WithRun(app.RunBuild),
 		)),

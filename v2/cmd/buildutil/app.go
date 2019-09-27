@@ -72,6 +72,7 @@ func (app *App) collectBuildInformation(ctx context.Context) {
 
 func (app *App) RunAll(ctx context.Context, cmd *cobra.Command, args []string) {
 	app.RunVendor(ctx, cmd, args)
+	app.RunTest(ctx, cmd, args)
 	app.RunBuild(ctx, cmd, args)
 	app.RunUpload(ctx, cmd, args)
 }
@@ -88,6 +89,42 @@ func (app *App) RunClean(ctx context.Context, cmd *cobra.Command, args []string)
 
 func (app *App) RunVendor(ctx context.Context, cmd *cobra.Command, args []string) {
 	call(ctx, "go", "mod", "vendor")
+}
+
+func (app *App) RunTest(ctx context.Context, cmd *cobra.Command, args []string) {
+	app.RunTestFormat(ctx, cmd, args)
+	app.RunTestVet(ctx, cmd, args)
+	app.RunTestPackages(ctx, cmd, args)
+}
+
+func (app *App) RunTestFormat(ctx context.Context, cmd *cobra.Command, args []string) {
+	a := []string{"-s", "-l"}
+	a = append(a, app.Info.Test.Files...)
+
+	logrus.Info("Testing file formatting (gofmt)")
+	start := time.Now()
+	call(ctx, "gofmt", a...)
+	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
+}
+
+func (app *App) RunTestVet(ctx context.Context, cmd *cobra.Command, args []string) {
+	a := []string{"vet"}
+	a = append(a, app.Info.Test.Packages...)
+
+	logrus.Info("Testing suspicious constructs (go vet)")
+	start := time.Now()
+	call(ctx, "go", a...)
+	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
+}
+
+func (app *App) RunTestPackages(ctx context.Context, cmd *cobra.Command, args []string) {
+	a := []string{"test"}
+	a = append(a, app.Info.Test.Packages...)
+
+	logrus.Info("Testing packages")
+	start := time.Now()
+	call(ctx, "go", a...)
+	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
 func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {

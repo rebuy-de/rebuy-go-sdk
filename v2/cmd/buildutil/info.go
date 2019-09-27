@@ -94,6 +94,11 @@ type BuildInfo struct {
 		DirtyFiles []string `json:",omitempty"`
 	}
 
+	Test struct {
+		Packages []string
+		Files    []string
+	}
+
 	Targets []TargetInfo
 }
 
@@ -203,6 +208,17 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 				info.Targets = append(info.Targets, tinfo)
 			}
 		}
+	}
+
+	testPackages, err := packages.Load(nil, "./...")
+	cmdutil.Must(err)
+
+	info.Test.Packages = []string{}
+	info.Test.Files = []string{}
+
+	for _, pkg := range testPackages {
+		info.Test.Packages = append(info.Test.Packages, pkg.PkgPath)
+		info.Test.Files = append(info.Test.Files, pkg.GoFiles...)
 	}
 
 	return info, nil
