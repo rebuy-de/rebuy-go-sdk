@@ -1,5 +1,7 @@
 module github.com/rebuy-de/rebuy-go-sdk/v2
 
+go 1.13
+
 require (
 	github.com/google/uuid v1.0.0
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -15,5 +17,3 @@ require (
 	gopkg.in/yaml.v2 v2.2.1
 	k8s.io/client-go v0.0.0-20190620085101-78d2af792bab
 )
-
-go 1.13

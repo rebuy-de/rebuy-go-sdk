@@ -3,11 +3,17 @@ language: go
 go:
   - 1.x
 
-go_import_path: github.com/rebuy-de/rebuy-go-sdk
-
 before_install:
-- cd v2
 - go get golang.org/x/lint/golint
+
+install:
+- cd v2
 
 script:
 - ./buildutilw build -x linux/amd64 -x darwin/amd64 -x windows/amd64
+
+cache:
+  directories:
+  - $GOPATH/pkg
+  - $HOME/.cache/go-build
+  - v2/vendor
