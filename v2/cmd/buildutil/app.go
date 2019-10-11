@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -33,7 +34,7 @@ type App struct {
 	Parameters struct {
 		TargetSystems  []string
 		TargetPackages []string
-		S3Bucket       string
+		S3URL          string
 	}
 }
 
@@ -45,8 +46,8 @@ func (app *App) Bind(cmd *cobra.Command) error {
 		&app.Parameters.TargetSystems, "package", "p", []string{},
 		"Packages to build.")
 	cmd.PersistentFlags().StringVar(
-		&app.Parameters.S3Bucket, "s3-bucket", "",
-		"S3 Bucket to upload compiled releases.")
+		&app.Parameters.S3URL, "s3-url", "",
+		"S3 URL to upload compiled releases.")
 
 	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		app.collectBuildInformation(context.Background())
@@ -180,9 +181,16 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 }
 
 func (app *App) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
-	if app.Parameters.S3Bucket == "" {
+	if app.Parameters.S3URL == "" {
 		logrus.Warn("No S3 Bucket specified. Skipping upload.")
 		return
+	}
+
+	s3url, err := url.Parse(app.Parameters.S3URL)
+	cmdutil.Must(err)
+
+	if s3url.Scheme != "s3" && s3url.Scheme != "" {
+		cmdutil.Must(fmt.Errorf("Unknown scheme %s for the S3 URL", s3url.Scheme))
 	}
 
 	sess, err := session.NewSessionWithOptions(session.Options{
@@ -194,22 +202,23 @@ func (app *App) RunUpload(ctx context.Context, cmd *cobra.Command, args []string
 	dist := path.Join(app.Info.Go.Dir, "dist")
 
 	for _, target := range app.Info.Targets {
-		logrus.Infof("Uploading %s to s3://%s/", target.Outfile.Name, app.Parameters.S3Bucket)
+		logrus.Infof("Uploading %s to s3://%s%s", target.Outfile.Name, s3url.Host, s3url.Path)
 
 		f, err := os.Open(path.Join(dist, target.Outfile.Name))
 		cmdutil.Must(err)
 
 		start := time.Now()
 		_, err = uploader.Upload(&s3manager.UploadInput{
-			Bucket: &app.Parameters.S3Bucket,
-			Key:    &target.Outfile.Name,
+			Bucket: &s3url.Host,
+			Key:    aws.String(path.Join(s3url.Path, target.Outfile.Name)),
 			Body:   f,
 
 			Metadata: map[string]*string{
-				"GoModule":  aws.String(app.Info.Go.Module),
-				"GoPackage": aws.String(target.Package),
-				"Branch":    aws.String(app.Info.Commit.Branch),
-				"System":    aws.String(target.System.Name()),
+				"GoModule":    aws.String(app.Info.Go.Module),
+				"GoPackage":   aws.String(target.Package),
+				"Branch":      aws.String(app.Info.Commit.Branch),
+				"System":      aws.String(target.System.Name()),
+				"ReleaseKind": aws.String(app.Info.Version.Kind),
 			},
 		})
 		cmdutil.Must(err)

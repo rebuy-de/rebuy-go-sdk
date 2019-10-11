@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v2/cmdutil"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/tools/go/packages"
@@ -17,49 +17,93 @@ import (
 
 type Version struct {
 	Major, Minor, Patch int
-	PreRelease          string
+
+	Kind   string
+	Suffix string
 }
 
 func ParseVersion(s string) (Version, error) {
 	var (
 		v   Version
 		err error
+
+		reCore       = regexp.MustCompile(`^v?([0-9]+)\.([0-9]+)\.([0-9]+)([\-\+].+)?$`)
+		rePreRelease = regexp.MustCompile(`^\+(alpha|beta|rc)\.[0-9]+$`)
+		reDescribe   = regexp.MustCompile(`\-([0-9]+)-g?([0-9a-f]+)(-dirty)?$`)
 	)
 
-	s = strings.ReplaceAll(s, "-", ".")
-	p := strings.Split(s, ".")
-
-	if len(p) < 3 {
-		return Version{}, errors.Errorf("invalid version '%s': not enough parts", s)
+	matchGroup := reCore.FindStringSubmatch(s)
+	if matchGroup == nil {
+		return Version{Kind: "unknown", Suffix: s}, nil
 	}
 
-	v.Major, err = strconv.Atoi(strings.TrimLeft(p[0], "v"))
+	var (
+		mMajor  = matchGroup[1]
+		mMinor  = matchGroup[2]
+		mPatch  = matchGroup[3]
+		mSuffix = matchGroup[4]
+	)
+
+	v.Major, err = strconv.Atoi(mMajor)
 	if err != nil {
-		return Version{}, errors.WithStack(err)
+		// Should not happend because of the regex.
+		panic(err)
 	}
 
-	v.Minor, err = strconv.Atoi(p[1])
+	v.Minor, err = strconv.Atoi(mMinor)
 	if err != nil {
-		return Version{}, errors.WithStack(err)
+		// Should not happend because of the regex.
+		panic(err)
 	}
 
-	v.Patch, err = strconv.Atoi(p[2])
+	v.Patch, err = strconv.Atoi(mPatch)
 	if err != nil {
-		return Version{}, errors.WithStack(err)
+		// Should not happend because of the regex.
+		panic(err)
 	}
 
-	if len(p) > 3 {
-		v.PreRelease = strings.Join(p[3:], "-")
+	if mSuffix == "" {
+		v.Kind = "release"
+		return v, nil
 	}
 
+	if rePreRelease.MatchString(mSuffix) {
+		v.Kind = "prerelease"
+		v.Suffix = mSuffix[1:]
+		return v, nil
+	}
+
+	matchGroupDescribe := reDescribe.FindStringSubmatch(mSuffix)
+	if matchGroupDescribe != nil {
+		var (
+			mDistance = matchGroupDescribe[1]
+			mCommit   = matchGroupDescribe[2]
+			mDirty    = matchGroupDescribe[3]
+		)
+
+		v.Suffix = fmt.Sprintf("%s.%s", mDistance, mCommit)
+		v.Kind = "snapshot"
+		if mDirty != "" {
+			v.Kind = "dirty"
+		}
+
+		return v, nil
+	}
+
+	v.Suffix = "unknown"
 	return v, nil
 }
 
 func (v Version) String() string {
 	s := fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
-	if v.PreRelease != "" {
-		s = fmt.Sprintf("%s-%s", s, v.PreRelease)
+	if v.Suffix != "" {
+		if v.Kind != "prerelease" {
+			s = fmt.Sprintf("%s+%s.%s", s, v.Kind, v.Suffix)
+		} else {
+			s = fmt.Sprintf("%s+%s", s, v.Suffix)
+		}
 	}
+
 	return s
 }
 
