@@ -10,7 +10,9 @@ install:
 - cd v2
 
 script:
-- ./buildutilw -v -x linux/amd64 -x darwin/amd64
+- ./buildutilw -v
+    -x linux/amd64 -x darwin/amd64
+    --s3-url s3://rebuy-github-releases/rebuy-go-sdk
 
 cache:
   directories:

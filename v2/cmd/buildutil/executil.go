@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -37,6 +38,7 @@ func (e *Executor) GetString(command string, args ...string) string {
 	c := exec.Command(command, args...)
 	out := bytes.Buffer{}
 	c.Stdout = &out
+	c.Stderr = os.Stderr
 	e.err = executil.Run(e.ctx, c)
 	return strings.TrimSpace(out.String())
 }

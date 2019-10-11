@@ -207,19 +207,19 @@ func (app *App) RunUpload(ctx context.Context, cmd *cobra.Command, args []string
 		f, err := os.Open(path.Join(dist, target.Outfile.Name))
 		cmdutil.Must(err)
 
+		tags := url.Values{}
+		tags.Set("GoModule", app.Info.Go.Module)
+		tags.Set("GoPackage", target.Package)
+		tags.Set("Branch", app.Info.Commit.Branch)
+		tags.Set("System", target.System.Name())
+		tags.Set("ReleaseKind", app.Info.Version.Kind)
+
 		start := time.Now()
 		_, err = uploader.Upload(&s3manager.UploadInput{
-			Bucket: &s3url.Host,
-			Key:    aws.String(path.Join(s3url.Path, target.Outfile.Name)),
-			Body:   f,
-
-			Metadata: map[string]*string{
-				"GoModule":    aws.String(app.Info.Go.Module),
-				"GoPackage":   aws.String(target.Package),
-				"Branch":      aws.String(app.Info.Commit.Branch),
-				"System":      aws.String(target.System.Name()),
-				"ReleaseKind": aws.String(app.Info.Version.Kind),
-			},
+			Bucket:  &s3url.Host,
+			Key:     aws.String(path.Join(s3url.Path, target.Outfile.Name)),
+			Tagging: aws.String(tags.Encode()),
+			Body:    f,
 		})
 		cmdutil.Must(err)
 
