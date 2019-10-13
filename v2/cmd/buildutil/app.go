@@ -17,8 +17,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v2/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v2/executil"
+	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/executil"
 )
 
 func call(ctx context.Context, command string, args ...string) {

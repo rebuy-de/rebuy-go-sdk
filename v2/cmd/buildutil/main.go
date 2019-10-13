@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/rebuy-de/rebuy-go-sdk/v2/cmdutil"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/cmdutil"
 )
 
 func main() {

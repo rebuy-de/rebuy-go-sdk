@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v2/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/tools/go/packages"
 )

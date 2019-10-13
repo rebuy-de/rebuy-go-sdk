@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v2/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/cmdutil"
 )
 
 func dumpJSON(data interface{}) {
