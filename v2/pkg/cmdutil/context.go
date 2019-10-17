@@ -26,8 +26,13 @@ func SignalContext(ctx context.Context, signals ...os.Signal) context.Context {
 
 	go func() {
 		sig := <-c
-		logrus.Warnf("received signal '%v'; cleaning up", sig)
+		logrus.Debugf("received signal '%v'", sig)
 		cancel()
+
+		sig = <-c
+		logrus.Debugf("received signal '%v'", sig)
+		logrus.Error("Two interrupts received. Exiting immediately. Note that data loss may have occurred.")
+		os.Exit(ExitCodeMultipleInterrupts)
 	}()
 
 	return ctx

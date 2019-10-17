@@ -7,7 +7,13 @@ import (
 )
 
 const (
-	mustExitCode = 1
+	ExitCodeOK           = 0
+	ExitCodeGeneralError = 1
+	ExitCodeUsage        = 2
+	ExitCodeSDK          = 16
+	ExitCodeCustom       = 32
+
+	ExitCodeMultipleInterrupts = ExitCodeSDK + 0
 )
 
 type exitCode struct {
@@ -47,5 +53,5 @@ func Must(err error) {
 
 	log.Debugf("%+v", err)
 	log.Error(err)
-	Exit(mustExitCode)
+	Exit(ExitCodeGeneralError)
 }
