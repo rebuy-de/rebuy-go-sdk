@@ -1,23 +1,21 @@
 language: go
 
 go:
-  - 1.9
-  - master
-
-go_import_path: github.com/rebuy-de/rebuy-go-sdk
+  - 1.x
 
 before_install:
-- GOFILES=$(find . -iname '*.go' -type f | grep -v /vendor/)
-- GOPKGS=$(go list ./...)
-- curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
-- chmod +x $GOPATH/bin/dep
 - go get golang.org/x/lint/golint
 
 install:
-- dep ensure
+- cd v2
 
 script:
-- gofmt -l $GOFILES
-- go build $GOPKGS
-- go test -v $GOPKGS
-- golint -set_exit_status $GOPKGS
+- ./buildutilw -v
+    -x linux/amd64 -x darwin/amd64
+    --s3-url s3://rebuy-github-releases/rebuy-go-sdk
+
+cache:
+  directories:
+  - $GOPATH/pkg
+  - $HOME/.cache/go-build
+  - v2/vendor

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+base=$(dirname $0)
+
+set -xueo pipefail
+
+(
+    cd $base
+    go mod vendor
+    go build -o dist/buildutil-bootstrap ./cmd/buildutil
+)
+
+$base/dist/buildutil-bootstrap "$@"
