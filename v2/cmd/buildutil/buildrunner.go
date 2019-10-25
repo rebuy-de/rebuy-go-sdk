@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -35,6 +36,8 @@ type BuildRunner struct {
 		TargetSystems  []string
 		TargetPackages []string
 		S3URL          string
+
+		GeneratorTargetVersion string // for generate command
 	}
 }
 
@@ -43,32 +46,31 @@ func (r *BuildRunner) Bind(cmd *cobra.Command) error {
 		&r.Parameters.TargetSystems, "cross-compile", "x", []string{},
 		"Targets for cross compilation (eg linux/amd64). Can be used multiple times.")
 	cmd.PersistentFlags().StringSliceVarP(
-		&r.Parameters.TargetSystems, "package", "p", []string{},
+		&r.Parameters.TargetPackages, "package", "p", []string{},
 		"Packages to build.")
 	cmd.PersistentFlags().StringVar(
 		&r.Parameters.S3URL, "s3-url", "",
 		"S3 URL to upload compiled releases.")
+	cmd.PersistentFlags().StringVar(
+		&r.Parameters.GeneratorTargetVersion, "generator.target-version", "",
+		"Target version for the generated ./buildutilw file.")
 
 	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		r.collectBuildInformation(context.Background())
+		info, err := CollectBuildInformation(context.Background(),
+			r.Parameters.TargetPackages,
+			r.Parameters.TargetSystems,
+		)
+		cmdutil.Must(err)
+
+		dumpJSON(info)
+		if len(info.Commit.DirtyFiles) > 0 {
+			logrus.Warn("The repository contains uncommitted files!")
+		}
+
+		r.Info = info
 	}
 
 	return nil
-}
-
-func (r *BuildRunner) collectBuildInformation(ctx context.Context) {
-	info, err := CollectBuildInformation(ctx,
-		r.Parameters.TargetPackages,
-		r.Parameters.TargetSystems,
-	)
-	cmdutil.Must(err)
-
-	dumpJSON(info)
-	if len(info.Commit.DirtyFiles) > 0 {
-		logrus.Warn("The repository contains uncommitted files!")
-	}
-
-	r.Info = info
 }
 
 func (r *BuildRunner) RunAll(ctx context.Context, cmd *cobra.Command, args []string) {
@@ -148,7 +150,7 @@ func (r *BuildRunner) RunBuild(ctx context.Context, cmd *cobra.Command, args []s
 		ldFlags := []string{}
 		for _, entry := range ldData {
 			ldFlags = append(ldFlags, fmt.Sprintf(
-				`-X 'github.com/rebuy-de/rebuy-go-sdk/v2/cmdutil.%s=%s'`,
+				`-X 'github.com/rebuy-de/rebuy-go-sdk/v2/pkg/cmdutil.%s=%s'`,
 				entry.name, entry.value,
 			))
 		}
@@ -225,4 +227,12 @@ func (r *BuildRunner) RunUpload(ctx context.Context, cmd *cobra.Command, args []
 
 		logrus.Infof("Upload finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 	}
+}
+
+func (r *BuildRunner) RunGenerateWrapper(ctx context.Context, cmd *cobra.Command, args []string) {
+	contents, err := generateWrapper(r.Parameters.GeneratorTargetVersion)
+	cmdutil.Must(err)
+
+	err = ioutil.WriteFile("./buildutil", []byte(contents), 0755)
+	cmdutil.Must(err)
 }
