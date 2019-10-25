@@ -29,7 +29,7 @@ func call(ctx context.Context, command string, args ...string) {
 	cmdutil.Must(executil.Run(ctx, c))
 }
 
-type App struct {
+type BuildRunner struct {
 	Info       BuildInfo
 	Parameters struct {
 		TargetSystems  []string
@@ -38,28 +38,28 @@ type App struct {
 	}
 }
 
-func (app *App) Bind(cmd *cobra.Command) error {
+func (r *BuildRunner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringSliceVarP(
-		&app.Parameters.TargetSystems, "cross-compile", "x", []string{},
+		&r.Parameters.TargetSystems, "cross-compile", "x", []string{},
 		"Targets for cross compilation (eg linux/amd64). Can be used multiple times.")
 	cmd.PersistentFlags().StringSliceVarP(
-		&app.Parameters.TargetSystems, "package", "p", []string{},
+		&r.Parameters.TargetSystems, "package", "p", []string{},
 		"Packages to build.")
 	cmd.PersistentFlags().StringVar(
-		&app.Parameters.S3URL, "s3-url", "",
+		&r.Parameters.S3URL, "s3-url", "",
 		"S3 URL to upload compiled releases.")
 
 	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		app.collectBuildInformation(context.Background())
+		r.collectBuildInformation(context.Background())
 	}
 
 	return nil
 }
 
-func (app *App) collectBuildInformation(ctx context.Context) {
+func (r *BuildRunner) collectBuildInformation(ctx context.Context) {
 	info, err := CollectBuildInformation(ctx,
-		app.Parameters.TargetPackages,
-		app.Parameters.TargetSystems,
+		r.Parameters.TargetPackages,
+		r.Parameters.TargetSystems,
 	)
 	cmdutil.Must(err)
 
@@ -68,17 +68,17 @@ func (app *App) collectBuildInformation(ctx context.Context) {
 		logrus.Warn("The repository contains uncommitted files!")
 	}
 
-	app.Info = info
+	r.Info = info
 }
 
-func (app *App) RunAll(ctx context.Context, cmd *cobra.Command, args []string) {
-	app.RunVendor(ctx, cmd, args)
-	app.RunTest(ctx, cmd, args)
-	app.RunBuild(ctx, cmd, args)
-	app.RunUpload(ctx, cmd, args)
+func (r *BuildRunner) RunAll(ctx context.Context, cmd *cobra.Command, args []string) {
+	r.RunVendor(ctx, cmd, args)
+	r.RunTest(ctx, cmd, args)
+	r.RunBuild(ctx, cmd, args)
+	r.RunUpload(ctx, cmd, args)
 }
 
-func (app *App) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *BuildRunner) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
 	files, err := filepath.Glob("dist/*")
 	cmdutil.Must(err)
 
@@ -88,19 +88,19 @@ func (app *App) RunClean(ctx context.Context, cmd *cobra.Command, args []string)
 	}
 }
 
-func (app *App) RunVendor(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *BuildRunner) RunVendor(ctx context.Context, cmd *cobra.Command, args []string) {
 	call(ctx, "go", "mod", "vendor")
 }
 
-func (app *App) RunTest(ctx context.Context, cmd *cobra.Command, args []string) {
-	app.RunTestFormat(ctx, cmd, args)
-	app.RunTestVet(ctx, cmd, args)
-	app.RunTestPackages(ctx, cmd, args)
+func (r *BuildRunner) RunTest(ctx context.Context, cmd *cobra.Command, args []string) {
+	r.RunTestFormat(ctx, cmd, args)
+	r.RunTestVet(ctx, cmd, args)
+	r.RunTestPackages(ctx, cmd, args)
 }
 
-func (app *App) RunTestFormat(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *BuildRunner) RunTestFormat(ctx context.Context, cmd *cobra.Command, args []string) {
 	a := []string{"-s", "-l"}
-	a = append(a, app.Info.Test.Files...)
+	a = append(a, r.Info.Test.Files...)
 
 	logrus.Info("Testing file formatting (gofmt)")
 	start := time.Now()
@@ -108,9 +108,9 @@ func (app *App) RunTestFormat(ctx context.Context, cmd *cobra.Command, args []st
 	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
-func (app *App) RunTestVet(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *BuildRunner) RunTestVet(ctx context.Context, cmd *cobra.Command, args []string) {
 	a := []string{"vet"}
-	a = append(a, app.Info.Test.Packages...)
+	a = append(a, r.Info.Test.Packages...)
 
 	logrus.Info("Testing suspicious constructs (go vet)")
 	start := time.Now()
@@ -118,9 +118,9 @@ func (app *App) RunTestVet(ctx context.Context, cmd *cobra.Command, args []strin
 	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
-func (app *App) RunTestPackages(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *BuildRunner) RunTestPackages(ctx context.Context, cmd *cobra.Command, args []string) {
 	a := []string{"test"}
-	a = append(a, app.Info.Test.Packages...)
+	a = append(a, r.Info.Test.Packages...)
 
 	logrus.Info("Testing packages")
 	start := time.Now()
@@ -128,8 +128,8 @@ func (app *App) RunTestPackages(ctx context.Context, cmd *cobra.Command, args []
 	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
-func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {
-	for _, target := range app.Info.Targets {
+func (r *BuildRunner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {
+	for _, target := range r.Info.Targets {
 		logrus.Infof("Building %s for %s", target.Package, target.System.Name())
 
 		ldData := []struct {
@@ -137,12 +137,12 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 			value string
 		}{
 			{name: "Name", value: target.Name},
-			{name: "Version", value: app.Info.Version.String()},
-			{name: "GoModule", value: app.Info.Go.Module},
+			{name: "Version", value: r.Info.Version.String()},
+			{name: "GoModule", value: r.Info.Go.Module},
 			{name: "GoPackage", value: target.Package},
-			{name: "BuildDate", value: app.Info.BuildDate},
-			{name: "CommitDate", value: app.Info.Commit.Date},
-			{name: "CommitHash", value: app.Info.Commit.Hash},
+			{name: "BuildDate", value: r.Info.BuildDate},
+			{name: "CommitDate", value: r.Info.Commit.Date},
+			{name: "CommitHash", value: r.Info.Commit.Hash},
 		}
 
 		ldFlags := []string{}
@@ -157,7 +157,7 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 		os.Setenv("GOARCH", target.System.Arch)
 		os.Setenv("CGO_ENABLED", "0")
 
-		dist := path.Join(app.Info.Go.Dir, "dist")
+		dist := path.Join(r.Info.Go.Dir, "dist")
 
 		start := time.Now()
 		call(ctx, "go", "build",
@@ -180,13 +180,13 @@ func (app *App) RunBuild(ctx context.Context, cmd *cobra.Command, args []string)
 	}
 }
 
-func (app *App) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
-	if app.Parameters.S3URL == "" {
+func (r *BuildRunner) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
+	if r.Parameters.S3URL == "" {
 		logrus.Warn("No S3 Bucket specified. Skipping upload.")
 		return
 	}
 
-	s3url, err := url.Parse(app.Parameters.S3URL)
+	s3url, err := url.Parse(r.Parameters.S3URL)
 	cmdutil.Must(err)
 
 	if s3url.Scheme != "s3" && s3url.Scheme != "" {
@@ -199,20 +199,20 @@ func (app *App) RunUpload(ctx context.Context, cmd *cobra.Command, args []string
 	cmdutil.Must(err)
 
 	uploader := s3manager.NewUploader(sess)
-	dist := path.Join(app.Info.Go.Dir, "dist")
+	dist := path.Join(r.Info.Go.Dir, "dist")
 
-	for _, target := range app.Info.Targets {
+	for _, target := range r.Info.Targets {
 		logrus.Infof("Uploading %s to s3://%s%s", target.Outfile.Name, s3url.Host, s3url.Path)
 
 		f, err := os.Open(path.Join(dist, target.Outfile.Name))
 		cmdutil.Must(err)
 
 		tags := url.Values{}
-		tags.Set("GoModule", app.Info.Go.Module)
+		tags.Set("GoModule", r.Info.Go.Module)
 		tags.Set("GoPackage", target.Package)
-		tags.Set("Branch", app.Info.Commit.Branch)
+		tags.Set("Branch", r.Info.Commit.Branch)
 		tags.Set("System", target.System.Name())
-		tags.Set("ReleaseKind", app.Info.Version.Kind)
+		tags.Set("ReleaseKind", r.Info.Version.Kind)
 
 		start := time.Now()
 		_, err = uploader.Upload(&s3manager.UploadInput{

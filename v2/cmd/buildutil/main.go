@@ -15,48 +15,48 @@ func main() {
 }
 
 func NewRootCommand() *cobra.Command {
-	app := new(App)
+	runner := new(BuildRunner)
 
 	return cmdutil.New(
-		"rebuy-buildutil", "Build tool for Go projects as part of the rebuy-go-sdk",
+		"rebuy-runnerutil", "Build tool for Go projects as part of the rebuy-go-sdk",
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithVersionCommand(),
 		cmdutil.WithVersionLog(logrus.DebugLevel),
 
-		app.Bind,
-		cmdutil.WithRun(app.RunAll),
+		runner.Bind,
+		cmdutil.WithRun(runner.RunAll),
 
 		cmdutil.WithSubCommand(cmdutil.New(
 			"vendor", "Update vendor directory",
-			cmdutil.WithRun(app.RunVendor),
+			cmdutil.WithRun(runner.RunVendor),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
 			"test", "Run unit tests",
-			cmdutil.WithRun(app.RunTest),
+			cmdutil.WithRun(runner.RunTest),
 			cmdutil.WithSubCommand(cmdutil.New(
 				"fmt", "Tests file formatting",
-				cmdutil.WithRun(app.RunTestFormat),
+				cmdutil.WithRun(runner.RunTestFormat),
 			)),
 			cmdutil.WithSubCommand(cmdutil.New(
 				"vet", "Tests for suspicious constructs",
-				cmdutil.WithRun(app.RunTestVet),
+				cmdutil.WithRun(runner.RunTestVet),
 			)),
 			cmdutil.WithSubCommand(cmdutil.New(
 				"packages", "Tests Packages",
-				cmdutil.WithRun(app.RunTestPackages),
+				cmdutil.WithRun(runner.RunTestPackages),
 			)),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
-			"build", "Build binaries",
-			cmdutil.WithRun(app.RunBuild),
+			"runner", "Build binaries",
+			cmdutil.WithRun(runner.RunBuild),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
 			"upload", "Upload artifacts to S3",
-			cmdutil.WithRun(app.RunUpload),
+			cmdutil.WithRun(runner.RunUpload),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
 			"clean", "Clean workspace",
-			cmdutil.WithRun(app.RunClean),
+			cmdutil.WithRun(runner.RunClean),
 		)),
 	)
 }
