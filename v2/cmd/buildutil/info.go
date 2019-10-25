@@ -221,7 +221,9 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 
 	info.Targets = []TargetInfo{}
 	for _, search := range pkgArgs {
-		pkgs, err := packages.Load(nil, search)
+		pkgs, err := packages.Load(&packages.Config{
+			Context: ctx,
+		}, search)
 		cmdutil.Must(err)
 
 		for _, pkg := range pkgs {

@@ -18,7 +18,7 @@ func NewRootCommand() *cobra.Command {
 	runner := new(BuildRunner)
 
 	return cmdutil.New(
-		"rebuy-runnerutil", "Build tool for Go projects as part of the rebuy-go-sdk",
+		"buildutil", "Build tool for Go projects as part of the rebuy-go-sdk",
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithVersionCommand(),
 		cmdutil.WithVersionLog(logrus.DebugLevel),
@@ -47,7 +47,7 @@ func NewRootCommand() *cobra.Command {
 			)),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
-			"runner", "Build binaries",
+			"build", "Build binaries",
 			cmdutil.WithRun(runner.RunBuild),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
@@ -57,6 +57,13 @@ func NewRootCommand() *cobra.Command {
 		cmdutil.WithSubCommand(cmdutil.New(
 			"clean", "Clean workspace",
 			cmdutil.WithRun(runner.RunClean),
+		)),
+		cmdutil.WithSubCommand(cmdutil.New(
+			"generate", "Generate common project files",
+			cmdutil.WithSubCommand(cmdutil.New(
+				"./buildutil", "Generate ./buildutil",
+				cmdutil.WithRun(runner.RunGenerateWrapper),
+			)),
 		)),
 	)
 }
