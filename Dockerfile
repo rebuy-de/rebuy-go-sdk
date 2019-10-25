@@ -23,7 +23,7 @@ COPY . /sdk
 RUN \
     set -e \
     && cd /sdk/v2 \
-    && ./buildutilw \
+    && ./buildutil \
     && cp ./dist/buildutil /usr/local/bin \
     && buildutil version \
     && rm -rf /sdk \

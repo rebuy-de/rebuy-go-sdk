@@ -29,7 +29,7 @@ fname="buildutil-${VERSION}-$(get_os)-$(get_arch)"
 cachedir="${HOME}/.rebuy/cache"
 fpath="${cachedir}/${fname}"
 
-encoded=$(echo $fname | sed "s/\\+/%2B/g")
+encoded=$(echo $fname | sed "s/+/%2B/g")
 url="https://rebuy-github-releases.s3-eu-west-1.amazonaws.com/rebuy-go-sdk/${encoded}"
 
 if ! [ -f ${fpath} ]
