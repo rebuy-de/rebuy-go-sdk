@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -25,6 +27,13 @@ func NewRootCommand() *cobra.Command {
 
 		runner.Bind,
 		cmdutil.WithRun(runner.RunAll),
+
+		cmdutil.WithSubCommand(cmdutil.New(
+			"info", "Show project info",
+			// Info output is already done by the prerun, therefore we do not
+			// need to actually do anything.
+			cmdutil.WithRun(func(ctx context.Context, cmd *cobra.Command, args []string) {}),
+		)),
 
 		cmdutil.WithSubCommand(cmdutil.New(
 			"vendor", "Update vendor directory",
