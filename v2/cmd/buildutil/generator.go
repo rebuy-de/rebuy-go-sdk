@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	templateWrapper = `#!/bin/sh
+	templateWrapper = `#!/bin/bash
 
 set -euo pipefail
 
