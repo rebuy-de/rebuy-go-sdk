@@ -127,8 +127,9 @@ type BuildInfo struct {
 	Version   Version
 
 	Go struct {
-		Module string
-		Dir    string
+		Module   string
+		Dir      string
+		Commands []string
 	}
 
 	Commit struct {
@@ -220,6 +221,7 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 	}
 
 	info.Targets = []TargetInfo{}
+	info.Go.Commands = []string{}
 	for _, search := range pkgArgs {
 		pkgs, err := packages.Load(&packages.Config{
 			Context: ctx,
@@ -231,6 +233,8 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 				continue
 			}
 			logrus.Debugf("Found Package %s", pkg.PkgPath)
+
+			info.Go.Commands = append(info.Go.Commands, RelativePath(info.Go.Module, pkg.PkgPath))
 
 			for _, targetSystem := range targetSystems {
 				tinfo := TargetInfo{

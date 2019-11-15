@@ -9,12 +9,14 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -229,10 +231,54 @@ func (r *BuildRunner) RunUpload(ctx context.Context, cmd *cobra.Command, args []
 	}
 }
 
-func (r *BuildRunner) RunGenerateWrapper(ctx context.Context, cmd *cobra.Command, args []string) {
-	contents, err := generateWrapper(r.Parameters.GeneratorTargetVersion)
-	cmdutil.Must(err)
+func (r *BuildRunner) RunGenerate(ctx context.Context, cmd *cobra.Command, args []string) {
+	files := map[string]func() ([]byte, os.FileMode, error){}
 
-	err = ioutil.WriteFile("./buildutil", []byte(contents), 0755)
-	cmdutil.Must(err)
+	files["buildutil"] = func() ([]byte, os.FileMode, error) {
+		contents, err := generateWrapper(r.Parameters.GeneratorTargetVersion)
+		if err != nil {
+			return nil, 0, errors.WithStack(err)
+		}
+
+		return []byte(contents), 0755, nil
+	}
+
+	for _, command := range r.Info.Go.Commands {
+		name := path.Join(command, "main.go")
+		files[name] = func() ([]byte, os.FileMode, error) {
+			return nil, 0, fmt.Errorf("not implemented yet")
+		}
+	}
+
+	if len(args) == 0 {
+		logrus.Error("Please specify the files you want to generate. Possible values:")
+		names := []string{}
+		for name := range files {
+			names = append(names, name)
+		}
+
+		sort.Strings(names)
+		dumpJSON(names)
+		cmdutil.Exit(1)
+	}
+
+	for _, arg := range args {
+		arg = path.Clean(arg)
+		_, ok := files[arg]
+		if !ok {
+			logrus.Errorf("Unknown file '%s'", arg)
+			cmdutil.Exit(1)
+		}
+	}
+
+	for _, arg := range args {
+		arg = path.Clean(arg)
+		generator := files[arg]
+		contents, mode, err := generator()
+		cmdutil.Must(err)
+
+		logrus.Infof("Wrote '%s'", arg)
+		err = ioutil.WriteFile(arg, []byte(contents), mode)
+		cmdutil.Must(err)
+	}
 }

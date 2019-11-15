@@ -69,10 +69,7 @@ func NewRootCommand() *cobra.Command {
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
 			"generate", "Generate common project files",
-			cmdutil.WithSubCommand(cmdutil.New(
-				"./buildutil", "Generate ./buildutil",
-				cmdutil.WithRun(runner.RunGenerateWrapper),
-			)),
+			cmdutil.WithRun(runner.RunGenerate),
 		)),
 	)
 }
