@@ -24,7 +24,7 @@ var (
 func NewVersionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "version",
-		Short:             "shows version of this application",
+		Short:             "Shows version of this application",
 		PersistentPreRun:  func(cmd *cobra.Command, args []string) {},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 		Run: func(cmd *cobra.Command, args []string) {
