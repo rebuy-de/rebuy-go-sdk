@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/executil"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/tools/go/packages"
 )
@@ -167,24 +168,24 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 
 	logrus.Info("Collecting build information")
 
-	e := NewExecutor(ctx)
+	e := executil.NewChainExecutor(ctx)
 
 	info.BuildDate = time.Now().Format(time.RFC3339)
-	info.Go.Module = e.GetString("go", "list", "-m")
-	info.Go.Dir = e.GetString("go", "list", "-m", "-f", "{{.Dir}}")
-	info.System.OS = e.GetString("go", "env", "GOOS")
-	info.System.Arch = e.GetString("go", "env", "GOARCH")
-	info.System.Ext = e.GetString("go", "env", "GOEXE")
-	info.Commit.Date = time.Unix(e.GetInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
-	info.Commit.Hash = e.GetString("git", "rev-parse", "HEAD")
-	info.Commit.Branch = e.GetString("git", "rev-parse", "--abbrev-ref", "HEAD")
+	info.Go.Module = e.OutputString("go", "list", "-m")
+	info.Go.Dir = e.OutputString("go", "list", "-m", "-f", "{{.Dir}}")
+	info.System.OS = e.OutputString("go", "env", "GOOS")
+	info.System.Arch = e.OutputString("go", "env", "GOARCH")
+	info.System.Ext = e.OutputString("go", "env", "GOEXE")
+	info.Commit.Date = time.Unix(e.OutputInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
+	info.Commit.Hash = e.OutputString("git", "rev-parse", "HEAD")
+	info.Commit.Branch = e.OutputString("git", "rev-parse", "--abbrev-ref", "HEAD")
 
-	info.Version, err = ParseVersion(e.GetString("git", "describe", "--always", "--dirty", "--tags"))
+	info.Version, err = ParseVersion(e.OutputString("git", "describe", "--always", "--dirty", "--tags"))
 	if err != nil {
 		logrus.WithError(err).Error("Failed to parse version")
 	}
 
-	status := strings.TrimSpace(e.GetString("git", "status", "-s"))
+	status := strings.TrimSpace(e.OutputString("git", "status", "-s"))
 	if status != "" {
 		info.Commit.DirtyFiles = strings.Split(status, "\n")
 	}
