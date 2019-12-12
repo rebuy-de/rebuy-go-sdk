@@ -34,7 +34,7 @@ func (e *ChainExecutor) Run(command string, args ...string) {
 	}
 
 	c := exec.Command(command, args...)
-	c.Stdout = os.Stdin
+	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	e.err = Run(e.ctx, c)
 }
