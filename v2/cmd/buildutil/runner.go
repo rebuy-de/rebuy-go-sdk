@@ -1,8 +1,11 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -14,6 +17,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/goreleaser/nfpm"
+	_ "github.com/goreleaser/nfpm/deb" // blank import to register the format
+	_ "github.com/goreleaser/nfpm/rpm" // blank import to register the format
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -29,13 +35,19 @@ func call(ctx context.Context, command string, args ...string) {
 	cmdutil.Must(executil.Run(ctx, c))
 }
 
+type BuildParameters struct {
+	TargetSystems  []string
+	TargetPackages []string
+	S3URL          string
+
+	CreateCompressed bool
+	CreateRPM        bool
+	CreateDEB        bool
+}
+
 type Runner struct {
 	Info       BuildInfo
-	Parameters struct {
-		TargetSystems  []string
-		TargetPackages []string
-		S3URL          string
-	}
+	Parameters BuildParameters
 }
 
 func (r *Runner) Bind(cmd *cobra.Command) error {
@@ -49,11 +61,18 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 		&r.Parameters.S3URL, "s3-url", "",
 		"S3 URL to upload compiled releases.")
 
+	cmd.PersistentFlags().BoolVar(
+		&r.Parameters.CreateCompressed, "compress", false,
+		"Creates .tgz artifacts for POSIX targets and .zip for windows.")
+	cmd.PersistentFlags().BoolVar(
+		&r.Parameters.CreateRPM, "rpm", false,
+		"Creates .rpm artifacts for linux targets.")
+	cmd.PersistentFlags().BoolVar(
+		&r.Parameters.CreateDEB, "deb", false,
+		"Creates .deb artifacts for linux targets.")
+
 	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		info, err := CollectBuildInformation(context.Background(),
-			r.Parameters.TargetPackages,
-			r.Parameters.TargetSystems,
-		)
+		info, err := CollectBuildInformation(context.Background(), r.Parameters)
 		cmdutil.Must(err)
 
 		dumpJSON(info)
@@ -67,15 +86,21 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 	return nil
 }
 
+func (r *Runner) dist(parts ...string) string {
+	parts = append([]string{r.Info.Go.Dir, "dist"}, parts...)
+	return path.Join(parts...)
+}
+
 func (r *Runner) RunAll(ctx context.Context, cmd *cobra.Command, args []string) {
 	r.RunVendor(ctx, cmd, args)
 	r.RunTest(ctx, cmd, args)
 	r.RunBuild(ctx, cmd, args)
+	r.RunArtifacts(ctx, cmd, args)
 	r.RunUpload(ctx, cmd, args)
 }
 
 func (r *Runner) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
-	files, err := filepath.Glob("dist/*")
+	files, err := filepath.Glob(r.dist("*"))
 	cmdutil.Must(err)
 
 	for _, file := range files {
@@ -153,26 +178,118 @@ func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string
 		os.Setenv("GOARCH", target.System.Arch)
 		os.Setenv("CGO_ENABLED", "0")
 
-		dist := path.Join(r.Info.Go.Dir, "dist")
-
 		start := time.Now()
 		call(ctx, "go", "build",
-			"-o", path.Join(dist, target.Outfile.Name),
+			"-o", r.dist(target.Outfile),
 			"-ldflags", "-s -w "+strings.Join(ldFlags, " "),
 			target.Package)
 
-		for _, link := range target.Outfile.Aliases {
-			fullLink := path.Join(dist, link)
-			os.Remove(fullLink)
-			cmdutil.Must(os.Symlink(target.Outfile.Name, fullLink))
-		}
-
-		stat, err := os.Stat(path.Join(dist, target.Outfile.Name))
+		stat, err := os.Stat(r.dist(target.Outfile))
 		cmdutil.Must(err)
 
 		logrus.Infof("Build finished in %v with a size of %s",
 			time.Since(start).Truncate(10*time.Millisecond),
 			byteFormat(stat.Size()))
+	}
+}
+
+func (r *Runner) RunArtifacts(ctx context.Context, cmd *cobra.Command, args []string) {
+	for _, artifact := range r.Info.Artifacts {
+		logrus.Infof("Creating artifact for %s", artifact.Filename)
+
+		binaries := map[string]string{}
+		for _, target := range r.Info.Targets {
+			if target.System != artifact.System {
+				continue
+			}
+
+			binaries[target.Name] = r.dist(target.Outfile)
+		}
+
+		switch artifact.Kind {
+		default:
+			logrus.Warnf("Unknown artifact kind %s", artifact.Kind)
+
+		case "binary":
+			// nothing to do here
+
+		case "tgz":
+			dst, err := os.Create(r.dist(artifact.Filename))
+			cmdutil.Must(err)
+			defer dst.Close()
+
+			zw := gzip.NewWriter(dst)
+			defer zw.Close()
+
+			tw := tar.NewWriter(zw)
+			defer tw.Close()
+
+			for name, src := range binaries {
+				f, err := os.Open(src)
+				cmdutil.Must(err)
+				defer f.Close()
+
+				fi, err := f.Stat()
+				cmdutil.Must(err)
+
+				hdr := &tar.Header{
+					Name: name,
+					Mode: 0755,
+					Size: fi.Size(),
+				}
+				err = tw.WriteHeader(hdr)
+				cmdutil.Must(err)
+
+				_, err = io.Copy(tw, f)
+				cmdutil.Must(err)
+			}
+
+			cmdutil.Must(tw.Close())
+
+		case "rpm":
+			fallthrough
+
+		case "deb":
+			version, release := r.Info.Version.StringRelease()
+
+			bindir := "/usr/share/bin"
+			files := map[string]string{}
+			for name, src := range binaries {
+				files[src] = path.Join(bindir, name)
+			}
+
+			info := &nfpm.Info{
+				Name:       r.Info.Go.Name,
+				Arch:       artifact.System.Arch,
+				Platform:   artifact.System.OS,
+				Version:    version,
+				Release:    release,
+				Maintainer: "reBuy Platform Team <dl-scb-tech-platform@rebuy.com>",
+				Bindir:     bindir,
+				Overridables: nfpm.Overridables{
+					Files: files,
+				},
+			}
+
+			cmdutil.Must(nfpm.Validate(info))
+
+			packager, err := nfpm.Get(artifact.Kind)
+			cmdutil.Must(err)
+
+			w, err := os.Create(r.dist(artifact.Filename))
+			cmdutil.Must(err)
+			defer w.Close()
+
+			cmdutil.Must(packager.Package(nfpm.WithDefaults(info), w))
+			cmdutil.Must(w.Close())
+		}
+
+		// create symlinks
+		for _, link := range artifact.Aliases {
+			fullLink := r.dist(link)
+			os.Remove(fullLink)
+			cmdutil.Must(os.Symlink(artifact.Filename, fullLink))
+		}
 	}
 }
 
@@ -195,12 +312,10 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 	cmdutil.Must(err)
 
 	uploader := s3manager.NewUploader(sess)
-	dist := path.Join(r.Info.Go.Dir, "dist")
-
 	for _, target := range r.Info.Targets {
-		logrus.Infof("Uploading %s to s3://%s%s", target.Outfile.Name, s3url.Host, s3url.Path)
+		logrus.Infof("Uploading %s to s3://%s%s", target.Outfile, s3url.Host, s3url.Path)
 
-		f, err := os.Open(path.Join(dist, target.Outfile.Name))
+		f, err := os.Open(r.dist(target.Outfile))
 		cmdutil.Must(err)
 
 		tags := url.Values{}
@@ -213,7 +328,7 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 		start := time.Now()
 		_, err = uploader.Upload(&s3manager.UploadInput{
 			Bucket:  &s3url.Host,
-			Key:     aws.String(path.Join(s3url.Path, target.Outfile.Name)),
+			Key:     aws.String(path.Join(s3url.Path, target.Outfile)),
 			Tagging: aws.String(tags.Encode()),
 			Body:    f,
 		})
