@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -96,16 +97,28 @@ func ParseVersion(s string) (Version, error) {
 }
 
 func (v Version) String() string {
-	s := fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
-	if v.Suffix != "" {
-		if v.Kind != "prerelease" {
-			s = fmt.Sprintf("%s+%s.%s", s, v.Kind, v.Suffix)
-		} else {
-			s = fmt.Sprintf("%s+%s", s, v.Suffix)
-		}
+	s, r := v.StringRelease()
+
+	if r == "" {
+		return s
 	}
 
-	return s
+	return fmt.Sprintf("%s+%s", s, r)
+}
+
+func (v Version) StringRelease() (string, string) {
+	version := fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
+
+	release := v.Suffix
+	if v.Suffix != "" && v.Kind != "prerelease" {
+		release = fmt.Sprintf("%s.%s", v.Kind, release)
+	}
+
+	return version, release
+}
+
+func (v Version) MarshalJSON() ([]byte, error) {
+	return json.Marshal(v.String())
 }
 
 type SystemInfo struct {
@@ -145,21 +158,49 @@ type BuildInfo struct {
 		Files    []string
 	}
 
-	Targets []TargetInfo
+	Targets   []TargetInfo
+	Artifacts []ArtifactInfo `json:",omitempty"`
+}
+
+type ArtifactInfo struct {
+	Kind       string
+	Filename   string
+	S3Location string   `json:",omitempty"`
+	Aliases    []string `json:",omitempty"`
+	System     SystemInfo
+}
+
+func (i *BuildInfo) NewArtifactInfo(kind string, name string, system SystemInfo, ext string) ArtifactInfo {
+	if ext == "" {
+		ext = system.Ext
+	}
+
+	sufix := fmt.Sprintf("%s-%s%s", system.OS, system.Arch, ext)
+	filename := fmt.Sprintf("%s-%s-%s", name, i.Version.String(), sufix)
+	aliases := []string{
+		fmt.Sprintf("%s-%s", name, sufix),
+	}
+
+	if system.OS == i.System.OS && system.Arch == i.System.Arch {
+		aliases = append(aliases, fmt.Sprintf("%s%s", name, ext))
+	}
+
+	return ArtifactInfo{
+		Kind:     kind,
+		Filename: filename,
+		Aliases:  aliases,
+		System:   system,
+	}
 }
 
 type TargetInfo struct {
 	Package string
 	Name    string
+	Outfile string
 	System  SystemInfo
-
-	Outfile struct {
-		Name    string
-		Aliases []string
-	}
 }
 
-func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystemArgs []string) (BuildInfo, error) {
+func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo, error) {
 	var (
 		err  error
 		info BuildInfo
@@ -201,7 +242,7 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 	cmdutil.Must(e.Err())
 
 	targetSystems := []SystemInfo{}
-	for _, target := range targetSystemArgs {
+	for _, target := range p.TargetSystems {
 		parts := strings.Split(target, "/")
 		if len(parts) != 2 {
 			logrus.Errorf("Invalid format for cross compiling target '%s'.", target)
@@ -223,13 +264,13 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 		targetSystems = append(targetSystems, info.System)
 	}
 
-	if len(pkgArgs) == 0 {
+	if len(p.TargetPackages) == 0 {
 		logrus.Debug("No targets specified. Discovering all packages.")
-		pkgArgs = []string{"./..."}
+		p.TargetPackages = []string{"./..."}
 	}
 
 	info.Targets = []TargetInfo{}
-	for _, search := range pkgArgs {
+	for _, search := range p.TargetPackages {
 		pkgs, err := packages.Load(&packages.Config{
 			Context: ctx,
 		}, search)
@@ -252,18 +293,9 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 					tinfo.Name = info.Go.Name
 				}
 
-				tinfo.Outfile.Name = fmt.Sprintf("%s-%s-%s",
-					tinfo.Name, info.Version.String(),
-					tinfo.System.FileSufix())
-
-				tinfo.Outfile.Aliases = []string{
-					fmt.Sprintf("%s-%s", tinfo.Name, tinfo.System.FileSufix()),
-				}
-
-				if tinfo.System.OS == info.System.OS && tinfo.System.Arch == info.System.Arch {
-					tinfo.Outfile.Aliases = append(tinfo.Outfile.Aliases, tinfo.Name)
-				}
-
+				artifact := info.NewArtifactInfo("binary", tinfo.Name, targetSystem, "")
+				tinfo.Outfile = artifact.Filename
+				info.Artifacts = append(info.Artifacts, artifact)
 				info.Targets = append(info.Targets, tinfo)
 			}
 		}
@@ -278,6 +310,39 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 	for _, pkg := range testPackages {
 		info.Test.Packages = append(info.Test.Packages, pkg.PkgPath)
 		info.Test.Files = append(info.Test.Files, pkg.GoFiles...)
+	}
+
+	for _, targetSystem := range targetSystems {
+		if targetSystem.OS == "windows" && p.CreateCompressed {
+			info.Artifacts = append(info.Artifacts, info.NewArtifactInfo(
+				"zip", info.Go.Name, targetSystem, ".zip"))
+		}
+
+		if targetSystem.OS != "windows" && p.CreateCompressed {
+			if p.CreateCompressed {
+				info.Artifacts = append(info.Artifacts, info.NewArtifactInfo(
+					"tgz", info.Go.Name, targetSystem, ".tar.gz"))
+			}
+		}
+
+		if targetSystem.OS == "linux" {
+			if p.CreateDEB {
+				info.Artifacts = append(info.Artifacts, info.NewArtifactInfo(
+					"deb", info.Go.Name, targetSystem, ".deb"))
+			}
+			if p.CreateRPM {
+				info.Artifacts = append(info.Artifacts, info.NewArtifactInfo(
+					"rpm", info.Go.Name, targetSystem, ".rpm"))
+			}
+		}
+	}
+
+	if p.S3URL != "" {
+		for i, a := range info.Artifacts {
+			plain := strings.TrimPrefix(p.S3URL, "s3://")
+
+			info.Artifacts[i].S3Location = fmt.Sprintf("s3://%s", path.Join(plain, a.Filename))
+		}
 	}
 
 	return info, nil
