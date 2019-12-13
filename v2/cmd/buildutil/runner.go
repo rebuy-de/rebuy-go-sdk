@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -47,10 +46,13 @@ type BuildParameters struct {
 
 type Runner struct {
 	Info       BuildInfo
+	Inst       *Instrumentation
 	Parameters BuildParameters
 }
 
 func (r *Runner) Bind(cmd *cobra.Command) error {
+	r.Inst = NewInstrumentation()
+
 	cmd.PersistentFlags().StringSliceVarP(
 		&r.Parameters.TargetSystems, "cross-compile", "x", []string{},
 		"Targets for cross compilation (eg linux/amd64). Can be used multiple times.")
@@ -72,6 +74,7 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 		"Creates .deb artifacts for linux targets.")
 
 	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		defer r.Inst.Durations.Steps.Stopwatch("info")()
 		info, err := CollectBuildInformation(context.Background(), r.Parameters)
 		cmdutil.Must(err)
 
@@ -83,6 +86,10 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 		r.Info = info
 	}
 
+	cmd.PersistentPostRun = func(cmd *cobra.Command, args []string) {
+		dumpJSON(r.Inst)
+	}
+
 	return nil
 }
 
@@ -92,6 +99,8 @@ func (r *Runner) dist(parts ...string) string {
 }
 
 func (r *Runner) RunAll(ctx context.Context, cmd *cobra.Command, args []string) {
+	defer r.Inst.Durations.Steps.Stopwatch("all")()
+
 	r.RunVendor(ctx, cmd, args)
 	r.RunTest(ctx, cmd, args)
 	r.RunBuild(ctx, cmd, args)
@@ -100,6 +109,8 @@ func (r *Runner) RunAll(ctx context.Context, cmd *cobra.Command, args []string) 
 }
 
 func (r *Runner) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
+	defer r.Inst.Durations.Steps.Stopwatch("clean")()
+
 	files, err := filepath.Glob(r.dist("*"))
 	cmdutil.Must(err)
 
@@ -110,10 +121,14 @@ func (r *Runner) RunClean(ctx context.Context, cmd *cobra.Command, args []string
 }
 
 func (r *Runner) RunVendor(ctx context.Context, cmd *cobra.Command, args []string) {
+	defer r.Inst.Durations.Steps.Stopwatch("vendor")()
+
 	call(ctx, "go", "mod", "vendor")
 }
 
 func (r *Runner) RunTest(ctx context.Context, cmd *cobra.Command, args []string) {
+	defer r.Inst.Durations.Steps.Stopwatch("test")()
+
 	r.RunTestFormat(ctx, cmd, args)
 	r.RunTestVet(ctx, cmd, args)
 	r.RunTestPackages(ctx, cmd, args)
@@ -124,9 +139,8 @@ func (r *Runner) RunTestFormat(ctx context.Context, cmd *cobra.Command, args []s
 	a = append(a, r.Info.Test.Files...)
 
 	logrus.Info("Testing file formatting (gofmt)")
-	start := time.Now()
+	defer r.Inst.Durations.Testing.Stopwatch("fmt")()
 	call(ctx, "gofmt", a...)
-	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
 func (r *Runner) RunTestVet(ctx context.Context, cmd *cobra.Command, args []string) {
@@ -134,9 +148,8 @@ func (r *Runner) RunTestVet(ctx context.Context, cmd *cobra.Command, args []stri
 	a = append(a, r.Info.Test.Packages...)
 
 	logrus.Info("Testing suspicious constructs (go vet)")
-	start := time.Now()
+	defer r.Inst.Durations.Testing.Stopwatch("vet")()
 	call(ctx, "go", a...)
-	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
 func (r *Runner) RunTestPackages(ctx context.Context, cmd *cobra.Command, args []string) {
@@ -144,12 +157,13 @@ func (r *Runner) RunTestPackages(ctx context.Context, cmd *cobra.Command, args [
 	a = append(a, r.Info.Test.Packages...)
 
 	logrus.Info("Testing packages")
-	start := time.Now()
+	defer r.Inst.Durations.Testing.Stopwatch("packages")()
 	call(ctx, "go", a...)
-	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
 func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {
+	defer r.Inst.Durations.Steps.Stopwatch("build")()
+
 	for _, target := range r.Info.Targets {
 		logrus.Infof("Building %s for %s", target.Package, target.System.Name())
 
@@ -178,24 +192,24 @@ func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string
 		os.Setenv("GOARCH", target.System.Arch)
 		os.Setenv("CGO_ENABLED", "0")
 
-		start := time.Now()
+		sw := r.Inst.Durations.Building.Stopwatch(target.Outfile)
 		call(ctx, "go", "build",
 			"-o", r.dist(target.Outfile),
 			"-ldflags", "-s -w "+strings.Join(ldFlags, " "),
 			target.Package)
 
-		stat, err := os.Stat(r.dist(target.Outfile))
-		cmdutil.Must(err)
+		r.Inst.ReadSize(target.Outfile)
 
-		logrus.Infof("Build finished in %v with a size of %s",
-			time.Since(start).Truncate(10*time.Millisecond),
-			byteFormat(stat.Size()))
+		sw()
 	}
 }
 
 func (r *Runner) RunArtifacts(ctx context.Context, cmd *cobra.Command, args []string) {
+	defer r.Inst.Durations.Steps.Stopwatch("artifacts")()
+
 	for _, artifact := range r.Info.Artifacts {
 		logrus.Infof("Creating artifact for %s", artifact.Filename)
+		sw := r.Inst.Durations.Artifacts.Stopwatch(artifact.Filename)
 
 		binaries := map[string]string{}
 		for _, target := range r.Info.Targets {
@@ -284,16 +298,22 @@ func (r *Runner) RunArtifacts(ctx context.Context, cmd *cobra.Command, args []st
 			cmdutil.Must(w.Close())
 		}
 
+		r.Inst.ReadSize(artifact.Filename)
+
 		// create symlinks
 		for _, link := range artifact.Aliases {
 			fullLink := r.dist(link)
 			os.Remove(fullLink)
 			cmdutil.Must(os.Symlink(artifact.Filename, fullLink))
 		}
+
+		sw()
 	}
 }
 
 func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
+	defer r.Inst.Durations.Steps.Stopwatch("upload")()
+
 	if r.Parameters.S3URL == "" {
 		logrus.Warn("No S3 Bucket specified. Skipping upload.")
 		return
@@ -313,7 +333,9 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 
 	uploader := s3manager.NewUploader(sess)
 	for _, target := range r.Info.Targets {
-		logrus.Infof("Uploading %s to s3://%s%s", target.Outfile, s3url.Host, s3url.Path)
+		uri := fmt.Sprintf("s3://%s%s", s3url.Host, path.Join(s3url.Path, target.Outfile))
+		logrus.Infof("Uploading %s", uri)
+		sw := r.Inst.Durations.Upload.Stopwatch(uri)
 
 		f, err := os.Open(r.dist(target.Outfile))
 		cmdutil.Must(err)
@@ -325,7 +347,6 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 		tags.Set("System", target.System.Name())
 		tags.Set("ReleaseKind", r.Info.Version.Kind)
 
-		start := time.Now()
 		_, err = uploader.Upload(&s3manager.UploadInput{
 			Bucket:  &s3url.Host,
 			Key:     aws.String(path.Join(s3url.Path, target.Outfile)),
@@ -334,6 +355,6 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 		})
 		cmdutil.Must(err)
 
-		logrus.Infof("Upload finished in %v", time.Since(start).Truncate(10*time.Millisecond))
+		sw()
 	}
 }
