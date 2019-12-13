@@ -128,6 +128,7 @@ type BuildInfo struct {
 	Version   Version
 
 	Go struct {
+		Name   string
 		Module string
 		Dir    string
 	}
@@ -190,6 +191,13 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 		info.Commit.DirtyFiles = strings.Split(status, "\n")
 	}
 
+	nameMatch := regexp.MustCompile(`([^/]+)(/v\d+)?$`).FindStringSubmatch(info.Go.Module)
+	if nameMatch == nil {
+		info.Go.Name = path.Base(info.Go.Module)
+	} else {
+		info.Go.Name = nameMatch[1]
+	}
+
 	cmdutil.Must(e.Err())
 
 	targetSystems := []SystemInfo{}
@@ -238,6 +246,10 @@ func CollectBuildInformation(ctx context.Context, pkgArgs []string, targetSystem
 					Package: pkg.PkgPath,
 					Name:    path.Base(pkg.PkgPath),
 					System:  targetSystem,
+				}
+
+				if pkg.PkgPath == info.Go.Module {
+					tinfo.Name = info.Go.Name
 				}
 
 				tinfo.Outfile.Name = fmt.Sprintf("%s-%s-%s",
