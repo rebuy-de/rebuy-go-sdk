@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -30,18 +29,16 @@ func call(ctx context.Context, command string, args ...string) {
 	cmdutil.Must(executil.Run(ctx, c))
 }
 
-type BuildRunner struct {
+type Runner struct {
 	Info       BuildInfo
 	Parameters struct {
 		TargetSystems  []string
 		TargetPackages []string
 		S3URL          string
-
-		GeneratorTargetVersion string // for generate command
 	}
 }
 
-func (r *BuildRunner) Bind(cmd *cobra.Command) error {
+func (r *Runner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringSliceVarP(
 		&r.Parameters.TargetSystems, "cross-compile", "x", []string{},
 		"Targets for cross compilation (eg linux/amd64). Can be used multiple times.")
@@ -51,9 +48,6 @@ func (r *BuildRunner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringVar(
 		&r.Parameters.S3URL, "s3-url", "",
 		"S3 URL to upload compiled releases.")
-	cmd.PersistentFlags().StringVar(
-		&r.Parameters.GeneratorTargetVersion, "generator.target-version", "",
-		"Target version for the generated ./buildutilw file.")
 
 	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		info, err := CollectBuildInformation(context.Background(),
@@ -73,14 +67,14 @@ func (r *BuildRunner) Bind(cmd *cobra.Command) error {
 	return nil
 }
 
-func (r *BuildRunner) RunAll(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) RunAll(ctx context.Context, cmd *cobra.Command, args []string) {
 	r.RunVendor(ctx, cmd, args)
 	r.RunTest(ctx, cmd, args)
 	r.RunBuild(ctx, cmd, args)
 	r.RunUpload(ctx, cmd, args)
 }
 
-func (r *BuildRunner) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) RunClean(ctx context.Context, cmd *cobra.Command, args []string) {
 	files, err := filepath.Glob("dist/*")
 	cmdutil.Must(err)
 
@@ -90,17 +84,17 @@ func (r *BuildRunner) RunClean(ctx context.Context, cmd *cobra.Command, args []s
 	}
 }
 
-func (r *BuildRunner) RunVendor(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) RunVendor(ctx context.Context, cmd *cobra.Command, args []string) {
 	call(ctx, "go", "mod", "vendor")
 }
 
-func (r *BuildRunner) RunTest(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) RunTest(ctx context.Context, cmd *cobra.Command, args []string) {
 	r.RunTestFormat(ctx, cmd, args)
 	r.RunTestVet(ctx, cmd, args)
 	r.RunTestPackages(ctx, cmd, args)
 }
 
-func (r *BuildRunner) RunTestFormat(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) RunTestFormat(ctx context.Context, cmd *cobra.Command, args []string) {
 	a := []string{"-s", "-l"}
 	a = append(a, r.Info.Test.Files...)
 
@@ -110,7 +104,7 @@ func (r *BuildRunner) RunTestFormat(ctx context.Context, cmd *cobra.Command, arg
 	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
-func (r *BuildRunner) RunTestVet(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) RunTestVet(ctx context.Context, cmd *cobra.Command, args []string) {
 	a := []string{"vet"}
 	a = append(a, r.Info.Test.Packages...)
 
@@ -120,7 +114,7 @@ func (r *BuildRunner) RunTestVet(ctx context.Context, cmd *cobra.Command, args [
 	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
-func (r *BuildRunner) RunTestPackages(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) RunTestPackages(ctx context.Context, cmd *cobra.Command, args []string) {
 	a := []string{"test"}
 	a = append(a, r.Info.Test.Packages...)
 
@@ -130,7 +124,7 @@ func (r *BuildRunner) RunTestPackages(ctx context.Context, cmd *cobra.Command, a
 	logrus.Infof("Test finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 }
 
-func (r *BuildRunner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {
 	for _, target := range r.Info.Targets {
 		logrus.Infof("Building %s for %s", target.Package, target.System.Name())
 
@@ -182,7 +176,7 @@ func (r *BuildRunner) RunBuild(ctx context.Context, cmd *cobra.Command, args []s
 	}
 }
 
-func (r *BuildRunner) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
 	if r.Parameters.S3URL == "" {
 		logrus.Warn("No S3 Bucket specified. Skipping upload.")
 		return
@@ -227,12 +221,4 @@ func (r *BuildRunner) RunUpload(ctx context.Context, cmd *cobra.Command, args []
 
 		logrus.Infof("Upload finished in %v", time.Since(start).Truncate(10*time.Millisecond))
 	}
-}
-
-func (r *BuildRunner) RunGenerateWrapper(ctx context.Context, cmd *cobra.Command, args []string) {
-	contents, err := generateWrapper(r.Parameters.GeneratorTargetVersion)
-	cmdutil.Must(err)
-
-	err = ioutil.WriteFile("./buildutil", []byte(contents), 0755)
-	cmdutil.Must(err)
 }
