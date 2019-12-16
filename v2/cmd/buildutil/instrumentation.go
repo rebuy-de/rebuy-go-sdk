@@ -84,10 +84,13 @@ func (m *DurationMap) Stopwatch(name string) func() {
 	start := time.Now()
 
 	return func() {
+		d := time.Since(start).Truncate(time.Millisecond)
+
 		m.l.Lock()
 		defer m.l.Unlock()
+
 		m.m[name] = typeutil.JSONDuration{
-			Duration: time.Since(start).Truncate(time.Millisecond),
+			Duration: d,
 		}
 	}
 }
