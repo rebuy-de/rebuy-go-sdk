@@ -60,6 +60,10 @@ func NewRootCommand() *cobra.Command {
 			cmdutil.WithRun(runner.RunBuild),
 		)),
 		cmdutil.WithSubCommand(cmdutil.New(
+			"artifacts", "Create artifacts",
+			cmdutil.WithRun(runner.RunArtifacts),
+		)),
+		cmdutil.WithSubCommand(cmdutil.New(
 			"upload", "Upload artifacts to S3",
 			cmdutil.WithRun(runner.RunUpload),
 		)),
