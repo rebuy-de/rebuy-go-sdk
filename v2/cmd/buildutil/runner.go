@@ -375,13 +375,13 @@ func (r *Runner) RunUploadNexus(ctx context.Context, cmd *cobra.Command, args []
 			continue
 		}
 
-		if len(r.Info.Commit.DirtyFiles) > 0 {
-			logrus.Warnf("Skipping upload: branch has dirty files")
+		if r.Info.Commit.Branch != "master" {
+			logrus.Warnf("Skipping upload: not in master branch")
 			continue
 		}
 
-		if r.Info.Commit.Branch != "master" {
-			logrus.Warnf("Skipping upload: not in master branch")
+		if len(r.Info.Commit.DirtyFiles) > 0 {
+			logrus.Warnf("Skipping upload: branch has dirty files")
 			continue
 		}
 

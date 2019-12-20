@@ -15,7 +15,7 @@ script:
 - ./dist/buildutil-bootstrap -v
     -x linux/amd64 -x darwin/amd64
     --rpm --deb --compress
-    --s3-url s3://rebuy-github-releases/rebuy-go-sdk
+    --upload-s3 s3://rebuy-github-releases/rebuy-go-sdk
 
 cache:
   directories:
