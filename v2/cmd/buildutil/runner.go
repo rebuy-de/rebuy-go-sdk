@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -19,6 +20,7 @@ import (
 	"github.com/goreleaser/nfpm"
 	_ "github.com/goreleaser/nfpm/deb" // blank import to register the format
 	_ "github.com/goreleaser/nfpm/rpm" // blank import to register the format
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -320,6 +322,13 @@ func (r *Runner) RunArtifacts(ctx context.Context, cmd *cobra.Command, args []st
 func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
 	defer r.Inst.Durations.Steps.Stopwatch("upload")()
 
+	r.RunUploadS3(ctx, cmd, args)
+	r.RunUploadNexus(ctx, cmd, args)
+}
+
+func (r *Runner) RunUploadS3(ctx context.Context, cmd *cobra.Command, args []string) {
+	defer r.Inst.Durations.Steps.Stopwatch("upload-s3")()
+
 	sess, err := session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	})
@@ -337,6 +346,7 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 
 		f, err := os.Open(r.dist(artifact.Filename))
 		cmdutil.Must(err)
+		defer f.Close()
 
 		tags := url.Values{}
 		tags.Set("GoModule", r.Info.Go.Module)
@@ -352,6 +362,44 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 		})
 		cmdutil.Must(err)
 
+		f.Close()
+		sw()
+	}
+}
+
+func (r *Runner) RunUploadNexus(ctx context.Context, cmd *cobra.Command, args []string) {
+	defer r.Inst.Durations.Steps.Stopwatch("upload-nexus")()
+
+	for _, artifact := range r.Info.Artifacts {
+		if artifact.Upload.Nexus == nil {
+			continue
+		}
+
+		us := artifact.Upload.Nexus.String()
+		logrus.Infof("Uploading %s", us)
+		sw := r.Inst.Durations.Upload.Stopwatch(us)
+
+		resp1, err := http.Head(us)
+		cmdutil.Must(err)
+
+		if resp1.StatusCode == http.StatusOK {
+			logrus.Warnf("Upload failed: %s was already uploaded", us)
+			continue
+		}
+
+		f, err := os.Open(r.dist(artifact.Filename))
+		cmdutil.Must(err)
+		defer f.Close()
+
+		req, err := http.NewRequest("PUT", us, f)
+		cmdutil.Must(err)
+
+		resp2, err := http.DefaultClient.Do(req)
+		if resp2.StatusCode != http.StatusOK {
+			cmdutil.Must(errors.Errorf("Upload failed: %s", resp2.Status))
+		}
+
+		f.Close()
 		sw()
 	}
 }
