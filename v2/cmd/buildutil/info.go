@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/cmdutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/executil"
 	"github.com/sirupsen/logrus"
@@ -165,7 +167,7 @@ type BuildInfo struct {
 type ArtifactInfo struct {
 	Kind       string
 	Filename   string
-	S3Location string   `json:",omitempty"`
+	S3Location *S3URL   `json:",omitempty"`
 	Aliases    []string `json:",omitempty"`
 	System     SystemInfo
 }
@@ -338,13 +340,53 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	}
 
 	if p.S3URL != "" {
-		for i, a := range info.Artifacts {
-			plain := strings.TrimPrefix(p.S3URL, "s3://")
+		base, err := ParseS3URL(p.S3URL)
+		if err != nil {
+			return info, errors.WithStack(err)
+		}
 
-			info.Artifacts[i].S3Location = fmt.Sprintf("s3://%s", path.Join(plain, a.Filename))
+		for i, a := range info.Artifacts {
+			u := base.Subpath(a.Filename)
+			info.Artifacts[i].S3Location = &u
 		}
 	}
 
 	return info, nil
 
+}
+
+type S3URL struct {
+	Bucket string
+	Key    string
+}
+
+func ParseS3URL(raw string) (*S3URL, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse S3 URL")
+	}
+
+	if u.Scheme != "s3" && u.Scheme != "" {
+		return nil, errors.Errorf("Unknown scheme %s for the S3 URL", u.Scheme)
+	}
+
+	return &S3URL{
+		Bucket: u.Host,
+		Key:    path.Clean("/" + u.Path),
+	}, nil
+}
+
+func (u S3URL) Subpath(p ...string) S3URL {
+	p = append([]string{u.Key}, p...)
+	u.Key = path.Join(p...)
+	return u // This is actually a copy, since we do not use pointers.
+}
+
+func (u S3URL) String() string {
+	return fmt.Sprintf("s3://%s%s", u.Bucket, u.Key)
+}
+
+func (u S3URL) MarshalJSON() ([]byte, error) {
+	s := u.String()
+	return json.Marshal(s)
 }

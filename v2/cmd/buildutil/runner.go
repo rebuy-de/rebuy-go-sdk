@@ -314,42 +314,33 @@ func (r *Runner) RunArtifacts(ctx context.Context, cmd *cobra.Command, args []st
 func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
 	defer r.Inst.Durations.Steps.Stopwatch("upload")()
 
-	if r.Parameters.S3URL == "" {
-		logrus.Warn("No S3 Bucket specified. Skipping upload.")
-		return
-	}
-
-	s3url, err := url.Parse(r.Parameters.S3URL)
-	cmdutil.Must(err)
-
-	if s3url.Scheme != "s3" && s3url.Scheme != "" {
-		cmdutil.Must(fmt.Errorf("Unknown scheme %s for the S3 URL", s3url.Scheme))
-	}
-
 	sess, err := session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	})
 	cmdutil.Must(err)
 
 	uploader := s3manager.NewUploader(sess)
-	for _, target := range r.Info.Targets {
-		uri := fmt.Sprintf("s3://%s%s", s3url.Host, path.Join(s3url.Path, target.Outfile))
-		logrus.Infof("Uploading %s", uri)
-		sw := r.Inst.Durations.Upload.Stopwatch(uri)
+	for _, artifact := range r.Info.Artifacts {
+		if artifact.S3Location == nil {
+			continue
+		}
 
-		f, err := os.Open(r.dist(target.Outfile))
+		us := artifact.S3Location.String()
+		logrus.Infof("Uploading %s", us)
+		sw := r.Inst.Durations.Upload.Stopwatch(us)
+
+		f, err := os.Open(r.dist(artifact.Filename))
 		cmdutil.Must(err)
 
 		tags := url.Values{}
 		tags.Set("GoModule", r.Info.Go.Module)
-		tags.Set("GoPackage", target.Package)
 		tags.Set("Branch", r.Info.Commit.Branch)
-		tags.Set("System", target.System.Name())
+		tags.Set("System", artifact.System.Name())
 		tags.Set("ReleaseKind", r.Info.Version.Kind)
 
 		_, err = uploader.Upload(&s3manager.UploadInput{
-			Bucket:  &s3url.Host,
-			Key:     aws.String(path.Join(s3url.Path, target.Outfile)),
+			Bucket:  &artifact.S3Location.Bucket,
+			Key:     &artifact.S3Location.Key,
 			Tagging: aws.String(tags.Encode()),
 			Body:    f,
 		})
