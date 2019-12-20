@@ -375,6 +375,16 @@ func (r *Runner) RunUploadNexus(ctx context.Context, cmd *cobra.Command, args []
 			continue
 		}
 
+		if len(r.Info.Commit.DirtyFiles) > 0 {
+			logrus.Warnf("Skipping upload: branch has dirty files")
+			continue
+		}
+
+		if r.Info.Commit.Branch != "master" {
+			logrus.Warnf("Skipping upload: not in master branch")
+			continue
+		}
+
 		us := artifact.Upload.Nexus.String()
 		logrus.Infof("Uploading %s", us)
 		sw := r.Inst.Durations.Upload.Stopwatch(us)
@@ -383,7 +393,7 @@ func (r *Runner) RunUploadNexus(ctx context.Context, cmd *cobra.Command, args []
 		cmdutil.Must(err)
 
 		if resp1.StatusCode == http.StatusOK {
-			logrus.Warnf("Upload failed: %s was already uploaded", us)
+			logrus.Warnf("Skipping upload: %s was already uploaded", us)
 			continue
 		}
 
