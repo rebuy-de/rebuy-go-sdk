@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -165,11 +166,16 @@ type BuildInfo struct {
 }
 
 type ArtifactInfo struct {
-	Kind       string
-	Filename   string
-	S3Location *S3URL   `json:",omitempty"`
-	Aliases    []string `json:",omitempty"`
-	System     SystemInfo
+	Kind     string
+	Filename string
+	System   SystemInfo
+
+	Aliases []string `json:",omitempty"`
+
+	Upload struct {
+		S3    *S3URL           `json:",omitempty"`
+		Nexus *NexusRepository `json:",omitempty"`
+	} `json:",omitempty"`
 }
 
 func (i *BuildInfo) NewArtifactInfo(kind string, name string, system SystemInfo, ext string) ArtifactInfo {
@@ -339,20 +345,119 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		}
 	}
 
-	if p.S3URL != "" {
-		base, err := ParseS3URL(p.S3URL)
+	if p.UploadS3 != "" {
+		base, err := ParseS3URL(p.UploadS3)
 		if err != nil {
 			return info, errors.WithStack(err)
 		}
 
 		for i, a := range info.Artifacts {
-			u := base.Subpath(a.Filename)
-			info.Artifacts[i].S3Location = &u
+			info.Artifacts[i].Upload.S3 = base.Filename(a.Filename)
+		}
+	}
+
+	if p.UploadNexus != "" {
+		repo, err := ParseNexusURL(p.UploadNexus)
+		if err != nil {
+			return info, errors.WithStack(err)
+		}
+
+		err = repo.FetchFormat()
+		if err != nil {
+			return info, errors.WithStack(err)
+		}
+
+		for i, a := range info.Artifacts {
+			fmt.Printf("%s - %s\n", repo.Format, a.Kind)
+			if repo.Format == "yum" && a.Kind == "rpm" {
+				info.Artifacts[i].Upload.Nexus = repo.Filename(a.Filename)
+			}
 		}
 	}
 
 	return info, nil
 
+}
+
+type NexusRepository struct {
+	BaseURL url.URL
+	Repo    string
+	File    string
+	Format  string
+}
+
+func ParseNexusURL(raw string) (*NexusRepository, error) {
+	repoURL, err := url.Parse(raw)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	repoPath := path.Clean("/" + repoURL.EscapedPath())
+	prefix := "/repository/"
+	if !strings.HasPrefix(repoPath, prefix) {
+		return nil, errors.Errorf("invalid URL format: expected http://$server/repository/$repo")
+	}
+
+	repoURL.Path = ""
+	repoURL.RawPath = ""
+
+	return &NexusRepository{
+		BaseURL: *repoURL,
+		Repo:    strings.Trim(strings.TrimPrefix(repoPath, prefix), "/"),
+	}, nil
+}
+
+func (r *NexusRepository) FetchFormat() error {
+	result := []struct {
+		Name   string `json:"name"`
+		Format string `json:"format"`
+		Type   string `json:"type"`
+	}{}
+
+	resp, err := http.Get(fmt.Sprintf("%s/service/rest/v1/repositories", r.BaseURL.String()))
+	if err != nil {
+		return errors.Wrap(err, "failed to list repositories")
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("failed to list repositories: %s", resp.Status)
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse repository list")
+	}
+
+	for _, repo := range result {
+		if repo.Name != r.Repo {
+			continue
+		}
+
+		if repo.Type != "hosted" {
+			return errors.Errorf("require hosted repostitory")
+		}
+
+		r.Format = repo.Format
+		return nil
+	}
+
+	return errors.Errorf("did not find repostitory on server")
+}
+
+func (r NexusRepository) Filename(name string) *NexusRepository {
+	r.File = name
+	return &r // This is actually a copy, since we do not use pointers.
+}
+
+func (r NexusRepository) String() string {
+	return fmt.Sprintf("%s/repository/%s/%s", r.BaseURL.String(), r.Repo, r.File)
+}
+
+func (r NexusRepository) MarshalJSON() ([]byte, error) {
+	s := r.String()
+	return json.Marshal(s)
 }
 
 type S3URL struct {
@@ -376,10 +481,9 @@ func ParseS3URL(raw string) (*S3URL, error) {
 	}, nil
 }
 
-func (u S3URL) Subpath(p ...string) S3URL {
-	p = append([]string{u.Key}, p...)
-	u.Key = path.Join(p...)
-	return u // This is actually a copy, since we do not use pointers.
+func (u S3URL) Filename(name string) *S3URL {
+	u.Key = path.Join(u.Key, name)
+	return &u // This is actually a copy, since we do not use pointers.
 }
 
 func (u S3URL) String() string {

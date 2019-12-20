@@ -37,7 +37,9 @@ func call(ctx context.Context, command string, args ...string) {
 type BuildParameters struct {
 	TargetSystems  []string
 	TargetPackages []string
-	S3URL          string
+
+	UploadS3    string
+	UploadNexus string
 
 	CreateCompressed bool
 	CreateRPM        bool
@@ -59,9 +61,13 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringSliceVarP(
 		&r.Parameters.TargetPackages, "package", "p", []string{},
 		"Packages to build.")
+
 	cmd.PersistentFlags().StringVar(
-		&r.Parameters.S3URL, "s3-url", "",
-		"S3 URL to upload compiled releases.")
+		&r.Parameters.UploadS3, "upload-s3", "",
+		"S3 URL to upload artifacts.")
+	cmd.PersistentFlags().StringVar(
+		&r.Parameters.UploadNexus, "upload-nexus", "",
+		"URL to Sonatype Nexus Repository to upload artifacts.")
 
 	cmd.PersistentFlags().BoolVar(
 		&r.Parameters.CreateCompressed, "compress", false,
@@ -321,11 +327,11 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 
 	uploader := s3manager.NewUploader(sess)
 	for _, artifact := range r.Info.Artifacts {
-		if artifact.S3Location == nil {
+		if artifact.Upload.S3 == nil {
 			continue
 		}
 
-		us := artifact.S3Location.String()
+		us := artifact.Upload.S3.String()
 		logrus.Infof("Uploading %s", us)
 		sw := r.Inst.Durations.Upload.Stopwatch(us)
 
@@ -339,8 +345,8 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 		tags.Set("ReleaseKind", r.Info.Version.Kind)
 
 		_, err = uploader.Upload(&s3manager.UploadInput{
-			Bucket:  &artifact.S3Location.Bucket,
-			Key:     &artifact.S3Location.Key,
+			Bucket:  &artifact.Upload.S3.Bucket,
+			Key:     &artifact.Upload.S3.Key,
 			Tagging: aws.String(tags.Encode()),
 			Body:    f,
 		})
