@@ -1,10 +1,10 @@
 package cmdutil
 
 import (
+	graylog "github.com/gemnasium/logrus-graylog-hook/v3"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	graylog "gopkg.in/gemnasium/logrus-graylog-hook.v2"
 )
 
 type Option func(*cobra.Command) error
