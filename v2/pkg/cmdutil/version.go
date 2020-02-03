@@ -53,7 +53,7 @@ func WithVersionLog(level logrus.Level) Option {
 		cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 			logrus.WithFields(logrus.Fields{
 				"Version": Version,
-				"Date":    CommitHash,
+				"Date":    CommitDate,
 				"Commit":  CommitHash,
 			}).Logf(level, "%s started", Name)
 		}
