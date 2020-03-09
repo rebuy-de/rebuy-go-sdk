@@ -175,6 +175,7 @@ func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string
 			{name: "Version", value: r.Info.Version.String()},
 			{name: "GoModule", value: r.Info.Go.Module},
 			{name: "GoPackage", value: target.Package},
+			{name: "GoVersion", value: r.Info.Go.Version},
 			{name: "BuildDate", value: r.Info.BuildDate},
 			{name: "CommitDate", value: r.Info.Commit.Date},
 			{name: "CommitHash", value: r.Info.Commit.Hash},
