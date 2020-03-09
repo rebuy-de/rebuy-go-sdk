@@ -1,6 +1,6 @@
 # disabled syntax = docker/dockerfile:experimental
 
-FROM golang:1.13-alpine as builder
+FROM golang:1.14-alpine as builder
 
 RUN apk add --no-cache git curl openssl bash
 
