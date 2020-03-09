@@ -143,9 +143,10 @@ type BuildInfo struct {
 	Version   Version
 
 	Go struct {
-		Name   string
-		Module string
-		Dir    string
+		Name    string
+		Module  string
+		Dir     string
+		Version string
 	}
 
 	Commit struct {
@@ -227,6 +228,13 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	info.Version, err = ParseVersion(e.OutputString("git", "describe", "--always", "--dirty", "--tags"))
 	if err != nil {
 		logrus.WithError(err).Error("Failed to parse version")
+	}
+
+	goVersionMatch := regexp.MustCompile(`(?m)go(\d.*) `).FindStringSubmatch(e.OutputString("go", "version"))
+	if goVersionMatch == nil {
+		info.Go.Version = "unknown version"
+	} else {
+		info.Go.Version = goVersionMatch[1]
 	}
 
 	status := strings.TrimSpace(e.OutputString("git", "status", "-s"))
