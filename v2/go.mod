@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/aws/aws-sdk-go v1.28.9
 	github.com/gemnasium/logrus-graylog-hook/v3 v3.0.2
+	github.com/gobuffalo/packr/v2 v2.7.1
 	github.com/google/uuid v1.1.1
 	github.com/goreleaser/nfpm v1.1.10
 	github.com/pkg/errors v0.9.1

@@ -25,6 +25,7 @@ func NewRootCommand() *cobra.Command {
 
 		cmdutil.WithSubCommand(cmdutil.New(
 			"./buildutil", "Generate ./buildutil",
+			r.Bind,
 			cmdutil.WithRun(r.RunGenerateWrapper),
 		)),
 	)
