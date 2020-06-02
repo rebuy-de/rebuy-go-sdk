@@ -15,7 +15,7 @@ func NewMiddlewareChain() MiddlewareChain {
 	return MiddlewareChain{}
 }
 
-// MiddlewareChain is a builder for a http.Handler out of multiple middlewares.
+// MiddlewareChain is a builder for an http.Handler out of multiple middlewares.
 type MiddlewareChain []Middleware
 
 // Then defines the next middleware to call.

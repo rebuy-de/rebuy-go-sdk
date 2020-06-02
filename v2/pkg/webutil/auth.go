@@ -33,7 +33,7 @@ type AuthInfo struct {
 	Teams []string
 }
 
-// InTeam return true, if the user is in the given team. The team name needs to
+// InTeam returns true, if the user is in the given team. The team name needs to
 // be whitelisted in the AuthMiddleware, otherwise it will return false even if
 // the user is in the team.
 func (i AuthInfo) InTeam(want string) bool {
@@ -50,15 +50,15 @@ func init() {
 	gob.Register(AuthInfo{})
 }
 
-// AuthMiddleware is a HTTP request middleware that adds login endpoints. The
-// request make use of sessions, therefore the SessionMiddleware is required.
+// AuthMiddleware is an HTTP request middleware that adds login endpoints. The
+// request makes use of sessions, therefore the SessionMiddleware is required.
 //
-// The teams arguement contains a whitelist of team names, that get copied into
+// The teams argument contains a whitelist of team names, that are copied into
 // the AuthInfo, if the user is in those teams. It is desirable to copy only
 // the needed subset of teams into the AuthInfo, because this data is carried
 // in the session cookie.
 //
-// Endpoint "/auth/login" initiates the user login and redirectes them to the
+// Endpoint "/auth/login" initiates the user login and redirects them to the
 // GitHub OAuth page.
 //
 // Endpoint "/auth/callback" gets called by the user after being redirected
