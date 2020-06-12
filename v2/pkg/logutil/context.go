@@ -2,10 +2,12 @@ package logutil
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 	"strings"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 )
 
@@ -120,4 +122,42 @@ func Fields(fields logrus.Fields) ContextOption {
 // option.
 func WithFields(ctx context.Context, fields logrus.Fields) context.Context {
 	return Update(ctx, Fields(fields))
+}
+
+// FromStruct converts any struct into a valid logrus.Fields. It can be customized with the logfield annotation:
+//
+//     type Instance struct {
+//         InstanceID   string `logfield:"instance-id"`
+//         InstanceName string `logfield:"instance-name"`
+//     }
+//
+// See mapstructure docs for more information:
+// https://pkg.go.dev/github.com/mitchellh/mapstructure?tab=doc
+func FromStruct(s interface{}) logrus.Fields {
+	fields := logrus.Fields{}
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "logfield",
+		Result:  &fields,
+	})
+	if err != nil {
+		return logrus.Fields{"logfield-error": err}
+	}
+
+	err = dec.Decode(s)
+	if err != nil {
+		return logrus.Fields{"logfield-error": err}
+	}
+
+	return fields
+}
+
+// PrettyPrint prints the given struct in a readable form. It tries JSON first,
+// and if it fails it falls back to fmt.Sprintf.
+func PrettyPrint(v interface{}) string {
+	raw, err := json.MarshalIndent(v, "", "    ")
+	if err != nil {
+		return fmt.Sprintf("%#v", v)
+	}
+
+	return string(raw)
 }
