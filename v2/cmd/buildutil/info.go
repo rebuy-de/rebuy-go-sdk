@@ -50,19 +50,19 @@ func ParseVersion(s string) (Version, error) {
 
 	v.Major, err = strconv.Atoi(mMajor)
 	if err != nil {
-		// Should not happend because of the regex.
+		// Should not happen because of the regex.
 		panic(err)
 	}
 
 	v.Minor, err = strconv.Atoi(mMinor)
 	if err != nil {
-		// Should not happend because of the regex.
+		// Should not happen because of the regex.
 		panic(err)
 	}
 
 	v.Patch, err = strconv.Atoi(mPatch)
 	if err != nil {
-		// Should not happend because of the regex.
+		// Should not happen because of the regex.
 		panic(err)
 	}
 
@@ -129,7 +129,7 @@ type SystemInfo struct {
 	Ext  string `json:",omitempty"`
 }
 
-func (i SystemInfo) FileSufix() string {
+func (i SystemInfo) FileSuffix() string {
 	return fmt.Sprintf("%s-%s%s", i.OS, i.Arch, i.Ext)
 }
 
@@ -178,10 +178,10 @@ func (i *BuildInfo) NewArtifactInfo(kind string, name string, system SystemInfo,
 		ext = system.Ext
 	}
 
-	sufix := fmt.Sprintf("%s-%s%s", system.OS, system.Arch, ext)
-	filename := fmt.Sprintf("%s-%s-%s", name, i.Version.String(), sufix)
+	suffix := fmt.Sprintf("%s-%s%s", system.OS, system.Arch, ext)
+	filename := fmt.Sprintf("%s-%s-%s", name, i.Version.String(), suffix)
 	aliases := []string{
-		fmt.Sprintf("%s-%s", name, sufix),
+		fmt.Sprintf("%s-%s", name, suffix),
 	}
 
 	if system.OS == i.System.OS && system.Arch == i.System.Arch {
@@ -201,6 +201,7 @@ type TargetInfo struct {
 	Name    string
 	Outfile string
 	System  SystemInfo
+	CGO     bool
 }
 
 func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo, error) {
@@ -297,6 +298,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 					Package: pkg.PkgPath,
 					Name:    path.Base(pkg.PkgPath),
 					System:  targetSystem,
+					CGO:     p.CGO,
 				}
 
 				if pkg.PkgPath == info.Go.Module {
@@ -360,7 +362,6 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	}
 
 	return info, nil
-
 }
 
 type S3URL struct {

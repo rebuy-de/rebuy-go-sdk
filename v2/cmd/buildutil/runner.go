@@ -42,6 +42,8 @@ type BuildParameters struct {
 	CreateCompressed bool
 	CreateRPM        bool
 	CreateDEB        bool
+
+	CGO bool
 }
 
 type Runner struct {
@@ -72,6 +74,9 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().BoolVar(
 		&r.Parameters.CreateDEB, "deb", false,
 		"Creates .deb artifacts for linux targets.")
+	cmd.PersistentFlags().BoolVar(
+		&r.Parameters.CGO, "cgo", false,
+		"Enable CGO.")
 
 	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		defer r.Inst.Durations.Steps.Stopwatch("info")()
@@ -189,9 +194,13 @@ func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string
 			))
 		}
 
-		os.Setenv("GOOS", target.System.OS)
-		os.Setenv("GOARCH", target.System.Arch)
-		os.Setenv("CGO_ENABLED", "0")
+		cmdutil.Must(os.Setenv("GOOS", target.System.OS))
+		cmdutil.Must(os.Setenv("GOARCH", target.System.Arch))
+		if target.CGO {
+			cmdutil.Must(os.Setenv("CGO_ENABLED", "1"))
+		} else {
+			cmdutil.Must(os.Setenv("CGO_ENABLED", "0"))
+		}
 
 		sw := r.Inst.Durations.Building.Stopwatch(target.Outfile)
 		call(ctx, "go", "build",
