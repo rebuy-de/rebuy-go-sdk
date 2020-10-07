@@ -22,7 +22,7 @@ COPY . /sdk
 #    --mount=type=cache,id=go-pkg-cache,target=/go/pkg \
 RUN \
     set -e \
-    && cd /sdk/v2 \
+    && cd /sdk \
     && ./buildutil \
     && cp ./dist/buildutil /usr/local/bin \
     && buildutil version \
