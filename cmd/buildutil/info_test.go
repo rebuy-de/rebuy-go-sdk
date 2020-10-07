@@ -42,6 +42,11 @@ func TestParseVersion(t *testing.T) {
 			in:   "v1.6.0+alpha.1-20-gb9e9373-dirty",
 			out:  "v1.6.0+dirty.20.b9e9373",
 		},
+		{
+			name: "release-candidate",
+			in:   "v3.0.0-rc2",
+			out:  "v3.0.0+rc2",
+		},
 	}
 
 	for _, tc := range cases {

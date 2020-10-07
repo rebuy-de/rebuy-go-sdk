@@ -32,7 +32,7 @@ func ParseVersion(s string) (Version, error) {
 		err error
 
 		reCore       = regexp.MustCompile(`^v?([0-9]+)\.([0-9]+)\.([0-9]+)([\-\+].+)?$`)
-		rePreRelease = regexp.MustCompile(`^\+(alpha|beta|rc)\.[0-9]+$`)
+		rePreRelease = regexp.MustCompile(`^[\-\+](alpha|beta|rc)\.?[0-9]+$`)
 		reDescribe   = regexp.MustCompile(`\-([0-9]+)-g?([0-9a-f]+)(-dirty)?$`)
 	)
 
