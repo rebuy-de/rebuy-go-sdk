@@ -2,19 +2,19 @@ package webutil
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
+	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 )
 
 type sessionContextKeyType int
 
 const (
-	sessionName = `rebuy-go-sdk`
-
 	sessionContextKey sessionContextKeyType = 0
 )
 
@@ -46,17 +46,40 @@ func SessionFromRequest(r *http.Request) (*sessions.Session, error) {
 
 // SessionMiddleware inizializes the session store and injects it into the
 // context of the requests.
-func SessionMiddleware(secret SessionSecret) Middleware {
+func SessionMiddleware(secret SessionSecret, opts ...SessionMiddlewareOption) Middleware {
 	return func(next http.Handler) http.Handler {
-		return sessionMiddlewareFunc(next, secret)
+		return sessionMiddlewareFunc(next, secret, opts...)
 	}
 }
 
-func sessionMiddlewareFunc(next http.Handler, secret SessionSecret) http.Handler {
-	store := sessions.NewCookieStore(secret)
+type sessionMiddlewareConfig struct {
+	name  string
+	store *sessions.CookieStore
+}
+
+type SessionMiddlewareOption func(c *sessionMiddlewareConfig)
+
+func SessionMiddlewareCookieDomain(domain string) SessionMiddlewareOption {
+	return func(c *sessionMiddlewareConfig) {
+		c.store.Options.Domain = domain
+	}
+}
+
+func sessionMiddlewareFunc(next http.Handler, secret SessionSecret, opts ...SessionMiddlewareOption) http.Handler {
+	config := sessionMiddlewareConfig{
+		name:  fmt.Sprintf("%s-session", cmdutil.Name),
+		store: sessions.NewCookieStore(secret),
+	}
+
+	config.store.Options.HttpOnly = true
+	config.store.Options.Secure = true
+
+	for _, o := range opts {
+		o(&config)
+	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, err := store.Get(r, sessionName)
+		session, err := config.store.Get(r, config.name)
 		if err != nil {
 			logrus.WithError(err).Warn("failed to restore session; creating new one")
 			session.Save(r, w)
