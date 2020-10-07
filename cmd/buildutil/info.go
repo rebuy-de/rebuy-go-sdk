@@ -94,6 +94,11 @@ func ParseVersion(s string) (Version, error) {
 		return v, nil
 	}
 
+	if mSuffix == "-dirty" {
+		v.Suffix = "dirty"
+		return v, nil
+	}
+
 	v.Suffix = "unknown"
 	return v, nil
 }
@@ -112,7 +117,7 @@ func (v Version) StringRelease() (string, string) {
 	version := fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
 
 	release := v.Suffix
-	if v.Suffix != "" && v.Kind != "prerelease" {
+	if v.Suffix != "" && v.Kind != "prerelease" && v.Kind != "" {
 		release = fmt.Sprintf("%s.%s", v.Kind, release)
 	}
 
