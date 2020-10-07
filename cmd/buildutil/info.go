@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v2/pkg/executil"
+	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/executil"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/tools/go/packages"
 )
@@ -32,7 +32,7 @@ func ParseVersion(s string) (Version, error) {
 		err error
 
 		reCore       = regexp.MustCompile(`^v?([0-9]+)\.([0-9]+)\.([0-9]+)([\-\+].+)?$`)
-		rePreRelease = regexp.MustCompile(`^\+(alpha|beta|rc)\.[0-9]+$`)
+		rePreRelease = regexp.MustCompile(`^[\-\+](alpha|beta|rc)\.?[0-9]+$`)
 		reDescribe   = regexp.MustCompile(`\-([0-9]+)-g?([0-9a-f]+)(-dirty)?$`)
 	)
 
