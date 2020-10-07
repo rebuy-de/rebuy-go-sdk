@@ -7,7 +7,6 @@ before_install:
 - go get golang.org/x/lint/golint
 
 install:
-- cd v2
 - go mod vendor
 
 script:
@@ -21,4 +20,4 @@ cache:
   directories:
   - $GOPATH/pkg
   - $HOME/.cache/go-build
-  - v2/vendor
+  - vendor
