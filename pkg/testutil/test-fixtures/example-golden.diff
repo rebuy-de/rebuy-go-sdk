@@ -1,0 +1,10 @@
+--- a
++++ b
+@@ -1,5 +1,5 @@
+ {
+-    "foo": "bar",
++    "foo": "bir",
+     "bim": "baz",
+-    "blubber": 42
++    "blubber": 177
+ }
