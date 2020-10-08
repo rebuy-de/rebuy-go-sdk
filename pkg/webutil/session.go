@@ -65,6 +65,12 @@ func SessionMiddlewareCookieDomain(domain string) SessionMiddlewareOption {
 	}
 }
 
+func SessionMiddlewareCookieUnsecure() SessionMiddlewareOption {
+	return func(c *sessionMiddlewareConfig) {
+		c.store.Options.Secure = false
+	}
+}
+
 func sessionMiddlewareFunc(next http.Handler, secret SessionSecret, opts ...SessionMiddlewareOption) http.Handler {
 	config := sessionMiddlewareConfig{
 		name:  fmt.Sprintf("%s-session", cmdutil.Name),
