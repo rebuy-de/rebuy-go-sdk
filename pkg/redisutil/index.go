@@ -34,6 +34,10 @@ func IndexVacuum(ctx context.Context, c RedisIndexer, indexKey string, dataKeyPr
 		}
 	}
 
+	if len(expired) == 0 {
+		return nil
+	}
+
 	err = c.SRem(ctx, indexKey, expired...).Err()
 	return errors.Wrap(err, "failed to delete expired keys")
 }
