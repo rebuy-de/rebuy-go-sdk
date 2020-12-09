@@ -19,6 +19,10 @@ func IndexVacuum(ctx context.Context, c RedisIndexer, indexKey string, dataKeyPr
 		return errors.Wrap(err, "failed to get ids")
 	}
 
+	if len(ids) == 0 {
+		return nil
+	}
+
 	keys := dataKeyPrefix.Keys(ids)
 
 	values, err := c.MGet(ctx, keys...).Result()
@@ -28,9 +32,9 @@ func IndexVacuum(ctx context.Context, c RedisIndexer, indexKey string, dataKeyPr
 
 	expired := []interface{}{}
 	for k, value := range values {
-		key := keys[k]
+		id := ids[k]
 		if value == nil {
-			expired = append(expired, key)
+			expired = append(expired, id)
 		}
 	}
 
