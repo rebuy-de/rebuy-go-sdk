@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.35.1
 	github.com/gemnasium/logrus-graylog-hook/v3 v3.0.2
 	github.com/go-redis/redis/v8 v8.4.0
+	github.com/gobuffalo/packr/v2 v2.8.1
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/uuid v1.1.2
 	github.com/goreleaser/nfpm v1.8.0

@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/webutil"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,7 +42,7 @@ func SessionSecretSourceRedis(ctx context.Context, client RedisSessioner, prefix
 
 	secret, err := client.Get(ctx, key).Result()
 	if err == redis.Nil {
-		secret := webutil.SessionSecretSourceVolatile()
+		secret := SessionSecretSourceVolatile()
 		err := client.Set(ctx, key, secret, 24*30*time.Hour).Err()
 		return secret, errors.Wrap(err, "failed to set new secret")
 	}
