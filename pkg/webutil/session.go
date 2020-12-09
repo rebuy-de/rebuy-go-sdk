@@ -4,11 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path"
+	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/webutil"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,6 +29,30 @@ type SessionSecret []byte
 // application restart and an application cannot have more than one replicas.
 func SessionSecretSourceVolatile() []byte {
 	return securecookie.GenerateRandomKey(32)
+}
+
+type RedisSessioner interface {
+	Get(context.Context, string) *redis.StringCmd
+	Set(context.Context, string, interface{}, time.Duration) *redis.StatusCmd
+}
+
+// SessionSecretSourceRedis stores the session secrets in Redis. If the key
+// does not exist yet, it will create a new one.
+func SessionSecretSourceRedis(ctx context.Context, client RedisSessioner, prefix string) ([]byte, error) {
+	key := path.Join(prefix, "session-secret")
+
+	secret, err := client.Get(ctx, key).Result()
+	if err == redis.Nil {
+		secret := webutil.SessionSecretSourceVolatile()
+		err := client.Set(ctx, key, secret, 24*30*time.Hour).Err()
+		return secret, errors.Wrap(err, "failed to set new secret")
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read secret")
+	}
+
+	return []byte(secret), nil
 }
 
 // SessionFromContext extracts the Session store from the given context. The
