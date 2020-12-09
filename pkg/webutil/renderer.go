@@ -9,7 +9,6 @@ import (
 
 	"github.com/gobuffalo/packr/v2"
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/webutil"
 )
 
 type TemplateRendererOption func(*http.Request, *template.Template) *template.Template
@@ -54,13 +53,13 @@ func (tr *TemplateRenderer) RespondHTML(writer http.ResponseWriter, request *htt
 		tpl, err = tpl.Parse(file.String())
 		return err
 	})
-	if webutil.RespondError(writer, err) {
+	if RespondError(writer, err) {
 		return
 	}
 
 	buf := new(bytes.Buffer)
 	err = tpl.ExecuteTemplate(buf, name, data)
-	if webutil.RespondError(writer, err) {
+	if RespondError(writer, err) {
 		return
 	}
 
