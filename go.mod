@@ -3,6 +3,7 @@ module github.com/rebuy-de/rebuy-go-sdk/v3
 go 1.15
 
 require (
+	github.com/alicebob/miniredis/v2 v2.14.1
 	github.com/aws/aws-sdk-go v1.35.1
 	github.com/gemnasium/logrus-graylog-hook/v3 v3.0.2
 	github.com/go-redis/redis/v8 v8.4.0
@@ -17,6 +18,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.0.0
+	github.com/stretchr/testify v1.6.1
 	github.com/tidwall/pretty v1.0.2
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/sync v0.0.0-20200930132711-30421366ff76
