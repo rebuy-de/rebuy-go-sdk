@@ -6,7 +6,7 @@ on:
   pull_request:
     types: [opened, reopened, synchronize]
   release:
-    types: [published, released, created]
+    types: [published]
   schedule:
   - cron: '15 3 * * 0'
 
@@ -14,10 +14,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
     - name: Setup Go
       uses: actions/setup-go@v2
       with:
@@ -25,7 +21,10 @@ jobs:
     - name: Setup tools
       run: |
         go get golang.org/x/lint/golint
-        go mod vendor
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Build Project
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
