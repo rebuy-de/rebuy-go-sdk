@@ -3,6 +3,7 @@
 FROM golang:1.16-alpine as builder
 
 RUN apk add --no-cache git curl openssl bash
+RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/community podman
 
 # Install Go Tools
 # RUN --mount=type=cache,id=go-build-cache,target=/root/.cache/go-build \
