@@ -13,7 +13,7 @@ require (
 	github.com/gobuffalo/packr/v2 v2.8.1
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/uuid v1.2.0
-	github.com/goreleaser/nfpm v1.10.3
+	github.com/goreleaser/nfpm/v2 v2.3.1
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.1
 	github.com/julienschmidt/httprouter v1.3.0

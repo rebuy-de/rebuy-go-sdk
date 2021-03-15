@@ -17,9 +17,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/goreleaser/nfpm"
-	_ "github.com/goreleaser/nfpm/deb" // blank import to register the format
-	_ "github.com/goreleaser/nfpm/rpm" // blank import to register the format
+	"github.com/goreleaser/nfpm/v2"
+	_ "github.com/goreleaser/nfpm/v2/deb" // blank import to register the format
+	"github.com/goreleaser/nfpm/v2/files"
+	_ "github.com/goreleaser/nfpm/v2/rpm" // blank import to register the format
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -277,10 +278,15 @@ func (r *Runner) RunArtifacts(ctx context.Context, cmd *cobra.Command, args []st
 		case "deb":
 			version, release := r.Info.Version.StringRelease()
 
-			bindir := "/usr/share/bin"
-			files := map[string]string{}
+			bindir := "/usr/bin"
+			contents := files.Contents{}
+
 			for name, src := range binaries {
-				files[src] = path.Join(bindir, name)
+				content := files.Content{
+					Source:      src,
+					Destination: path.Join(bindir, name),
+				}
+				contents = append(contents, &content)
 			}
 
 			info := &nfpm.Info{
@@ -290,9 +296,8 @@ func (r *Runner) RunArtifacts(ctx context.Context, cmd *cobra.Command, args []st
 				Version:    version,
 				Release:    release,
 				Maintainer: "reBuy Platform Team <dl-scb-tech-platform@rebuy.com>",
-				Bindir:     bindir,
 				Overridables: nfpm.Overridables{
-					Files: files,
+					Contents: contents,
 				},
 			}
 
