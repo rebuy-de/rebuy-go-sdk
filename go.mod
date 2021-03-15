@@ -4,7 +4,10 @@ go 1.16
 
 require (
 	github.com/alicebob/miniredis/v2 v2.14.3
-	github.com/aws/aws-sdk-go v1.37.30
+	github.com/aws/aws-sdk-go-v2 v1.2.1
+	github.com/aws/aws-sdk-go-v2/config v1.1.2
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.0.3
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.2.1
 	github.com/gemnasium/logrus-graylog-hook/v3 v3.0.2
 	github.com/go-redis/redis/v8 v8.7.1
 	github.com/gobuffalo/packr/v2 v2.8.1

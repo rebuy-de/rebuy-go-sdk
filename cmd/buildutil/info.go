@@ -386,7 +386,7 @@ func ParseS3URL(raw string) (*S3URL, error) {
 
 	return &S3URL{
 		Bucket: u.Host,
-		Key:    path.Clean("/" + u.Path),
+		Key:    strings.TrimPrefix(path.Clean(u.Path), "/"),
 	}, nil
 }
 
@@ -397,7 +397,7 @@ func (u S3URL) Subpath(p ...string) S3URL {
 }
 
 func (u S3URL) String() string {
-	return fmt.Sprintf("s3://%s%s", u.Bucket, u.Key)
+	return fmt.Sprintf("s3://%s/%s", u.Bucket, u.Key)
 }
 
 func (u S3URL) MarshalJSON() ([]byte, error) {

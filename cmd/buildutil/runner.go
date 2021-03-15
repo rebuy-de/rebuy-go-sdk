@@ -13,9 +13,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/goreleaser/nfpm"
 	_ "github.com/goreleaser/nfpm/deb" // blank import to register the format
 	_ "github.com/goreleaser/nfpm/rpm" // blank import to register the format
@@ -324,12 +325,10 @@ func (r *Runner) RunArtifacts(ctx context.Context, cmd *cobra.Command, args []st
 func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []string) {
 	defer r.Inst.Durations.Steps.Stopwatch("upload")()
 
-	sess, err := session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithDefaultRegion("eu-west-1"))
 	cmdutil.Must(err)
 
-	uploader := s3manager.NewUploader(sess)
+	uploader := manager.NewUploader(s3.NewFromConfig(cfg))
 	for _, artifact := range r.Info.Artifacts {
 		if artifact.S3Location == nil {
 			continue
@@ -348,7 +347,7 @@ func (r *Runner) RunUpload(ctx context.Context, cmd *cobra.Command, args []strin
 		tags.Set("System", artifact.System.Name())
 		tags.Set("ReleaseKind", r.Info.Version.Kind)
 
-		_, err = uploader.Upload(&s3manager.UploadInput{
+		_, err = uploader.Upload(ctx, &s3.PutObjectInput{
 			Bucket:  &artifact.S3Location.Bucket,
 			Key:     &artifact.S3Location.Key,
 			Tagging: aws.String(tags.Encode()),
