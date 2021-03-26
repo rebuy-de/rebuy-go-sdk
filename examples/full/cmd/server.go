@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"html/template"
 	"io/fs"
 	"net/http"
 
@@ -18,7 +19,8 @@ type Server struct {
 	RedisClient *redis.Client
 	RedisPrefix redisutil.Prefix
 
-	AssetFS fs.FS
+	AssetFS    fs.FS
+	TemplateFS fs.FS
 }
 
 func (s *Server) Run(ctxRoot context.Context) error {
@@ -49,6 +51,7 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
 	ctx = logutil.Start(ctx, "http-server")
 
 	router := httprouter.New()
+	router.GET("/", s.handleIndex)
 	router.ServeFiles("/assets/*filepath", http.FS(s.AssetFS))
 
 	group.Go(func() error {
@@ -56,4 +59,18 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
 		return errors.WithStack(webutil.ListenAndServerWithContext(
 			ctx, "0.0.0.0:8080", router))
 	})
+}
+
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	logutil.Get(r.Context()).Infof("got request")
+
+	t, err := template.ParseFS(s.TemplateFS, "index.html")
+	if webutil.RespondError(w, err) {
+		return
+	}
+
+	err = t.Execute(w, nil)
+	if webutil.RespondError(w, err) {
+		return
+	}
 }
