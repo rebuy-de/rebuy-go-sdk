@@ -9,7 +9,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/logutil"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -18,8 +18,6 @@ import (
 // graceful shutdown when the context is done and a context cancellation gets
 // propagated down to the actual request context.
 func ListenAndServerWithContext(ctx context.Context, addr string, handler http.Handler) error {
-	l := logrus.WithField("subsystem", "httputil")
-
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
@@ -43,10 +41,10 @@ func ListenAndServerWithContext(ctx context.Context, addr string, handler http.H
 	grp.Go(func() error {
 		<-ctx.Done()
 
-		l.Warn("Got shutdown signal")
+		logutil.Get(ctx).Warn("Got shutdown signal")
 		time.Sleep(3 * time.Second) // Give systems some time to populate shutdown.
 
-		l.Debug("Shutting down")
+		logutil.Get(ctx).Debug("Shutting down")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		return errors.WithStack(server.Shutdown(shutdownCtx))
@@ -59,6 +57,7 @@ func ListenAndServerWithContext(ctx context.Context, addr string, handler http.H
 // long as the context is not done. When the context is done, it returns with
 // 503. This only works, if the BaseContext of the http server gets canceled on
 // shutdown. See ListenAndServerWithContext for details.
+// Deprecated: Use AdminAPIListenAndServe instead.
 func HandleHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if r.Context().Err() != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
