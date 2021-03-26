@@ -22,6 +22,7 @@ func ListenAndServerWithContext(ctx context.Context, addr string, handler http.H
 		Addr:    addr,
 		Handler: handler,
 		BaseContext: func(_ net.Listener) context.Context {
+			ctx := logutil.Start(ctx, "request")
 			return ctx
 		},
 	}

@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"context"
-	"fmt"
+	"io/fs"
+	"net/http"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
+	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/logutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/redisutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/webutil"
 	"golang.org/x/sync/errgroup"
@@ -14,6 +17,8 @@ import (
 type Server struct {
 	RedisClient *redis.Client
 	RedisPrefix redisutil.Prefix
+
+	AssetFS fs.FS
 }
 
 func (s *Server) Run(ctxRoot context.Context) error {
@@ -29,12 +34,26 @@ func (s *Server) Run(ctxRoot context.Context) error {
 	// occours.
 	group, ctxRoot := errgroup.WithContext(ctxRoot)
 
+	// Set up the admin API and use the root context to make sure it gets terminated first.
 	webutil.AdminAPIListenAndServe(ctxRoot, group, cancel)
 
-	go func() {
-		<-ctx.Done()
-		fmt.Println("tschüss")
-	}()
+	// Other background processes use the main context.
+	s.setupHTTPServer(ctx, group)
 
 	return errors.WithStack(group.Wait())
+}
+
+func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
+	// It is a good practice to init a new context logger for a new background
+	// process, so we can see what triggered a specific log message later.
+	ctx = logutil.Start(ctx, "http-server")
+
+	router := httprouter.New()
+	router.ServeFiles("/assets/*filepath", http.FS(s.AssetFS))
+
+	group.Go(func() error {
+		logutil.Get(ctx).Info("http server listening on port 8080")
+		return errors.WithStack(webutil.ListenAndServerWithContext(
+			ctx, "0.0.0.0:8080", router))
+	})
 }
