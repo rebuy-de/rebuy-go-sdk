@@ -30,6 +30,8 @@ func (s *Server) Run(ctxRoot context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	ctx = InstInit(ctx)
+
 	// Using a errors group is a good practice to manage multiple parallel
 	// running routines and should used once on program startup. We have to use
 	// ctxRoot, because this is what should canceled first, if any error
@@ -62,7 +64,7 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	logutil.Get(r.Context()).Infof("got request")
+	InstIndexRequest(r.Context(), r)
 
 	t, err := template.ParseFS(s.TemplateFS, "index.html")
 	if webutil.RespondError(w, err) {
