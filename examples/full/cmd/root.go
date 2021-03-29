@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"context"
+	"embed"
+	"io/fs"
+	"os"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
@@ -10,6 +13,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+//go:embed assets/*
+var assetFS embed.FS
+
+//go:embed templates/*
+var templateFS embed.FS
 
 // NewRootCommand initializes the cobra.Command with support of the cmdutil
 // package.
@@ -59,9 +68,18 @@ func (r *Runner) Daemon(ctx context.Context, cmd *cobra.Command, args []string) 
 		})
 	)
 
+	assetFSSub, err := fs.Sub(assetFS, "assets")
+	cmdutil.Must(err)
+
+	templateFSSub, err := fs.Sub(templateFS, "assets")
+	cmdutil.Must(err)
+
 	s := &Server{
 		RedisClient: redisClient,
 		RedisPrefix: redisPrefix,
+
+		AssetFS:    assetFSSub,
+		TemplateFS: templateFSSub,
 	}
 	cmdutil.Must(s.Run(ctx))
 }
@@ -84,6 +102,11 @@ func (r *Runner) Dev(ctx context.Context, cmd *cobra.Command, args []string) {
 	s := &Server{
 		RedisClient: redisClient,
 		RedisPrefix: redisPrefix,
+
+		// Reading directly from disk on dev mode, to be able to refresh the
+		// browser without having to restart the server.
+		AssetFS:    os.DirFS("cmd/assets"),
+		TemplateFS: os.DirFS("cmd/templates"),
 	}
 	cmdutil.Must(s.Run(ctx))
 }
