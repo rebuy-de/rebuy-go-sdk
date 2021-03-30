@@ -17,7 +17,7 @@ import (
 //go:embed assets/*
 var assetFS embed.FS
 
-//go:embed templates/*
+//go:embed templates
 var templateFS embed.FS
 
 // NewRootCommand initializes the cobra.Command with support of the cmdutil
