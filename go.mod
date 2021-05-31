@@ -16,6 +16,7 @@ require (
 	github.com/goreleaser/nfpm/v2 v2.3.1
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.1
+	github.com/hashicorp/vault/api v1.1.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/pkg/errors v0.9.1
