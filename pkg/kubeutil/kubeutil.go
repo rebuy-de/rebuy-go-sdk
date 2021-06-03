@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -27,7 +28,7 @@ func (p *Params) Bind(cmd *cobra.Command) error {
 	return nil
 }
 
-func (p *Params) Client() (kubernetes.Interface, error) {
+func (p *Params) Config() (*rest.Config, error) {
 	if p.kubeconfig == "" {
 		p.kubeconfig = os.Getenv(EnvKubeconfig)
 	}
@@ -35,6 +36,15 @@ func (p *Params) Client() (kubernetes.Interface, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", p.kubeconfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load kubernetes config")
+	}
+
+	return config, nil
+}
+
+func (p *Params) Client() (kubernetes.Interface, error) {
+	config, err := p.Config()
+	if err != nil {
+		return nil, errors.WithStack(err)
 	}
 
 	client, err := kubernetes.NewForConfig(config)
