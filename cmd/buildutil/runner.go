@@ -183,6 +183,7 @@ func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string
 			{name: "GoModule", value: r.Info.Go.Module},
 			{name: "GoPackage", value: target.Package},
 			{name: "GoVersion", value: r.Info.Go.Version},
+			{name: "SDKVersion", value: r.Info.SDKVersion.String()},
 			{name: "BuildDate", value: r.Info.BuildDate},
 			{name: "CommitDate", value: r.Info.Commit.Date},
 			{name: "CommitHash", value: r.Info.Commit.Hash},

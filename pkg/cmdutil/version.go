@@ -15,6 +15,7 @@ var (
 	GoModule   = "unknown"
 	GoPackage  = "unknown"
 	GoVersion  = "unknown"
+	SDKVersion = "unknown"
 	BuildDate  = "unknown"
 	CommitDate = "unknown"
 	CommitHash = "unknown"
@@ -34,6 +35,7 @@ func NewVersionCommand() *cobra.Command {
 			fmt.Printf("GoModule:   %s\n", GoModule)
 			fmt.Printf("GoPackage:  %s\n", GoPackage)
 			fmt.Printf("GoVersion:  %s\n", GoVersion)
+			fmt.Printf("SDKVersion: %s\n", SDKVersion)
 			fmt.Printf("BuildDate:  %s\n", BuildDate)
 			fmt.Printf("CommitDate: %s\n", CommitDate)
 			fmt.Printf("CommitHash: %s\n", CommitHash)
