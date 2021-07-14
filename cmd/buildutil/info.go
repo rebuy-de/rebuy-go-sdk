@@ -143,9 +143,10 @@ func (i SystemInfo) Name() string {
 }
 
 type BuildInfo struct {
-	BuildDate string
-	System    SystemInfo
-	Version   Version
+	BuildDate  string
+	System     SystemInfo
+	Version    Version
+	SDKVersion Version
 
 	Go struct {
 		Name    string
@@ -230,6 +231,11 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	info.Commit.Date = time.Unix(e.OutputInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
 	info.Commit.Hash = e.OutputString("git", "rev-parse", "HEAD")
 	info.Commit.Branch = e.OutputString("git", "rev-parse", "--abbrev-ref", "HEAD")
+
+	info.SDKVersion, err = ParseVersion(e.OutputString("go", "list", "-mod=readonly", "-m", "-f", "{{.Version}}", "github.com/rebuy-de/rebuy-go-sdk/..."))
+	if err != nil {
+		logrus.WithError(err).Error("Failed to parse sdk-version")
+	}
 
 	info.Version, err = ParseVersion(e.OutputString("git", "describe", "--always", "--dirty", "--tags"))
 	if err != nil {
