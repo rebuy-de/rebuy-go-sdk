@@ -11,6 +11,8 @@ import (
 
 // RespondJSON sets the proper content type and sends the given data as JSON to
 // the client.
+//
+// Deprecated: Use MVP instead.
 func RespondJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -32,6 +34,8 @@ func RespondJSON(w http.ResponseWriter, data interface{}) {
 //     if webutil.RespondError(w, err) {
 //         return
 //     }
+//
+// Deprecated: Use MVP instead.
 func RespondError(w http.ResponseWriter, err error) bool {
 	if err != nil {
 		id := uuid.New()

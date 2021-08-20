@@ -12,12 +12,14 @@ import (
 
 // SignalRootContext returns a new empty context, that gets canneld on SIGINT
 // or SIGTEM.
+// Deprecated: Use signal.NotifyContext
 func SignalRootContext() context.Context {
 	return SignalContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 }
 
 // SignalContext returns a copy of the parent context that gets cancelled if
 // the application gets any of the given signals.
+// Deprecated: Use signal.NotifyContext
 func SignalContext(ctx context.Context, signals ...os.Signal) context.Context {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -43,7 +45,8 @@ type RunFuncWithContext func(ctx context.Context, cmd *cobra.Command, args []str
 
 func wrapRootConext(run RunFuncWithContext) RunFunc {
 	return func(cmd *cobra.Command, args []string) {
-		run(SignalRootContext(), cmd, args)
+		ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer cancel()
+		run(ctx, cmd, args)
 	}
-
 }

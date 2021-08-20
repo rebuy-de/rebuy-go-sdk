@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// Deprecated
 type JSONDuration struct {
 	time.Duration
 }
@@ -15,6 +16,7 @@ func (j JSONDuration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.Duration.String())
 }
 
+// Deprecated
 type JSONBytes struct {
 	Size int64
 }

@@ -11,8 +11,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Deprecated: Use MVP instead.
 type TemplateRendererOption func(*http.Request, *template.Template) *template.Template
 
+// Deprecated: Use MVP instead.
 func TemplateRendererFunc(name string, fn interface{}) TemplateRendererOption {
 	return func(r *http.Request, t *template.Template) *template.Template {
 		return t.Funcs(template.FuncMap{
@@ -21,11 +23,13 @@ func TemplateRendererFunc(name string, fn interface{}) TemplateRendererOption {
 	}
 }
 
+// Deprecated: Use MVP instead.
 type TemplateRenderer struct {
 	box  *packr.Box
 	opts []TemplateRendererOption
 }
 
+// Deprecated: Use MVP instead.
 func NewTemplateRenderer(box *packr.Box, opts ...TemplateRendererOption) *TemplateRenderer {
 	stdopts := []TemplateRendererOption{
 		TemplateRendererFunc("StringTitle", strings.Title),
@@ -40,6 +44,7 @@ func NewTemplateRenderer(box *packr.Box, opts ...TemplateRendererOption) *Templa
 	return &renderer
 }
 
+// Deprecated: Use MVP instead.
 func (tr *TemplateRenderer) RespondHTML(writer http.ResponseWriter, request *http.Request, name string, data interface{}) {
 	tpl := template.New("")
 
