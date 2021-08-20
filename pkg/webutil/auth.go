@@ -11,7 +11,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v38/github"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
