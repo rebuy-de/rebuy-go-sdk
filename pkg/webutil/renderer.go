@@ -2,12 +2,14 @@ package webutil
 
 import (
 	"bytes"
+	"embed"
 	"html/template"
+	"io/fs"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/gobuffalo/packr/v2"
 	"github.com/pkg/errors"
 )
 
@@ -22,11 +24,11 @@ func TemplateRendererFunc(name string, fn interface{}) TemplateRendererOption {
 }
 
 type TemplateRenderer struct {
-	box  *packr.Box
+	box  *embed.FS
 	opts []TemplateRendererOption
 }
 
-func NewTemplateRenderer(box *packr.Box, opts ...TemplateRendererOption) *TemplateRenderer {
+func NewTemplateRenderer(box *embed.FS, opts ...TemplateRendererOption) *TemplateRenderer {
 	stdopts := []TemplateRendererOption{
 		TemplateRendererFunc("StringTitle", strings.Title),
 		TemplateRendererFunc("PrettyTime", TemplateFuncPrettyTime),
@@ -47,10 +49,16 @@ func (tr *TemplateRenderer) RespondHTML(writer http.ResponseWriter, request *htt
 		tpl = opt(request, tpl)
 	}
 
-	err := tr.box.Walk(func(name string, file packr.File) error {
-		var err error
-		tpl = tpl.New(name)
-		tpl, err = tpl.Parse(file.String())
+	err := fs.WalkDir(tr.box, ".", func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+		file, err := tr.box.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		tpl = tpl.New(filepath.Base(path))
+		tpl, err = tpl.Parse(string(file))
 		return err
 	})
 	if RespondError(writer, err) {

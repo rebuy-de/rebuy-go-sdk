@@ -7,7 +7,6 @@ RUN apk add --no-cache git curl openssl bash
 # Install Go Tools
 # RUN --mount=type=cache,id=go-build-cache,target=/root/.cache/go-build \
 RUN GO111MODULE= go get -u golang.org/x/lint/golint
-RUN GO111MODULE= go get -u github.com/gobuffalo/packr/v2/packr2
 
 # Configure Go
 ENV GOPATH= CGO_ENABLED=0 GO111MODULE=on
@@ -32,7 +31,6 @@ RUN \
 WORKDIR /build
 
 ONBUILD COPY . .
-ONBUILD RUN packr2
 #ONBUILD RUN \
 #    --mount=type=cache,id=go-build-cache,target=/root/.cache/go-build \
 #    --mount=type=cache,id=go-pkg-cache,target=/go/pkg \
