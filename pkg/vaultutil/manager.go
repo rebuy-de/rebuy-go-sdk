@@ -109,6 +109,10 @@ func Init(ctx context.Context, params Params) (*Manager, error) {
 	}, nil
 }
 
+func (m *Manager) GetClient() *api.Client {
+	return m.client
+}
+
 func (m *Manager) AWSConfig(ctx context.Context) (*aws.Config, error) {
 	var (
 		provider = m.AWSCredentialsProvider()
