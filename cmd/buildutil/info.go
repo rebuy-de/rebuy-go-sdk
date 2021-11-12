@@ -223,16 +223,16 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	e := executil.NewChainExecutor(ctx)
 
 	info.BuildDate = time.Now().Format(time.RFC3339)
-	info.Go.Module = e.OutputString("go", "list", "-m", "-mod=mod")
-	info.Go.Dir = e.OutputString("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}")
-	info.System.OS = e.OutputString("go", "env", "GOOS")
-	info.System.Arch = e.OutputString("go", "env", "GOARCH")
-	info.System.Ext = e.OutputString("go", "env", "GOEXE")
+	info.Go.Module = e.OutputString(p.GoCommand, "list", "-m", "-mod=mod")
+	info.Go.Dir = e.OutputString(p.GoCommand, "list", "-m", "-mod=mod", "-f", "{{.Dir}}")
+	info.System.OS = e.OutputString(p.GoCommand, "env", "GOOS")
+	info.System.Arch = e.OutputString(p.GoCommand, "env", "GOARCH")
+	info.System.Ext = e.OutputString(p.GoCommand, "env", "GOEXE")
 	info.Commit.Date = time.Unix(e.OutputInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
 	info.Commit.Hash = e.OutputString("git", "rev-parse", "HEAD")
 	info.Commit.Branch = e.OutputString("git", "rev-parse", "--abbrev-ref", "HEAD")
 
-	info.SDKVersion, err = ParseVersion(e.OutputString("go", "list", "-mod=readonly", "-m", "-f", "{{.Version}}", "github.com/rebuy-de/rebuy-go-sdk/..."))
+	info.SDKVersion, err = ParseVersion(e.OutputString(p.GoCommand, "list", "-mod=readonly", "-m", "-f", "{{.Version}}", "github.com/rebuy-de/rebuy-go-sdk/..."))
 	if err != nil {
 		logrus.WithError(err).Error("Failed to parse sdk-version")
 	}
@@ -242,7 +242,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		logrus.WithError(err).Error("Failed to parse version")
 	}
 
-	goVersionMatch := regexp.MustCompile(`(?m)go(\d.*) `).FindStringSubmatch(e.OutputString("go", "version"))
+	goVersionMatch := regexp.MustCompile(`(?m)go(\d.*) `).FindStringSubmatch(e.OutputString(p.GoCommand, "version"))
 	if goVersionMatch == nil {
 		info.Go.Version = "unknown version"
 	} else {

@@ -45,6 +45,8 @@ type BuildParameters struct {
 	CreateRPM        bool
 	CreateDEB        bool
 
+	GoCommand string
+
 	CGO bool
 }
 
@@ -79,6 +81,9 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().BoolVar(
 		&r.Parameters.CGO, "cgo", false,
 		"Enable CGO.")
+	cmd.PersistentFlags().StringVar(
+		&r.Parameters.GoCommand, "go-command", "go",
+		"Which Go command to use.")
 
 	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		defer r.Inst.Durations.Steps.Stopwatch("info")()
@@ -130,7 +135,7 @@ func (r *Runner) RunClean(ctx context.Context, cmd *cobra.Command, args []string
 func (r *Runner) RunVendor(ctx context.Context, cmd *cobra.Command, args []string) {
 	defer r.Inst.Durations.Steps.Stopwatch("vendor")()
 
-	call(ctx, "go", "mod", "vendor")
+	call(ctx, r.Parameters.GoCommand, "mod", "vendor")
 }
 
 func (r *Runner) RunTest(ctx context.Context, cmd *cobra.Command, args []string) {
@@ -156,7 +161,7 @@ func (r *Runner) RunTestVet(ctx context.Context, cmd *cobra.Command, args []stri
 
 	logrus.Info("Testing suspicious constructs (go vet)")
 	defer r.Inst.Durations.Testing.Stopwatch("vet")()
-	call(ctx, "go", a...)
+	call(ctx, r.Parameters.GoCommand, a...)
 }
 
 func (r *Runner) RunTestPackages(ctx context.Context, cmd *cobra.Command, args []string) {
@@ -165,7 +170,7 @@ func (r *Runner) RunTestPackages(ctx context.Context, cmd *cobra.Command, args [
 
 	logrus.Info("Testing packages")
 	defer r.Inst.Durations.Testing.Stopwatch("packages")()
-	call(ctx, "go", a...)
+	call(ctx, r.Parameters.GoCommand, a...)
 }
 
 func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string) {
@@ -206,7 +211,7 @@ func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string
 		}
 
 		sw := r.Inst.Durations.Building.Stopwatch(target.Outfile)
-		call(ctx, "go", "build",
+		call(ctx, r.Parameters.GoCommand, "build",
 			"-o", r.dist(target.Outfile),
 			"-ldflags", "-s -w "+strings.Join(ldFlags, " "),
 			target.Package)
