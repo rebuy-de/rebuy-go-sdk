@@ -127,7 +127,8 @@ func (mw *authMiddleware) generateCookie(w http.ResponseWriter) string {
 
 func (mw *authMiddleware) handleCallback(w http.ResponseWriter, r *http.Request) {
 	oauthState, err := r.Cookie(authStateCookie)
-	if RespondError(w, err) {
+	if err != nil {
+		logrus.WithError(errors.WithStack(err)).Error("failed get auth cookie")
 		return
 	}
 
@@ -138,12 +139,14 @@ func (mw *authMiddleware) handleCallback(w http.ResponseWriter, r *http.Request)
 	}
 
 	token, err := mw.config.Exchange(context.Background(), r.FormValue("code"))
-	if RespondError(w, err) {
+	if err != nil {
+		logrus.WithError(errors.WithStack(err)).Error("failed to exchange token")
 		return
 	}
 
 	err = mw.refreshSessionData(w, r, &token.AccessToken)
-	if RespondError(w, err) {
+	if err != nil {
+		logrus.WithError(errors.WithStack(err)).Error("failed to refresh session data")
 		return
 	}
 

@@ -71,7 +71,7 @@ func (r *Runner) Daemon(ctx context.Context, cmd *cobra.Command, args []string) 
 	assetFSSub, err := fs.Sub(assetFS, "assets")
 	cmdutil.Must(err)
 
-	templateFSSub, err := fs.Sub(templateFS, "assets")
+	templateFSSub, err := fs.Sub(templateFS, "templates")
 	cmdutil.Must(err)
 
 	s := &Server{
