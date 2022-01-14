@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
 )
 
 func init() {

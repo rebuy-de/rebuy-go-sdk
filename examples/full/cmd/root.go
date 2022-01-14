@@ -8,8 +8,8 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/redisutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/redisutil"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

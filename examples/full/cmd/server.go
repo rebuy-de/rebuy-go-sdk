@@ -9,9 +9,9 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/logutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/redisutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/redisutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/webutil"
 	"golang.org/x/sync/errgroup"
 )
 

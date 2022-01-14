@@ -24,8 +24,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/executil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/executil"
 )
 
 func call(ctx context.Context, command string, args ...string) {
@@ -197,7 +197,7 @@ func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string
 		ldFlags := []string{}
 		for _, entry := range ldData {
 			ldFlags = append(ldFlags, fmt.Sprintf(
-				`-X 'github.com/rebuy-de/rebuy-go-sdk/v3/pkg/cmdutil.%s=%s'`,
+				`-X 'github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil.%s=%s'`,
 				entry.name, entry.value,
 			))
 		}
