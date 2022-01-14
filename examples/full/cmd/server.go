@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"context"
-	"html/template"
 	"io/fs"
 	"net/http"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/julienschmidt/httprouter"
@@ -52,8 +52,12 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
 	// process, so we can see what triggered a specific log message later.
 	ctx = logutil.Start(ctx, "http-server")
 
+	html := &webutil.HTMLTemplateView{
+		FS: s.TemplateFS,
+	}
+
 	router := httprouter.New()
-	router.GET("/", s.handleIndex)
+	router.GET("/", webutil.Presenter(s.indexModel, html.View("index.html")))
 	router.ServeFiles("/assets/*filepath", http.FS(s.AssetFS))
 
 	group.Go(func() error {
@@ -63,16 +67,9 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
 	})
 }
 
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (s *Server) indexModel(r *http.Request, _ httprouter.Params) (interface{}, int, error) {
 	InstIndexRequest(r.Context(), r)
-
-	t, err := template.ParseFS(s.TemplateFS, "index.html")
-	if webutil.RespondError(w, err) {
-		return
-	}
-
-	err = t.Execute(w, nil)
-	if webutil.RespondError(w, err) {
-		return
-	}
+	return map[string]interface{}{
+		"now": time.Now(),
+	}, http.StatusOK, nil
 }
