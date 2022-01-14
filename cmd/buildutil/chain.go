@@ -1,4 +1,4 @@
-package executil
+package main
 
 import (
 	"bytes"
@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/executil"
 )
 
 type ChainExecutor struct {
@@ -36,7 +38,7 @@ func (e *ChainExecutor) Run(command string, args ...string) {
 	c := exec.Command(command, args...)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
-	e.err = Run(e.ctx, c)
+	e.err = executil.Run(e.ctx, c)
 }
 
 func (e *ChainExecutor) OutputString(command string, args ...string) string {
@@ -52,7 +54,7 @@ func (e *ChainExecutor) OutputString(command string, args ...string) string {
 	out := bytes.Buffer{}
 	c.Stdout = &out
 	c.Stderr = os.Stderr
-	e.err = Run(e.ctx, c)
+	e.err = executil.Run(e.ctx, c)
 	return strings.TrimSpace(out.String())
 }
 
