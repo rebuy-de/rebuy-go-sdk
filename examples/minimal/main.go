@@ -4,7 +4,7 @@ import (
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 
-	"github.com/rebuy-de/rebuy-go-sdk/examples/minimal/cmd"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/examples/minimal/cmd"
 )
 
 func main() {
