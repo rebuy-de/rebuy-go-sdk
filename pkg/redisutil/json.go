@@ -24,24 +24,20 @@ func JSONGet[T any](ctx context.Context, c RedisGetter, key string) (*T, error) 
 		return nil, errors.WithStack(err)
 	}
 
-	return unmarshalGzipJSON[T](payload)
+	return UnmarshalGzipJSON[T](payload)
 }
 
-func unmarshalJSON[T any](payload string) (*T, error) {
-	var v T
-	err := json.Unmarshal([]byte(payload), &v)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	return &v, nil
-}
-
-func unmarshalGzipJSON[T any](payload string) (*T, error) {
+func UnmarshalGzipJSON[T any](payload string) (*T, error) {
 	raw := []byte(payload)
 
 	if len(raw) < 2 || raw[0] != 0x1f || raw[1] != 0x8b {
 		// Decode directly, if it does not start with the gzip magic bytes.
-		return unmarshalJSON[T](payload)
+		var v T
+		err := json.Unmarshal([]byte(payload), &v)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		return &v, nil
 	}
 
 	buf := bytes.NewBuffer(raw)
@@ -66,7 +62,7 @@ type RedisSetter interface {
 }
 
 func GzipJSONSet[T any](ctx context.Context, c RedisSetter, key string, v T, expiration time.Duration) error {
-	payload, err := marshalGzipJSON(v)
+	payload, err := MarshalGzipJSON(v)
 	if err != nil {
 		return err
 	}
@@ -80,7 +76,7 @@ func GzipJSONSet[T any](ctx context.Context, c RedisSetter, key string, v T, exp
 }
 
 func GzipJSONGetSet[T any](ctx context.Context, c RedisSetter, key string, v T) (bool, error) {
-	payload, err := marshalGzipJSON(v)
+	payload, err := MarshalGzipJSON(v)
 	if err != nil {
 		return false, err
 	}
@@ -98,7 +94,7 @@ func GzipJSONGetSet[T any](ctx context.Context, c RedisSetter, key string, v T) 
 	return old != string(payload), nil
 }
 
-func marshalGzipJSON[T any](v T) (string, error) {
+func MarshalGzipJSON[T any](v T) (string, error) {
 	jsonBuf, err := json.Marshal(v)
 	if err != nil {
 		return "", err
