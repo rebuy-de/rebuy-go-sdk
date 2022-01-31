@@ -42,7 +42,8 @@ func NilModel(*http.Request, httprouter.Params) (interface{}, int, error) {
 
 // HTMLTemplateView provides a View that renders the Model with html/template.
 type HTMLTemplateView struct {
-	FS fs.FS
+	FS    fs.FS
+	Funcs template.FuncMap
 }
 
 // View returns a View that can be used by a Presenter.
@@ -58,7 +59,10 @@ func (v *HTMLTemplateView) View(filename string) View {
 			return
 		}
 
-		t, err := template.ParseFS(v.FS, filename)
+		t := template.New(filename)
+		t = t.Funcs(v.Funcs)
+
+		t, err = t.ParseFS(v.FS, filename)
 		if err != nil {
 			logrus.WithError(errors.WithStack(err)).Errorf("parsing template failed")
 			w.WriteHeader(http.StatusInternalServerError)
