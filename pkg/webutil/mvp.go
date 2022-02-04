@@ -46,6 +46,36 @@ type HTMLTemplateView struct {
 	Funcs template.FuncMap
 }
 
+func NewHTMLTemplateView(fs fs.FS, fns ...template.FuncMap) *HTMLTemplateView {
+	v := &HTMLTemplateView{
+		FS:    fs,
+		Funcs: template.FuncMap{},
+	}
+
+	for _, m := range fns {
+		for name, fn := range m {
+			v.Funcs[name] = fn
+		}
+	}
+
+	return v
+}
+
+func (v *HTMLTemplateView) Render(filename string, d interface{}) (*bytes.Buffer, error) {
+	t := template.New(filename)
+	t = t.Funcs(v.Funcs)
+
+	t, err := t.ParseFS(v.FS, "*")
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing template failed")
+	}
+
+	buf := new(bytes.Buffer)
+	err = t.Execute(buf, d)
+
+	return buf, errors.Wrap(err, "executing template failed")
+}
+
 // View returns a View that can be used by a Presenter.
 //
 // Usage:
@@ -59,20 +89,9 @@ func (v *HTMLTemplateView) View(filename string) View {
 			return
 		}
 
-		t := template.New(filename)
-		t = t.Funcs(v.Funcs)
-
-		t, err = t.ParseFS(v.FS, filename)
+		buf, err := v.Render(filename, d)
 		if err != nil {
-			logrus.WithError(errors.WithStack(err)).Errorf("parsing template failed")
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		buf := new(bytes.Buffer)
-		err = t.Execute(buf, d)
-		if err != nil {
-			logrus.WithError(errors.WithStack(err)).Errorf("executing template failed")
+			logrus.WithError(errors.WithStack(err)).Errorf("rendering template failed")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
