@@ -118,8 +118,8 @@ func HotwiredRegisterAssets(router *httprouter.Router) {
 
 func HotwiredImportTemplateFunction() template.HTML {
 	return template.HTML(`
-      <script src="/cdn/@hotwired/turbo">
-        export hotwiredTurbo from '/cdn/@hotwired/turbo';
+      <script type="module">
+        import * as Turbo from '/cdn/@hotwired/turbo';
       </script>
     `)
 }
