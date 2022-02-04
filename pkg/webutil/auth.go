@@ -213,9 +213,9 @@ func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-// AuthTemplateFunctions curries the given Template with auth related
-// functions. These can then directly be used in the templates without having
-// to add the auth info manually to the template data.
+// AuthTemplateFunctions returns auth related template functions.  These can
+// then directly be used in the templates without having to add the auth info
+// manually to the template data.
 //
 // Function `func AuthIsAuthenticated() bool` returns true, if the user is
 // logged in.
@@ -229,21 +229,21 @@ func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Requ
 //     {{ else }}
 //       <a class="nav-link" href="/auth/login">Login</span></a>
 //     {{ end }}
-func AuthTemplateFunctions(r *http.Request, t *template.Template) *template.Template {
+func AuthTemplateFunctions(r *http.Request) template.FuncMap {
 	authenticated := true
 	info, err := AuthInfoFromRequest(r)
 	if err != nil {
 		authenticated = false
 	}
 
-	return t.Funcs(template.FuncMap{
+	return template.FuncMap{
 		"AuthIsAuthenticated": func() bool {
 			return authenticated
 		},
 		"AuthInfo": func() *AuthInfo {
 			return info
 		},
-	})
+	}
 }
 
 // AuthInfoFromContext extracts the AuthInfo from the given context. The
