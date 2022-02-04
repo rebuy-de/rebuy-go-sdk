@@ -17,7 +17,7 @@ import (
 )
 
 type Renderer interface {
-	Render(filename string, d interface{}) (*bytes.Buffer, error)
+	Render(filename string, r *http.Request, d interface{}) (*bytes.Buffer, error)
 }
 
 type HotwiredBroadcast[T any] struct {
@@ -78,7 +78,7 @@ func (b *HotwiredBroadcast[T]) Handle(w http.ResponseWriter, r *http.Request, ps
 
 		id = newID
 
-		html, err := b.renderer.Render(v.Filename, v.Value)
+		html, err := b.renderer.Render(v.Filename, r, v.Value)
 		if err != nil {
 			logrus.WithError(err).Error(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -96,7 +96,7 @@ func (b *HotwiredBroadcast[T]) Handle(w http.ResponseWriter, r *http.Request, ps
 	c.Close(websocket.StatusNormalClosure, "")
 }
 
-func HotwiredTemplateFunctions() template.FuncMap {
+func HotwiredTemplateFunctions(_ *http.Request) template.FuncMap {
 	return template.FuncMap{
 		"hotwiredImport": HotwiredImportTemplateFunction,
 		"hotwiredStream": HotwiredStreamTemplateFunction,
