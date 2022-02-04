@@ -3,6 +3,7 @@ package webutil
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -103,12 +104,24 @@ func HotwiredTemplateFunctions() template.FuncMap {
 	}
 }
 
+//go:embed _cdn/dist/@hotwired/turbo.js
+var hotwiredTurboJS []byte
+
+func HotwiredRegisterAssets(router *httprouter.Router) {
+	router.GET("/cdn/@hotwired/turbo",
+		func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+			w.Write(hotwiredTurboJS)
+		})
+}
+
 func HotwiredImportTemplateFunction() template.HTML {
 	return template.HTML(`
-      <script type="module">
-        import hotwiredTurbo from 'https://cdn.skypack.dev/@hotwired/turbo';
+      <script src="/cdn/@hotwired/turbo">
+        export hotwiredTurbo from '/cdn/@hotwired/turbo';
       </script>
-      `)
+    `)
 }
 
 func HotwiredStreamTemplateFunction(path string) template.HTML {
@@ -122,5 +135,5 @@ func HotwiredStreamTemplateFunction(path string) template.HTML {
           Turbo.connectStreamSource(new WebSocket(p + l.host + "%s"));
         };
       </script>
-      `, path))
+    `, path))
 }
