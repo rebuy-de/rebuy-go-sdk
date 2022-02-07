@@ -40,30 +40,43 @@ func NilModel(*http.Request, httprouter.Params) (interface{}, int, error) {
 	return nil, http.StatusOK, nil
 }
 
-// HTMLTemplateView provides a View that renders the Model with html/template.
-type HTMLTemplateView struct {
-	FS    fs.FS
-	Funcs template.FuncMap
+type TemplateFuncMap func(*http.Request) template.FuncMap
+
+func SimpleTemplateFuncMap(name string, fn interface{}) TemplateFuncMap {
+	return func(_ *http.Request) template.FuncMap {
+		return template.FuncMap{
+			name: fn,
+		}
+	}
 }
 
-func NewHTMLTemplateView(fs fs.FS, fns ...template.FuncMap) *HTMLTemplateView {
-	v := &HTMLTemplateView{
-		FS:    fs,
-		Funcs: template.FuncMap{},
+func SimpleTemplateFuncMaps(fm template.FuncMap) TemplateFuncMap {
+	return func(_ *http.Request) template.FuncMap {
+		return fm
 	}
+}
 
-	for _, m := range fns {
-		for name, fn := range m {
-			v.Funcs[name] = fn
-		}
+// HTMLTemplateView provides a View that renders the Model with html/template.
+type HTMLTemplateView struct {
+	FS       fs.FS
+	FuncMaps []TemplateFuncMap
+}
+
+func NewHTMLTemplateView(fs fs.FS, fms ...TemplateFuncMap) *HTMLTemplateView {
+	v := &HTMLTemplateView{
+		FS:       fs,
+		FuncMaps: fms,
 	}
 
 	return v
 }
 
-func (v *HTMLTemplateView) Render(filename string, d interface{}) (*bytes.Buffer, error) {
+func (v *HTMLTemplateView) Render(filename string, r *http.Request, d interface{}) (*bytes.Buffer, error) {
 	t := template.New(filename)
-	t = t.Funcs(v.Funcs)
+
+	for _, fm := range v.FuncMaps {
+		t = t.Funcs(fm(r))
+	}
 
 	t, err := t.ParseFS(v.FS, "*")
 	if err != nil {
@@ -89,7 +102,7 @@ func (v *HTMLTemplateView) View(filename string) View {
 			return
 		}
 
-		buf, err := v.Render(filename, d)
+		buf, err := v.Render(filename, r, d)
 		if err != nil {
 			logrus.WithError(errors.WithStack(err)).Errorf("rendering template failed")
 			w.WriteHeader(http.StatusInternalServerError)
