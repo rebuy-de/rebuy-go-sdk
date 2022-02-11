@@ -82,8 +82,12 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group, htm
 func (s *Server) setupClock(ctx context.Context, group *errgroup.Group, broadcast *webutil.HotwiredBroadcast[time.Time]) {
 	group.Go(func() error {
 		for ctx.Err() == nil {
-			now := time.Now()
-			err := broadcast.AddFrame(ctx, "clock.html", &now)
+			err := broadcast.AddFrame(ctx, webutil.HotwiredFrame[time.Time]{
+				Action:   "replace",
+				Target:   "clock",
+				Template: "clock",
+				Data:     time.Now(),
+			})
 			if err != nil {
 				return errors.WithStack(err)
 			}

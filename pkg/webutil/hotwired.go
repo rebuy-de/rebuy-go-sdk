@@ -16,16 +16,12 @@ import (
 	"nhooyr.io/websocket"
 )
 
-type Renderer interface {
-	Render(filename string, r *http.Request, d interface{}) (*bytes.Buffer, error)
-}
-
 type HotwiredBroadcast[T any] struct {
 	broadcast *redisutil.Broadcast[HotwiredFrame[T]]
-	renderer  Renderer
+	view      *HTMLTemplateView
 }
 
-func NewHotwiredBroadcast[T any](client redisutil.BroadcastRediser, key string, renderer Renderer) (*HotwiredBroadcast[T], error) {
+func NewHotwiredBroadcast[T any](client redisutil.BroadcastRediser, key string, view *HTMLTemplateView) (*HotwiredBroadcast[T], error) {
 	redisBroadcast, err := redisutil.NewBroadcast[HotwiredFrame[T]](client, key)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -33,20 +29,19 @@ func NewHotwiredBroadcast[T any](client redisutil.BroadcastRediser, key string, 
 
 	return &HotwiredBroadcast[T]{
 		broadcast: redisBroadcast,
-		renderer:  renderer,
+		view:      view,
 	}, nil
 }
 
 type HotwiredFrame[T any] struct {
-	Filename string
-	Value    *T
+	Action   string
+	Target   string
+	Template string
+	Data     T
 }
 
-func (b *HotwiredBroadcast[T]) AddFrame(ctx context.Context, filename string, value *T) error {
-	err := b.broadcast.Add(ctx, &HotwiredFrame[T]{
-		Filename: filename,
-		Value:    value,
-	})
+func (b *HotwiredBroadcast[T]) AddFrame(ctx context.Context, frame HotwiredFrame[T]) error {
+	err := b.broadcast.Add(ctx, &frame)
 	return errors.WithStack(err)
 }
 
@@ -66,7 +61,7 @@ func (b *HotwiredBroadcast[T]) Handle(w http.ResponseWriter, r *http.Request, ps
 	id := "0-0"
 
 	for r.Context().Err() == nil {
-		v, newID, err := b.broadcast.Read(r.Context(), id)
+		frame, newID, err := b.broadcast.Read(r.Context(), id)
 		if errors.Is(err, redis.Nil) {
 			continue
 		}
@@ -78,7 +73,34 @@ func (b *HotwiredBroadcast[T]) Handle(w http.ResponseWriter, r *http.Request, ps
 
 		id = newID
 
-		html, err := b.renderer.Render(v.Filename, r, v.Value)
+		t := template.New("$frame")
+
+		for _, fm := range b.view.FuncMaps {
+			t = t.Funcs(fm(r))
+		}
+
+		t, err = t.ParseFS(b.view.FS, "*")
+		if err != nil {
+			logrus.WithError(err).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		t, err = t.Parse(fmt.Sprintf(`
+          <turbo-stream action="{{ .Action }}" target="{{ .Target }}">
+            <template>
+              {{ template "%s" .Data }}
+            </template>
+          </turbo-stream>
+        `, frame.Template))
+		if err != nil {
+			logrus.WithError(err).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		html := new(bytes.Buffer)
+		err = t.Execute(html, frame)
 		if err != nil {
 			logrus.WithError(err).Error(err)
 			w.WriteHeader(http.StatusInternalServerError)

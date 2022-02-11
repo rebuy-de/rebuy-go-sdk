@@ -17,7 +17,7 @@ func PrettyTimeTemplateFunction(value interface{}) (string, error) {
 
 	t, ok := value.(time.Time)
 	if !ok {
-		return "", errors.Errorf("unexpected type")
+		return "", errors.Errorf("unexpected type %T", value)
 	}
 
 	if t.IsZero() {
