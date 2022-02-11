@@ -104,11 +104,9 @@ func HotwiredTemplateFunctions(_ *http.Request) template.FuncMap {
 }
 
 func HotwiredImportTemplateFunction() template.HTML {
-	return template.HTML(`
-      <script type="module">
-        import hotwiredTurbo from 'https://cdn.skypack.dev/@hotwired/turbo';
-      </script>
-      `)
+	fname := CDNMirrorSourceHotwiredTurbo().Target
+	script := fmt.Sprintf(`<script src="/assets/cdnmirror/%s"></script>`, fname)
+	return template.HTML(script)
 }
 
 func HotwiredStreamTemplateFunction(path string) template.HTML {
