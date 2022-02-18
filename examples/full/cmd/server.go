@@ -52,9 +52,9 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
 	// process, so we can see what triggered a specific log message later.
 	ctx = logutil.Start(ctx, "http-server")
 
-	html := &webutil.HTMLTemplateView{
-		FS: s.TemplateFS,
-	}
+	html := webutil.NewHTMLTemplateView(s.TemplateFS,
+		webutil.HotwiredTemplateFunctions,
+	)
 
 	router := httprouter.New()
 	router.GET("/", webutil.Presenter(s.indexModel, html.View("index.html")))

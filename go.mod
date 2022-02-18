@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.9.0
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.6.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.17.0
+	github.com/evanw/esbuild v0.14.21
 	github.com/gemnasium/logrus-graylog-hook/v3 v3.0.3
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/google/go-github/v39 v39.2.0
