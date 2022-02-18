@@ -30,6 +30,28 @@ type View func(http.ResponseWriter, *http.Request, interface{}, int, error)
 func Presenter(m Model, v View) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		data, code, err := m(r, ps)
+		if err != nil {
+			logrus.
+				WithField("stacktrace", fmt.Sprintf("%+v", err)).
+				WithError(errors.WithStack(err)).
+				Errorf("response failed: %s", err)
+		}
+
+		switch code {
+		case http.StatusMovedPermanently:
+			fallthrough
+		case http.StatusFound:
+			fallthrough
+		case http.StatusSeeOther:
+			fallthrough
+		case http.StatusTemporaryRedirect:
+			fallthrough
+		case http.StatusPermanentRedirect:
+			url := data.(string)
+			http.Redirect(w, r, url, code)
+			return
+		}
+
 		v(w, r, data, code, err)
 	}
 }
