@@ -31,6 +31,13 @@ jobs:
     - name: Build Project
       run: ./buildutil
 
+    - name: Build examples/minimal
+      run: cd examples/minimal && ./buildutil
+
+    - name: Build examples/full
+      run: cd examples/full && ./buildutil
+
+
   container_build:
     runs-on: ubuntu-20.04
     name: Container Build

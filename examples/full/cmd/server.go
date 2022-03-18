@@ -21,22 +21,13 @@ type Server struct {
 
 	AssetFS    fs.FS
 	TemplateFS fs.FS
-
-	Broadcast *webutil.HotwiredBroadcast[time.Time]
 }
 
 func (s *Server) Run(ctxRoot context.Context) error {
 	// Prepare some interfaces to later use.
 	html := webutil.NewHTMLTemplateView(s.TemplateFS,
-		webutil.HotwiredTemplateFunctions,
 		webutil.SimpleTemplateFuncMap("prettyTime", PrettyTimeTemplateFunction),
 	)
-
-	broadcast, err := webutil.NewHotwiredBroadcast[time.Time](
-		s.RedisClient, s.RedisPrefix.Key("clock"), html)
-	if err != nil {
-		return errors.WithStack(err)
-	}
 
 	// Creating a new context, so we can have two stages for the graceful
 	// shutdown. First is to make pod unready (within the admin api) and the
@@ -56,50 +47,24 @@ func (s *Server) Run(ctxRoot context.Context) error {
 	webutil.AdminAPIListenAndServe(ctxRoot, group, cancel)
 
 	// Other background processes use the main context.
-	s.setupHTTPServer(ctx, group, html, broadcast)
-	s.setupClock(ctx, group, broadcast)
+	s.setupHTTPServer(ctx, group, html)
 
 	return errors.WithStack(group.Wait())
 }
 
-func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group, html *webutil.HTMLTemplateView, broadcast *webutil.HotwiredBroadcast[time.Time]) {
+func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group, html *webutil.HTMLTemplateView) {
 	// It is a good practice to init a new context logger for a new background
 	// process, so we can see what triggered a specific log message later.
 	ctx = logutil.Start(ctx, "http-server")
 
 	router := httprouter.New()
 	router.GET("/", webutil.Presenter(s.indexModel, html.View("index.html")))
-	router.GET("/stream/clock", broadcast.Handle)
 	router.ServeFiles("/assets/*filepath", http.FS(s.AssetFS))
 
 	group.Go(func() error {
 		logutil.Get(ctx).Info("http server listening on port 8080")
 		return errors.WithStack(webutil.ListenAndServerWithContext(
 			ctx, "0.0.0.0:8080", router))
-	})
-}
-
-func (s *Server) setupClock(ctx context.Context, group *errgroup.Group, broadcast *webutil.HotwiredBroadcast[time.Time]) {
-	group.Go(func() error {
-		for ctx.Err() == nil {
-			err := broadcast.AddFrame(ctx, webutil.HotwiredFrame[time.Time]{
-				Action:   "replace",
-				Target:   "clock",
-				Template: "clock",
-				Data:     time.Now(),
-			})
-			if err != nil {
-				return errors.WithStack(err)
-			}
-
-			select {
-			case <-time.After(time.Second):
-			case <-ctx.Done():
-				return nil
-			}
-		}
-
-		return nil
 	})
 }
 
