@@ -20,8 +20,6 @@ var assetFS embed.FS
 //go:embed templates
 var templateFS embed.FS
 
-//go:generate go run github.com/rebuy-de/rebuy-go-sdk/v4/cmd/cdnmirror @hotwired/turbo bootstrap
-
 // NewRootCommand initializes the cobra.Command with support of the cmdutil
 // package.
 func NewRootCommand() *cobra.Command {
