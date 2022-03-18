@@ -8,7 +8,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.9.0
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.6.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.17.0
-	github.com/evanw/esbuild v0.14.21
 	github.com/gemnasium/logrus-graylog-hook/v3 v3.0.3
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/google/go-github/v39 v39.2.0
@@ -31,7 +30,6 @@ require (
 	golang.org/x/tools v0.1.7
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/client-go v0.22.3
-	nhooyr.io/websocket v1.8.7
 )
 
 require (
@@ -104,7 +102,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/kevinburke/ssh_config v1.1.0 // indirect
-	github.com/klauspost/compress v1.11.7 // indirect
 	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
