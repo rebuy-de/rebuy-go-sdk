@@ -28,30 +28,8 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Build Project for all archs
-      if: ${{ github.event_name == 'release' }}
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: eu-west-1
-      run: |
-        go build -o dist/buildutil-bootstrap ./cmd/buildutil
-        ./dist/buildutil-bootstrap -v \
-          -x linux/amd64 -x linux/arm64 -x darwin/amd64 -x darwin/arm64 \
-          --rpm --deb --compress \
-          --s3-url s3://rebuy-github-releases/rebuy-go-sdk
-    - name: Build Project for amd64
-      if: ${{ github.event_name != 'release' }}
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: eu-west-1
-      run: |
-        go build -o dist/buildutil-bootstrap ./cmd/buildutil
-        ./dist/buildutil-bootstrap -v \
-          -x linux/amd64 -x darwin/amd64 \
-          --rpm --deb --compress \
-          --s3-url s3://rebuy-github-releases/rebuy-go-sdk
+    - name: Build Project
+      run: ./buildutil
 
   container_build:
     runs-on: ubuntu-20.04
