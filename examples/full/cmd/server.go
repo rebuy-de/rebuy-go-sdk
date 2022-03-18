@@ -38,12 +38,13 @@ func (s *Server) Run(ctxRoot context.Context) error {
 	ctx = InstInit(ctx)
 
 	// Using a errors group is a good practice to manage multiple parallel
-	// running routines and should used once on program startup. We have to use
-	// ctxRoot, because this is what should canceled first, if any error
-	// occours.
-	group, ctxRoot := errgroup.WithContext(ctxRoot)
+	// running routines and should used once on program startup.
+	group, ctx := errgroup.WithContext(ctx)
 
-	// Set up the admin API and use the root context to make sure it gets terminated first.
+	// Set up the admin API and use the root context to make sure it gets
+	// terminated first.  We have to use ctxRoot, because this is what should
+	// canceled first, if any error occours. Afterwards it uses cancel() to
+	// cancel ctx context.
 	webutil.AdminAPIListenAndServe(ctxRoot, group, cancel)
 
 	// Other background processes use the main context.
