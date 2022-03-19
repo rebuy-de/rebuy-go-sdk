@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-redis/redis/v8"
-	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/logutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/redisutil"
@@ -58,9 +59,11 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group, htm
 	// process, so we can see what triggered a specific log message later.
 	ctx = logutil.Start(ctx, "http-server")
 
-	router := httprouter.New()
-	router.GET("/", webutil.Presenter(s.indexModel, html.View("index.html")))
-	router.ServeFiles("/assets/*filepath", http.FS(s.AssetFS))
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+
+	router.Get("/", webutil.Presenter(s.indexModel, html.View("index.html")))
+	router.Mount("/assets", http.StripPrefix("/assets", http.FileServer(http.FS(s.AssetFS))))
 
 	group.Go(func() error {
 		logutil.Get(ctx).Info("http server listening on port 8080")
@@ -69,7 +72,7 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group, htm
 	})
 }
 
-func (s *Server) indexModel(r *http.Request, _ httprouter.Params) (interface{}, int, error) {
+func (s *Server) indexModel(r *http.Request) (interface{}, int, error) {
 	InstIndexRequest(r.Context(), r)
 	return map[string]interface{}{
 		"now": time.Now(),
