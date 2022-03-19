@@ -63,7 +63,7 @@ func init() {
 //
 // Endpoint "/auth/callback" gets called by the user after being redirected
 // from GitHub after a successful login.
-func AuthMiddleware(teams ...string) Middleware {
+func AuthMiddleware(teams ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return authMiddlewareFunc(next, teams...)
 	}
