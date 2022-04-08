@@ -6,8 +6,8 @@ replace github.com/rebuy-de/rebuy-go-sdk/v4 => ../..
 
 require (
 	github.com/alicebob/miniredis/v2 v2.19.0
+	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/julienschmidt/httprouter v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/rebuy-de/rebuy-go-sdk/v4 v4.0.0
 	github.com/sirupsen/logrus v1.8.1

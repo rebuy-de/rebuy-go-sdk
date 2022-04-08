@@ -73,7 +73,7 @@ func SessionFromRequest(r *http.Request) (*sessions.Session, error) {
 
 // SessionMiddleware inizializes the session store and injects it into the
 // context of the requests.
-func SessionMiddleware(secret SessionSecret, opts ...SessionMiddlewareOption) Middleware {
+func SessionMiddleware(secret SessionSecret, opts ...SessionMiddlewareOption) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return sessionMiddlewareFunc(next, secret, opts...)
 	}

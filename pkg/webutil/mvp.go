@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -17,7 +16,7 @@ import (
 // interface for data generation that is used by templates. This has the
 // advantage that we can reuse models for multiple views (eg JSON and HTML) and
 // that the data generation is isolated from representation.
-type Model func(*http.Request, httprouter.Params) (interface{}, int, error)
+type Model func(*http.Request) (interface{}, int, error)
 
 // View should be used by with the Presenter and its puropose is to avoid
 // having to implement the Golang template rendering for the gazillionth time.
@@ -27,9 +26,9 @@ type View func(http.ResponseWriter, *http.Request, interface{}, int, error)
 // Presenter (from Model-view-presenter [1]) acts as a middleman between Model
 // and View.
 // [1]: https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93presenter
-func Presenter(m Model, v View) httprouter.Handle {
-	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		data, code, err := m(r, ps)
+func Presenter(m Model, v View) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data, code, err := m(r)
 		if err != nil {
 			logrus.
 				WithField("stacktrace", fmt.Sprintf("%+v", err)).
@@ -58,7 +57,7 @@ func Presenter(m Model, v View) httprouter.Handle {
 
 // NilModel is a Model that contains no data. Useful for rendering templates
 // that do not need any data.
-func NilModel(*http.Request, httprouter.Params) (interface{}, int, error) {
+func NilModel(*http.Request) (interface{}, int, error) {
 	return nil, http.StatusOK, nil
 }
 
