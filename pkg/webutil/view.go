@@ -86,6 +86,10 @@ func (v *View) Error(status int, err error) http.HandlerFunc {
 	}
 }
 
+func (v *View) Errorf(status int, text string, a ...interface{}) http.HandlerFunc {
+	return v.Error(status, fmt.Errorf(text, a...))
+}
+
 func (v *View) Redirect(status int, location string, args ...interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		url := fmt.Sprintf(location, args...)
