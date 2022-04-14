@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"time"
@@ -25,11 +26,6 @@ type Server struct {
 }
 
 func (s *Server) Run(ctxRoot context.Context) error {
-	// Prepare some interfaces to later use.
-	html := webutil.NewHTMLTemplateView(s.TemplateFS,
-		webutil.SimpleTemplateFuncMap("prettyTime", PrettyTimeTemplateFunction),
-	)
-
 	// Creating a new context, so we can have two stages for the graceful
 	// shutdown. First is to make pod unready (within the admin api) and the
 	// seconds is all the rest.
@@ -49,20 +45,28 @@ func (s *Server) Run(ctxRoot context.Context) error {
 	webutil.AdminAPIListenAndServe(ctxRoot, group, cancel)
 
 	// Other background processes use the main context.
-	s.setupHTTPServer(ctx, group, html)
+	s.setupHTTPServer(ctx, group)
 
 	return errors.WithStack(group.Wait())
 }
 
-func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group, html *webutil.HTMLTemplateView) {
+func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
 	// It is a good practice to init a new context logger for a new background
 	// process, so we can see what triggered a specific log message later.
 	ctx = logutil.Start(ctx, "http-server")
 
+	// Prepare some interfaces to later use.
+	vh := webutil.NewViewHandler(s.TemplateFS,
+		webutil.SimpleTemplateFuncMap("prettyTime", PrettyTimeTemplateFunction),
+	)
+
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 
-	router.Get("/", webutil.Presenter(s.indexModel, html.View("index.html")))
+	router.Get("/", vh.Wrap(s.handleIndex))
+	router.Get("/json", vh.Wrap(s.handleJSON))
+	router.Get("/redirect", vh.Wrap(s.handleRedirect))
+	router.Get("/error", vh.Wrap(s.handleError))
 	router.Mount("/assets", http.StripPrefix("/assets", http.FileServer(http.FS(s.AssetFS))))
 
 	group.Go(func() error {
@@ -72,9 +76,24 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group, htm
 	})
 }
 
-func (s *Server) indexModel(r *http.Request) (interface{}, int, error) {
-	InstIndexRequest(r.Context(), r)
+func (s *Server) timeModel() any {
 	return map[string]interface{}{
 		"now": time.Now(),
-	}, http.StatusOK, nil
+	}
+}
+
+func (s *Server) handleIndex(v *webutil.View, r *http.Request) webutil.Response {
+	return v.HTML(http.StatusOK, "index.html", s.timeModel())
+}
+
+func (s *Server) handleJSON(v *webutil.View, r *http.Request) webutil.Response {
+	return v.JSON(http.StatusOK, s.timeModel())
+}
+
+func (s *Server) handleRedirect(v *webutil.View, r *http.Request) webutil.Response {
+	return v.Redirect(http.StatusTemporaryRedirect, "/")
+}
+
+func (s *Server) handleError(v *webutil.View, r *http.Request) webutil.Response {
+	return v.Error(http.StatusBadRequest, fmt.Errorf("oh no"))
 }
