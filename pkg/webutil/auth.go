@@ -11,7 +11,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v43/github"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -63,7 +63,7 @@ func init() {
 //
 // Endpoint "/auth/callback" gets called by the user after being redirected
 // from GitHub after a successful login.
-func AuthMiddleware(teams ...string) Middleware {
+func AuthMiddleware(teams ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return authMiddlewareFunc(next, teams...)
 	}
@@ -127,7 +127,8 @@ func (mw *authMiddleware) generateCookie(w http.ResponseWriter) string {
 
 func (mw *authMiddleware) handleCallback(w http.ResponseWriter, r *http.Request) {
 	oauthState, err := r.Cookie(authStateCookie)
-	if RespondError(w, err) {
+	if err != nil {
+		logrus.WithError(errors.WithStack(err)).Error("failed get auth cookie")
 		return
 	}
 
@@ -138,12 +139,14 @@ func (mw *authMiddleware) handleCallback(w http.ResponseWriter, r *http.Request)
 	}
 
 	token, err := mw.config.Exchange(context.Background(), r.FormValue("code"))
-	if RespondError(w, err) {
+	if err != nil {
+		logrus.WithError(errors.WithStack(err)).Error("failed to exchange token")
 		return
 	}
 
 	err = mw.refreshSessionData(w, r, &token.AccessToken)
-	if RespondError(w, err) {
+	if err != nil {
+		logrus.WithError(errors.WithStack(err)).Error("failed to refresh session data")
 		return
 	}
 
@@ -210,9 +213,9 @@ func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-// AuthTemplateFunctions curries the given Template with auth related
-// functions. These can then directly be used in the templates without having
-// to add the auth info manually to the template data.
+// AuthTemplateFunctions returns auth related template functions.  These can
+// then directly be used in the templates without having to add the auth info
+// manually to the template data.
 //
 // Function `func AuthIsAuthenticated() bool` returns true, if the user is
 // logged in.
@@ -226,21 +229,21 @@ func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Requ
 //     {{ else }}
 //       <a class="nav-link" href="/auth/login">Login</span></a>
 //     {{ end }}
-func AuthTemplateFunctions(r *http.Request, t *template.Template) *template.Template {
+func AuthTemplateFunctions(r *http.Request) template.FuncMap {
 	authenticated := true
 	info, err := AuthInfoFromRequest(r)
 	if err != nil {
 		authenticated = false
 	}
 
-	return t.Funcs(template.FuncMap{
+	return template.FuncMap{
 		"AuthIsAuthenticated": func() bool {
 			return authenticated
 		},
 		"AuthInfo": func() *AuthInfo {
 			return info
 		},
-	})
+	}
 }
 
 // AuthInfoFromContext extracts the AuthInfo from the given context. The

@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/logutil"
 	"golang.org/x/sync/errgroup"
 )
 

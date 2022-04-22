@@ -2,16 +2,18 @@ package cmd
 
 import (
 	"context"
-	"html/template"
+	"fmt"
 	"io/fs"
 	"net/http"
+	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-redis/redis/v8"
-	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/logutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/redisutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/redisutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/webutil"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -33,12 +35,13 @@ func (s *Server) Run(ctxRoot context.Context) error {
 	ctx = InstInit(ctx)
 
 	// Using a errors group is a good practice to manage multiple parallel
-	// running routines and should used once on program startup. We have to use
-	// ctxRoot, because this is what should canceled first, if any error
-	// occours.
-	group, ctxRoot := errgroup.WithContext(ctxRoot)
+	// running routines and should used once on program startup.
+	group, ctx := errgroup.WithContext(ctx)
 
-	// Set up the admin API and use the root context to make sure it gets terminated first.
+	// Set up the admin API and use the root context to make sure it gets
+	// terminated first.  We have to use ctxRoot, because this is what should
+	// canceled first, if any error occours. Afterwards it uses cancel() to
+	// cancel ctx context.
 	webutil.AdminAPIListenAndServe(ctxRoot, group, cancel)
 
 	// Other background processes use the main context.
@@ -52,9 +55,19 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
 	// process, so we can see what triggered a specific log message later.
 	ctx = logutil.Start(ctx, "http-server")
 
-	router := httprouter.New()
-	router.GET("/", s.handleIndex)
-	router.ServeFiles("/assets/*filepath", http.FS(s.AssetFS))
+	// Prepare some interfaces to later use.
+	vh := webutil.NewViewHandler(s.TemplateFS,
+		webutil.SimpleTemplateFuncMap("prettyTime", PrettyTimeTemplateFunction),
+	)
+
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+
+	router.Get("/", vh.Wrap(s.handleIndex))
+	router.Get("/json", vh.Wrap(s.handleJSON))
+	router.Get("/redirect", vh.Wrap(s.handleRedirect))
+	router.Get("/error", vh.Wrap(s.handleError))
+	router.Mount("/assets", http.StripPrefix("/assets", http.FileServer(http.FS(s.AssetFS))))
 
 	group.Go(func() error {
 		logutil.Get(ctx).Info("http server listening on port 8080")
@@ -63,16 +76,24 @@ func (s *Server) setupHTTPServer(ctx context.Context, group *errgroup.Group) {
 	})
 }
 
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	InstIndexRequest(r.Context(), r)
-
-	t, err := template.ParseFS(s.TemplateFS, "index.html")
-	if webutil.RespondError(w, err) {
-		return
+func (s *Server) timeModel() any {
+	return map[string]interface{}{
+		"now": time.Now(),
 	}
+}
 
-	err = t.Execute(w, nil)
-	if webutil.RespondError(w, err) {
-		return
-	}
+func (s *Server) handleIndex(v *webutil.View, r *http.Request) webutil.Response {
+	return v.HTML(http.StatusOK, "index.html", s.timeModel())
+}
+
+func (s *Server) handleJSON(v *webutil.View, r *http.Request) webutil.Response {
+	return v.JSON(http.StatusOK, s.timeModel())
+}
+
+func (s *Server) handleRedirect(v *webutil.View, r *http.Request) webutil.Response {
+	return v.Redirect(http.StatusTemporaryRedirect, "/")
+}
+
+func (s *Server) handleError(v *webutil.View, r *http.Request) webutil.Response {
+	return v.Error(http.StatusBadRequest, fmt.Errorf("oh no"))
 }

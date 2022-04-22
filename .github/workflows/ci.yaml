@@ -19,38 +19,24 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.17'
+        stable: 'false'
+        go-version: '1.18.0'
     - name: Setup tools
       run: |
-        go get golang.org/x/lint/golint
+        go install golang.org/x/lint/golint@latest
     - name: Checkout code
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Build Project for all archs
-      if: ${{ github.event_name == 'release' }}
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: eu-west-1
-      run: |
-        go build -o dist/buildutil-bootstrap ./cmd/buildutil
-        ./dist/buildutil-bootstrap -v \
-          -x linux/amd64 -x linux/arm64 -x darwin/amd64 -x darwin/arm64 \
-          --rpm --deb --compress \
-          --s3-url s3://rebuy-github-releases/rebuy-go-sdk
-    - name: Build Project for amd64
-      if: ${{ github.event_name != 'release' }}
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: eu-west-1
-      run: |
-        go build -o dist/buildutil-bootstrap ./cmd/buildutil
-        ./dist/buildutil-bootstrap -v \
-          -x linux/amd64 -x darwin/amd64 \
-          --rpm --deb --compress \
-          --s3-url s3://rebuy-github-releases/rebuy-go-sdk
+    - name: Build Project
+      run: ./buildutil
+
+    - name: Build examples/minimal
+      run: cd examples/minimal && ./buildutil
+
+    - name: Build examples/full
+      run: cd examples/full && ./buildutil
+
 
   container_build:
     runs-on: ubuntu-20.04

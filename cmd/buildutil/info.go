@@ -13,8 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/executil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/tools/go/packages"
 )
@@ -220,7 +219,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 
 	logrus.Info("Collecting build information")
 
-	e := executil.NewChainExecutor(ctx)
+	e := NewChainExecutor(ctx)
 
 	info.BuildDate = time.Now().Format(time.RFC3339)
 	info.Go.Module = e.OutputString(p.GoCommand, "list", "-m", "-mod=mod")

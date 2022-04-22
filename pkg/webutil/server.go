@@ -2,14 +2,12 @@ package webutil
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v3/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/logutil"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -52,20 +50,4 @@ func ListenAndServerWithContext(ctx context.Context, addr string, handler http.H
 	})
 
 	return errors.Wrap(grp.Wait(), "http server failed")
-}
-
-// HandleHealth returns a simple HTTP handler, that responds with 200 OK as
-// long as the context is not done. When the context is done, it returns with
-// 503. This only works, if the BaseContext of the http server gets canceled on
-// shutdown. See ListenAndServerWithContext for details.
-// Deprecated: Use AdminAPIListenAndServe instead.
-func HandleHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	if r.Context().Err() != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		fmt.Fprintln(w, "SHUTTING DOWN")
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, "OK")
 }
