@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-go mod tidy
+set -eu
 go mod vendor
 go generate ./...
 exec go run github.com/rebuy-de/rebuy-go-sdk/v4/cmd/buildutil "$@"
