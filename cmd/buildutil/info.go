@@ -250,7 +250,9 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 
 	status := strings.TrimSpace(e.OutputString("git", "status", "-s"))
 	if status != "" {
-		info.Commit.DirtyFiles = strings.Split(status, "\n ")
+		for _, file := range strings.Split(status, "\n") {
+			info.Commit.DirtyFiles = append(info.Commit.DirtyFiles, strings.TrimSpace(file))
+		}
 	}
 
 	nameMatch := regexp.MustCompile(`([^/]+)(/v\d+)?$`).FindStringSubmatch(info.Go.Module)
