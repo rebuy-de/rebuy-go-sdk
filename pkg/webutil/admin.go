@@ -6,13 +6,11 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/logutil"
-	"golang.org/x/sync/errgroup"
 )
 
-func AdminAPIListenAndServe(ctx context.Context, group *errgroup.Group, fnDone func()) {
+func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) func() {
 	ctx = logutil.Start(ctx, "admin-api")
 	mux := http.NewServeMux()
 
@@ -22,6 +20,15 @@ func AdminAPIListenAndServe(ctx context.Context, group *errgroup.Group, fnDone f
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintln(w, "SHUTTING DOWN")
 			return
+		}
+
+		for _, h := range healthy {
+			err := h()
+			if err != nil {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				fmt.Fprintln(w, err.Error())
+				return
+			}
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -36,12 +43,20 @@ func AdminAPIListenAndServe(ctx context.Context, group *errgroup.Group, fnDone f
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
-	group.Go(func() error {
-		defer fnDone()
+	// The admin api gets a its own context, because we want to delay the
+	// server shutdown as long as possible. The reason for this is that Istio
+	// starts to block all outgoing connections as soon as there is no
+	// listening server anymore.
+	bg, cancel := context.WithCancel(context.Background())
 
+	go func() {
 		logutil.Get(ctx).Debugf("admin api listening on port 8090")
 
-		return errors.WithStack(ListenAndServerWithContext(
-			ctx, "0.0.0.0:8090", mux))
-	})
+		err := ListenAndServeWithContext(bg, "0.0.0.0:8090", mux)
+		if err != nil {
+			logutil.Get(ctx).Error(err.Error())
+		}
+	}()
+
+	return cancel
 }

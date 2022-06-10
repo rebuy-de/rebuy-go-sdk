@@ -11,11 +11,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// ListenAndServerWithContext does the same as http.ListenAndServe with the
+// ListenAndServeWithContext does the same as http.ListenAndServe with the
 // difference that is properly utilises the context. This means it does a
 // graceful shutdown when the context is done and a context cancellation gets
 // propagated down to the actual request context.
-func ListenAndServerWithContext(ctx context.Context, addr string, handler http.Handler) error {
+func ListenAndServeWithContext(ctx context.Context, addr string, handler http.Handler) error {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
