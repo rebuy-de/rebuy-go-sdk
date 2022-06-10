@@ -27,12 +27,6 @@ type Server struct {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	// Creating a new context, so we can have two stages for the graceful
-	// shutdown. First is to make pod unready (within the admin api) and the
-	// seconds is all the rest.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	ctx = InstInit(ctx)
 
 	// Using a errors group is a good practice to manage multiple parallel
