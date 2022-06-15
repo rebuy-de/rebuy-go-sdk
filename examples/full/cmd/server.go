@@ -33,10 +33,9 @@ func (s *Server) Run(ctx context.Context) error {
 	// running routines and should used once on program startup.
 	group, ctx := errgroup.WithContext(ctx)
 
-	// Set up the admin API and defer the function that it returns. The admin
-	// API lifecycle differs from the context, so it actually is the last thing
-	// that gets shut down.
-	defer webutil.AdminAPIListenAndServe(ctx)()
+	// Set up the admin API. The admin API lifecycle differs from the context,
+	// so it actually is the last thing that gets shut down.
+	webutil.AdminAPIListenAndServe(ctx)
 
 	// Other background processes.
 	s.setupHTTPServer(ctx, group)

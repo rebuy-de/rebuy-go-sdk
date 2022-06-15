@@ -10,7 +10,7 @@ import (
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/logutil"
 )
 
-func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) func() {
+func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) {
 	ctx = logutil.Start(ctx, "admin-api")
 	mux := http.NewServeMux()
 
@@ -46,8 +46,9 @@ func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) func()
 	// The admin api gets a its own context, because we want to delay the
 	// server shutdown as long as possible. The reason for this is that Istio
 	// starts to block all outgoing connections as soon as there is no
-	// listening server anymore.
-	bg, cancel := context.WithCancel(context.Background())
+	// listening server anymore. Also a graceful shutdown is not needed for the
+	// admin API, so it is also not necessary to cancel the context.
+	bg := context.Background()
 
 	go func() {
 		logutil.Get(ctx).Debugf("admin api listening on port 8090")
@@ -57,6 +58,4 @@ func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) func()
 			logutil.Get(ctx).Error(err.Error())
 		}
 	}()
-
-	return cancel
 }
