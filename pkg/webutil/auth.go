@@ -7,7 +7,6 @@ import (
 	"encoding/gob"
 	"html/template"
 	"net/http"
-	"os"
 	"path"
 	"time"
 
@@ -50,6 +49,11 @@ func init() {
 	gob.Register(AuthInfo{})
 }
 
+type AuthConfig struct {
+	ClientID     string
+	ClientSecret string
+}
+
 // AuthMiddleware is an HTTP request middleware that adds login endpoints. The
 // request makes use of sessions, therefore the SessionMiddleware is required.
 //
@@ -63,19 +67,19 @@ func init() {
 //
 // Endpoint "/auth/callback" gets called by the user after being redirected
 // from GitHub after a successful login.
-func AuthMiddleware(teams ...string) func(http.Handler) http.Handler {
+func AuthMiddleware(creds AuthConfig, teams ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return authMiddlewareFunc(next, teams...)
+		return authMiddlewareFunc(next, creds, teams...)
 	}
 }
 
-func authMiddlewareFunc(next http.Handler, teams ...string) http.Handler {
+func authMiddlewareFunc(next http.Handler, creds AuthConfig, teams ...string) http.Handler {
 	mw := authMiddleware{
 		next:  next,
 		teams: map[string]struct{}{},
 		config: &oauth2.Config{
-			ClientID:     os.Getenv("GITHUB_OAUTH_CLIENT_ID"),
-			ClientSecret: os.Getenv("GITHUB_OAUTH_CLIENT_SECRET"),
+			ClientID:     creds.ClientID,
+			ClientSecret: creds.ClientSecret,
 			Scopes:       []string{"user"},
 			Endpoint:     oauth2_github.Endpoint,
 		},
@@ -150,7 +154,7 @@ func (mw *authMiddleware) handleCallback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	http.Redirect(w, r, r.Referer(), http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
 func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Request, optionalToken *string) error {
