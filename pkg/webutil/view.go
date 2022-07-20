@@ -109,8 +109,8 @@ func (v *View) JSON(status int, data any) http.HandlerFunc {
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(status)
-		w.Header().Set("Content-Type", "application/json")
 		buf.WriteTo(w)
 	}
 }
@@ -123,8 +123,8 @@ func (v *View) HTML(status int, filename string, data any) http.HandlerFunc {
 			return
 		}
 
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(status)
-		w.Header().Set("Content-Type", "text/html")
 		buf.WriteTo(w)
 	}
 }
