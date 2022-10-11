@@ -57,8 +57,7 @@ jobs:
       shell: bash
       run: |
         if [ "${GITHUB_EVENT_NAME}" == "pull_request" ]; then
-          BRANCH="$(echo ${GITHUB_HEAD_REF} | tr '/' '_')"
-          echo "##[set-output name=tags;]quay.io/rebuy/rebuy-go-sdk:${BRANCH},074509403805.dkr.ecr.eu-west-1.amazonaws.com/rebuy-go-sdk:${BRANCH}"
+          echo "##[set-output name=tags;]quay.io/rebuy/rebuy-go-sdk:${GITHUB_HEAD_REF},074509403805.dkr.ecr.eu-west-1.amazonaws.com/rebuy-go-sdk:${GITHUB_HEAD_REF}"
         else
           echo "##[set-output name=tags;]quay.io/rebuy/rebuy-go-sdk:master,074509403805.dkr.ecr.eu-west-1.amazonaws.com/rebuy-go-sdk:master,\
             quay.io/rebuy/rebuy-go-sdk:latest,074509403805.dkr.ecr.eu-west-1.amazonaws.com/rebuy-go-sdk:latest"
