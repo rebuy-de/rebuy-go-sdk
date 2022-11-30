@@ -10,7 +10,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v48/github"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -228,11 +228,12 @@ func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Requ
 // logged and `nil` otherwise.
 //
 // Example:
-//     {{ if AuthIsAuthenticated }}
-//       <span class="navbar-text">Hello, <em>{{ AuthInfo.Name }}</em>!</span>
-//     {{ else }}
-//       <a class="nav-link" href="/auth/login">Login</span></a>
-//     {{ end }}
+//
+//	{{ if AuthIsAuthenticated }}
+//	  <span class="navbar-text">Hello, <em>{{ AuthInfo.Name }}</em>!</span>
+//	{{ else }}
+//	  <a class="nav-link" href="/auth/login">Login</span></a>
+//	{{ end }}
 func AuthTemplateFunctions(r *http.Request) template.FuncMap {
 	authenticated := true
 	info, err := AuthInfoFromRequest(r)
