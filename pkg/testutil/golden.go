@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/pmezard/go-difflib/difflib"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 const GoldenUpdateEnv = `TESTUTIL_UPDATE_GOLDEN`
