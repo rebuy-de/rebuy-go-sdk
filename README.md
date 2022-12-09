@@ -26,7 +26,6 @@ Please take a look at the examples directory to see how it actually looks like.
 │   ├── `bll/...`
 │   └── `...`
 ├── `buildutil`
-├── `Dockerfile`
 ├── `go.mod`
 ├── `go.sum`
 ├── `LICENSE`
