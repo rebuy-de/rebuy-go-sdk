@@ -2,7 +2,7 @@ name: Golang
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
     types: [opened, reopened, synchronize]
   release:
@@ -59,7 +59,7 @@ jobs:
         if [ "${GITHUB_EVENT_NAME}" == "pull_request" ]; then
           echo "##[set-output name=tags;]quay.io/rebuy/rebuy-go-sdk:${GITHUB_HEAD_REF},074509403805.dkr.ecr.eu-west-1.amazonaws.com/rebuy-go-sdk:${GITHUB_HEAD_REF}"
         else
-          echo "##[set-output name=tags;]quay.io/rebuy/rebuy-go-sdk:master,074509403805.dkr.ecr.eu-west-1.amazonaws.com/rebuy-go-sdk:master,\
+          echo "##[set-output name=tags;]quay.io/rebuy/rebuy-go-sdk:main,074509403805.dkr.ecr.eu-west-1.amazonaws.com/rebuy-go-sdk:main,\
             quay.io/rebuy/rebuy-go-sdk:latest,074509403805.dkr.ecr.eu-west-1.amazonaws.com/rebuy-go-sdk:latest"
         fi
       id: generate_tags_pr
