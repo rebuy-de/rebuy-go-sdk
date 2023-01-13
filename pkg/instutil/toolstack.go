@@ -1,33 +1,39 @@
 package instutil
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
 )
 
 func init() {
-	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	toolstack := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "rebuy",
 		Name:      "toolstack",
 	}, []string{
 		"toolstack",
-		"language",
-		"language_version",
-		"sdk",
-		"sdk_version",
+		"version",
 	})
-	prometheus.MustRegister(gauge)
+	prometheus.MustRegister(toolstack)
 
-	major := strings.SplitN(cmdutil.SDKVersion, ".", 2)[0]
-
-	gauge.WithLabelValues(
-		fmt.Sprintf("golang.rebuy-go-sdk.%s", major),
+	toolstack.WithLabelValues(
 		"golang",
 		cmdutil.GoVersion,
+	).Set(1)
+
+	toolstack.WithLabelValues(
 		"rebuy-go-sdk",
 		cmdutil.SDKVersion,
+	).Set(1)
+
+	buildInfo := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "rebuy",
+		Name:      "buildinfo",
+	}, []string{
+		"builddate",
+	})
+	prometheus.MustRegister(buildInfo)
+
+	buildInfo.WithLabelValues(
+		cmdutil.BuildDate,
 	).Set(1)
 }
