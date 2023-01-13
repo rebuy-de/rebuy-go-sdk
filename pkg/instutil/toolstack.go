@@ -1,7 +1,6 @@
 package instutil
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -14,19 +13,18 @@ func init() {
 		Name:      "toolstack",
 	}, []string{
 		"toolstack",
-		"language",
-		"language_version",
-		"sdk",
-		"sdk_version",
+		"version",
 	})
 	prometheus.MustRegister(gauge)
 
 	major := strings.SplitN(cmdutil.SDKVersion, ".", 2)[0]
 
 	gauge.WithLabelValues(
-		fmt.Sprintf("golang.rebuy-go-sdk.%s", major),
 		"golang",
 		cmdutil.GoVersion,
+	).Set(1)
+
+	gauge.WithLabelValues(
 		"rebuy-go-sdk",
 		cmdutil.SDKVersion,
 	).Set(1)
