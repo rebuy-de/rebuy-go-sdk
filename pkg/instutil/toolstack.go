@@ -30,12 +30,10 @@ func init() {
 		Name:      "buildinfo",
 	}, []string{
 		"builddate",
-		"commit",
 	})
 	prometheus.MustRegister(buildInfo)
 
 	buildInfo.WithLabelValues(
 		cmdutil.BuildDate,
-		cmdutil.CommitHash,
 	).Set(1)
 }
