@@ -1,6 +1,8 @@
 package cmdutil
 
 import (
+	"context"
+
 	graylog "github.com/gemnasium/logrus-graylog-hook/v3"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -63,6 +65,24 @@ func WithSubCommand(sub *cobra.Command) Option {
 func WithRun(run RunFuncWithContext) Option {
 	return func(cmd *cobra.Command) error {
 		cmd.Run = wrapRootConext(run)
+		return nil
+	}
+}
+
+type Runner interface {
+	Bind(*cobra.Command) error
+	Run(context.Context) error
+}
+
+func WithRunnner(runner Runner) Option {
+	return func(cmd *cobra.Command) error {
+		runner.Bind(cmd)
+
+		cmd.Run = func(cmd *cobra.Command, args []string) {
+			ctx := SignalRootContext()
+			err := runner.Run(ctx)
+			Must(err)
+		}
 		return nil
 	}
 }
