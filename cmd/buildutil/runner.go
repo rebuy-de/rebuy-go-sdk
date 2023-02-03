@@ -83,7 +83,7 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 		&r.Parameters.CGO, "cgo", false,
 		"Enable CGO.")
 	cmd.PersistentFlags().StringVar(
-		&r.Parameters.PGO, "pgo", "off",
+		&r.Parameters.PGO, "pgo", "",
 		"Sets input for PGO option.")
 	cmd.PersistentFlags().StringVar(
 		&r.Parameters.GoCommand, "go-command", "go",
@@ -214,12 +214,20 @@ func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string
 			cmdutil.Must(os.Setenv("CGO_ENABLED", "0"))
 		}
 
-		sw := r.Inst.Durations.Building.Stopwatch(target.Outfile)
-		call(ctx, r.Parameters.GoCommand, "build",
+		buildArgs := []string{
+			"build",
 			"-o", r.dist(target.Outfile),
-			"-ldflags", "-s -w "+strings.Join(ldFlags, " "),
-			"-pgo", target.PGO,
-			target.Package)
+			"-ldflags", "-s -w " + strings.Join(ldFlags, " "),
+		}
+
+		if target.PGO != "" {
+			buildArgs = append(buildArgs, "-pgo", target.PGO)
+		}
+
+		buildArgs = append(buildArgs, target.Package)
+
+		sw := r.Inst.Durations.Building.Stopwatch(target.Outfile)
+		call(ctx, r.Parameters.GoCommand, buildArgs...)
 
 		r.Inst.ReadSize(target.Outfile)
 
