@@ -48,6 +48,7 @@ type BuildParameters struct {
 	GoCommand string
 
 	CGO bool
+	PGO string
 }
 
 type Runner struct {
@@ -81,6 +82,9 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().BoolVar(
 		&r.Parameters.CGO, "cgo", false,
 		"Enable CGO.")
+	cmd.PersistentFlags().StringVar(
+		&r.Parameters.PGO, "pgo", "off",
+		"Sets input for PGO option.")
 	cmd.PersistentFlags().StringVar(
 		&r.Parameters.GoCommand, "go-command", "go",
 		"Which Go command to use.")
@@ -214,6 +218,7 @@ func (r *Runner) RunBuild(ctx context.Context, cmd *cobra.Command, args []string
 		call(ctx, r.Parameters.GoCommand, "build",
 			"-o", r.dist(target.Outfile),
 			"-ldflags", "-s -w "+strings.Join(ldFlags, " "),
+			"-pgo", target.PGO,
 			target.Package)
 
 		r.Inst.ReadSize(target.Outfile)
