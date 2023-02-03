@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/go-redis/redis/v8"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/redisutil"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

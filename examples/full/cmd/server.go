@@ -9,12 +9,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/logutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/redisutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/webutil"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 )
 
