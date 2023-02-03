@@ -7,11 +7,11 @@ import (
 	"path"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
