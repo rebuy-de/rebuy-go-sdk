@@ -1,6 +1,6 @@
 module github.com/rebuy-de/rebuy-go-sdk/v4/examples/full
 
-go 1.19
+go 1.20
 
 replace github.com/rebuy-de/rebuy-go-sdk/v4 => ../..
 

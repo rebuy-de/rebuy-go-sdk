@@ -207,6 +207,7 @@ type TargetInfo struct {
 	Outfile string
 	System  SystemInfo
 	CGO     bool
+	PGO     string
 }
 
 func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo, error) {
@@ -311,6 +312,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 					Name:    path.Base(pkg.PkgPath),
 					System:  targetSystem,
 					CGO:     p.CGO,
+					PGO:     p.PGO,
 				}
 
 				if pkg.PkgPath == info.Go.Module {
