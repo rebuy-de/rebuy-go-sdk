@@ -19,7 +19,7 @@ func StartDevcontainer(ctx context.Context, conn *Connection, name string, image
 		}
 	}()
 
-	// API is low level, so we must take care about image pulling ourselfes.
+	// API is low level, so we must take care about image pulling ourselves.
 	err := conn.PullImage(PullImageInput{
 		Reference: image,
 		Policy:    ImagePullPolicyMissing,
