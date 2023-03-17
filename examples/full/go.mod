@@ -5,7 +5,6 @@ go 1.20
 replace github.com/rebuy-de/rebuy-go-sdk/v4 => ../..
 
 require (
-	github.com/alicebob/miniredis/v2 v2.30.1
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/pkg/errors v0.9.1
 	github.com/rebuy-de/rebuy-go-sdk/v4 v4.4.0
@@ -65,6 +64,7 @@ require (
 	github.com/goreleaser/nfpm/v2 v2.26.0 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
 	github.com/imdario/mergo v0.3.14 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -88,7 +88,6 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
-	github.com/yuin/gopher-lua v1.1.0 // indirect
 	gitlab.com/digitalxero/go-conventional-commit v1.0.7 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
 	golang.org/x/mod v0.9.0 // indirect
