@@ -10,16 +10,13 @@ import (
 )
 
 func NewRootCommand() *cobra.Command {
-	runner := new(Runner)
-
 	return cmdutil.New(
 		"minimal", "rebuy-go-sdk-minimal-example",
-		runner.Bind,
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithLogToGraylog(),
 		cmdutil.WithVersionCommand(),
 		cmdutil.WithVersionLog(logrus.DebugLevel),
-		cmdutil.WithRun(runner.Run),
+		cmdutil.WithRunner(new(Runner)),
 	)
 }
 
@@ -34,6 +31,7 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 	return nil
 }
 
-func (r *Runner) Run(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *Runner) Run(ctx context.Context) error {
 	fmt.Printf("Hello %s!\n", r.name)
+	return nil
 }

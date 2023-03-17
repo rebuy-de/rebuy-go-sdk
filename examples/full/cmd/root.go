@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"embed"
+	"fmt"
 	"io/fs"
 	"os"
 
@@ -23,11 +24,8 @@ var templateFS embed.FS
 // NewRootCommand initializes the cobra.Command with support of the cmdutil
 // package.
 func NewRootCommand() *cobra.Command {
-	runner := new(Runner)
-
 	return cmdutil.New(
 		"full", "rebuy-go-sdk-full-example",
-		runner.Bind,
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithLogToGraylog(),
 		cmdutil.WithVersionCommand(),
@@ -35,24 +33,24 @@ func NewRootCommand() *cobra.Command {
 
 		cmdutil.WithSubCommand(cmdutil.New(
 			"daemon", "Run the application",
-			cmdutil.WithRun(runner.Daemon),
+			cmdutil.WithRunner(new(DaemonRunner)),
 		)),
 
 		cmdutil.WithSubCommand(cmdutil.New(
 			"dev", "Run the application in dev mode for local development",
-			cmdutil.WithRun(runner.Dev),
+			cmdutil.WithRunner(new(DevRunner)),
 		)),
 	)
 }
 
-// Runner bootstraps the application. It defines the related flags and calls
-// the actual server code.
-type Runner struct {
+// DaemonRunner bootstraps the application for production. It defines the
+// related flags and calls the actual server code.
+type DaemonRunner struct {
 	redisAddress string
 }
 
-// Bind defines command line flags and stores the results in the Runner struct.
-func (r *Runner) Bind(cmd *cobra.Command) error {
+// Bind implements the cmdutil.Runner interface and defines command line flags.
+func (r *DaemonRunner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringVar(
 		&r.redisAddress, "redis-address", "",
 		`Address of the Redis instance.`)
@@ -60,7 +58,7 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 }
 
 // Daemon initializes the server with production-ready settings.
-func (r *Runner) Daemon(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *DaemonRunner) Run(ctx context.Context) error {
 	var (
 		redisPrefix = redisutil.Prefix("rebuy-go-sdk-example")
 		redisClient = redis.NewClient(&redis.Options{
@@ -69,10 +67,14 @@ func (r *Runner) Daemon(ctx context.Context, cmd *cobra.Command, args []string) 
 	)
 
 	assetFSSub, err := fs.Sub(assetFS, "assets")
-	cmdutil.Must(err)
+	if err != nil {
+		return fmt.Errorf("open assets dir: %w", err)
+	}
 
 	templateFSSub, err := fs.Sub(templateFS, "templates")
-	cmdutil.Must(err)
+	if err != nil {
+		return fmt.Errorf("open templates dir: %w", err)
+	}
 
 	s := &Server{
 		RedisClient: redisClient,
@@ -81,16 +83,30 @@ func (r *Runner) Daemon(ctx context.Context, cmd *cobra.Command, args []string) 
 		AssetFS:    assetFSSub,
 		TemplateFS: templateFSSub,
 	}
-	cmdutil.Must(s.Run(ctx))
+
+	return s.Run(ctx)
 }
 
-// Dev initializes the server with local settings and starts mock-server where
+// DevRunner bootstraps the application for local development. It defines the
+// related flags and calls the actual server code.
+type DevRunner struct {
+	redisAddress string
+}
+
+// Bind implements the cmdutil.Runner interface and defines command line flags.
+func (r *DevRunner) Bind(cmd *cobra.Command) error {
+	return nil
+}
+
+// Run initializes the server with local settings and starts mock-server where
 // possible.
-func (r *Runner) Dev(ctx context.Context, cmd *cobra.Command, args []string) {
+func (r *DevRunner) Run(ctx context.Context) error {
 	// Using miniredis instead of a real one, because that makes the local
 	// environment requirements easier.
 	redisFake, err := miniredis.Run()
-	cmdutil.Must(err)
+	if err != nil {
+		return fmt.Errorf("init miniredis: %w", err)
+	}
 
 	var (
 		redisPrefix = redisutil.Prefix("rebuy-go-sdk-example")
@@ -108,5 +124,6 @@ func (r *Runner) Dev(ctx context.Context, cmd *cobra.Command, args []string) {
 		AssetFS:    os.DirFS("cmd/assets"),
 		TemplateFS: os.DirFS("cmd/templates"),
 	}
-	cmdutil.Must(s.Run(ctx))
+
+	return s.Run(ctx)
 }
