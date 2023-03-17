@@ -62,6 +62,12 @@ func WithSubCommand(sub *cobra.Command) Option {
 	}
 }
 
+// deprecated: Use WithRun instead. It gets replaced, because different
+// subcommands (eg dev and daemon) usually do not share flags. Therefore it is
+// cumbersome to mangle their flags into the same struct. WithRunner allows
+// using separate structs for subcommands.
+//
+// See examples in https://github.com/rebuy-de/rebuy-go-sdk/pull/147/files for migration demonstration.
 func WithRun(run RunFuncWithContext) Option {
 	return func(cmd *cobra.Command) error {
 		cmd.Run = wrapRootConext(run)
@@ -69,12 +75,16 @@ func WithRun(run RunFuncWithContext) Option {
 	}
 }
 
+// Binder defines the interface used by the generic [WithRun] function.
 type Runner interface {
 	Bind(*cobra.Command) error
 	Run(context.Context) error
 }
 
-func WithRunnner(runner Runner) Option {
+// WithRunner that accepts a generic type which must implement the [Binder]
+// interface. The Bind function gets called with [cobra.Command] so it can
+// prepare Cobra flags.
+func WithRunner(runner Runner) Option {
 	return func(cmd *cobra.Command) error {
 		runner.Bind(cmd)
 
