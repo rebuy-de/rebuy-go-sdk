@@ -7,8 +7,8 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/podutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/redisutil"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -101,17 +101,21 @@ func (r *DevRunner) Bind(cmd *cobra.Command) error {
 // Run initializes the server with local settings and starts mock-server where
 // possible.
 func (r *DevRunner) Run(ctx context.Context) error {
-	// Using miniredis instead of a real one, because that makes the local
-	// environment requirements easier.
-	redisFake, err := miniredis.Run()
+	podman, err := podutil.New(podutil.UserSocketPath())
 	if err != nil {
-		return fmt.Errorf("init miniredis: %w", err)
+		return fmt.Errorf("init podman: %w", err)
+	}
+
+	keydbContainer, err := podutil.StartDevcontainer(ctx, podman, "boombot-dev-keydb",
+		"docker.io/eqalpha/keydb:latest")
+	if err != nil {
+		return fmt.Errorf("start keydb: %w", err)
 	}
 
 	var (
 		redisPrefix = redisutil.Prefix("rebuy-go-sdk-example")
 		redisClient = redis.NewClient(&redis.Options{
-			Addr: redisFake.Addr(),
+			Addr: keydbContainer.TCPHostPort(6379),
 		})
 	)
 
