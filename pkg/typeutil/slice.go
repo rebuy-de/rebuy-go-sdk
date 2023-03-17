@@ -1,4 +1,4 @@
-package dsutil
+package typeutil
 
 func LimitSlice[T any](slice []T, limit int) ([]T, int) {
 	l := len(slice)

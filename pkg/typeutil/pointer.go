@@ -1,4 +1,4 @@
-package dsutil
+package typeutil
 
 // Pointer creates a pointer from the given value. This is useful, when
 // creating a pointer from a loop variable [1] or when creating a pointer from

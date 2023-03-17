@@ -1,4 +1,4 @@
-package dsutil
+package typeutil
 
 import (
 	"encoding/json"
