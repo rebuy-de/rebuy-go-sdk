@@ -36,7 +36,7 @@ func (s *Set[T]) Add(value T) {
 
 // Contains returns true, if the given value is part of the set.
 func (s *Set[T]) Contains(value T) bool {
-	if s.data == nil {
+	if s == nil || s.data == nil {
 		return false
 	}
 
@@ -47,7 +47,7 @@ func (s *Set[T]) Contains(value T) bool {
 // Remove removes the given value from the set. The set will be the same, if
 // the value is not part of it.
 func (s *Set[T]) Remove(value T) {
-	if s.data == nil {
+	if s == nil || s.data == nil {
 		return
 	}
 
@@ -56,7 +56,7 @@ func (s *Set[T]) Remove(value T) {
 
 // Substract removes every element from the given set from the set.
 func (s *Set[T]) Subtract(other *Set[T]) {
-	if s.data == nil {
+	if s == nil || s.data == nil {
 		return
 	}
 
@@ -66,7 +66,10 @@ func (s *Set[T]) Subtract(other *Set[T]) {
 }
 
 // Len returns the number of all values in the set.
-func (s Set[T]) Len() int {
+func (s *Set[T]) Len() int {
+	if s == nil || s.data == nil {
+		return 0
+	}
 	return len(s.data)
 }
 

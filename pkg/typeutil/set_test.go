@@ -94,3 +94,8 @@ func TestSetIntersection(t *testing.T) {
 		})
 	}
 }
+
+func TestSetNilLen(t *testing.T) {
+	var s *Set[string]
+	assert.Equal(t, 0, s.Len())
+}
