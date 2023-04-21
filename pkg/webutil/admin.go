@@ -7,7 +7,7 @@ import (
 	"net/http/pprof"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v5/pkg/logutil"
 )
 
 func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) {

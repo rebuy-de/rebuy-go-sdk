@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v5/pkg/cmdutil"
 )
 
 func main() {

@@ -1,7 +1,7 @@
 package vaultutil
 
 import (
-	"github.com/rebuy-de/rebuy-go-sdk/v4/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v5/pkg/cmdutil"
 	"github.com/spf13/cobra"
 )
 
