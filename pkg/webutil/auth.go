@@ -7,14 +7,12 @@ import (
 	"encoding/gob"
 	"html/template"
 	"net/http"
-	"path"
 	"time"
 
-	"github.com/google/go-github/v50/github"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
-	oauth2_github "golang.org/x/oauth2/github"
 )
 
 const (
@@ -24,19 +22,25 @@ const (
 
 // AuthInfo contains data about the currently logged in user.
 type AuthInfo struct {
-	GitHubToken string
-	UpdatedAt   time.Time
-
-	Login string
-	Name  string
-	Teams []string
+	Username  string
+	Name      string
+	Roles     []string
+	UpdatedAt time.Time
 }
 
-// InTeam returns true, if the user is in the given team. The team name needs to
-// be whitelisted in the AuthMiddleware, otherwise it will return false even if
+type IDTokenClaims struct {
+	Username    string `json:"preferred_username"`
+	Name        string `json:"name"`
+	RealmAccess struct {
+		Roles []string `json:"roles"`
+	} `json:"realm_access"`
+}
+
+// HasRole returns true, if the user has the given role. The role name needs to
+// be allowlisted in the AuthMiddleware, otherwise it will return false even if
 // the user is in the team.
-func (i AuthInfo) InTeam(want string) bool {
-	for _, have := range i.Teams {
+func (i AuthInfo) HasRole(want string) bool {
+	for _, have := range i.Roles {
 		if have == want {
 			return true
 		}
@@ -52,6 +56,9 @@ func init() {
 type AuthConfig struct {
 	ClientID     string
 	ClientSecret string
+	ConfigURL    string
+	RedirectURL  string
+	SigningAlgs  []string
 }
 
 // AuthMiddleware is an HTTP request middleware that adds login endpoints. The
@@ -74,19 +81,27 @@ func AuthMiddleware(creds AuthConfig, teams ...string) func(http.Handler) http.H
 }
 
 func authMiddlewareFunc(next http.Handler, creds AuthConfig, teams ...string) http.Handler {
+	provider, err := oidc.NewProvider(context.Background(), creds.ConfigURL)
+	if err != nil {
+		logrus.Error(err)
+	}
+
+	oidcConfig := &oidc.Config{
+		ClientID:             creds.ClientID,
+		SupportedSigningAlgs: creds.SigningAlgs,
+	}
+
 	mw := authMiddleware{
 		next:  next,
 		teams: map[string]struct{}{},
 		config: &oauth2.Config{
 			ClientID:     creds.ClientID,
 			ClientSecret: creds.ClientSecret,
-			Scopes:       []string{"user"},
-			Endpoint:     oauth2_github.Endpoint,
+			RedirectURL:  creds.RedirectURL,
+			Scopes:       []string{oidc.ScopeOpenID, "email", "profile", "roles"},
+			Endpoint:     provider.Endpoint(),
 		},
-	}
-
-	for _, team := range teams {
-		mw.teams[team] = struct{}{}
+		verifier: provider.Verifier(oidcConfig),
 	}
 
 	mux := http.NewServeMux()
@@ -98,9 +113,10 @@ func authMiddlewareFunc(next http.Handler, creds AuthConfig, teams ...string) ht
 }
 
 type authMiddleware struct {
-	next   http.Handler
-	teams  map[string]struct{}
-	config *oauth2.Config
+	next     http.Handler
+	teams    map[string]struct{}
+	config   *oauth2.Config
+	verifier *oidc.IDTokenVerifier
 }
 
 func (mw *authMiddleware) handleDefault(w http.ResponseWriter, r *http.Request) {
@@ -114,7 +130,7 @@ func (mw *authMiddleware) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mw *authMiddleware) generateCookie(w http.ResponseWriter) string {
-	var expiration = time.Now().Add(365 * 24 * time.Hour)
+	var expiration = time.Now().Add(10 * time.Minute)
 
 	b := make([]byte, 16)
 	rand.Read(b)
@@ -137,7 +153,7 @@ func (mw *authMiddleware) handleCallback(w http.ResponseWriter, r *http.Request)
 	}
 
 	if r.FormValue("state") != oauthState.Value {
-		logrus.Warn("invalid oauth google state")
+		logrus.Warn("invalid oauth state")
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
@@ -148,16 +164,30 @@ func (mw *authMiddleware) handleCallback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = mw.refreshSessionData(w, r, &token.AccessToken)
-	if err != nil {
-		logrus.WithError(errors.WithStack(err)).Error("failed to refresh session data")
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok {
+		logrus.WithError(errors.WithStack(err)).Error("No id_token field in oauth2 token")
 		return
 	}
 
+	idToken, err := mw.verifier.Verify(r.Context(), rawIDToken)
+	if err != nil {
+		logrus.WithError(errors.WithStack(err)).Error("Failed to verify ID Token: " + err.Error())
+		return
+	}
+
+	var claims IDTokenClaims
+	err = idToken.Claims(&claims)
+	if err != nil {
+		logrus.WithError(errors.WithStack(err)).Error("Failed to unmarshal claims: " + err.Error())
+		return
+	}
+
+	mw.refreshSessionData(w, r, &claims)
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
-func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Request, optionalToken *string) error {
+func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Request, idTokenClaims *IDTokenClaims) error {
 	session, err := SessionFromRequest(r)
 	if err != nil {
 		return errors.WithStack(err)
@@ -167,46 +197,11 @@ func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		info = AuthInfo{}
 	}
-	if optionalToken != nil {
-		info.GitHubToken = *optionalToken
-	}
-	if info.GitHubToken == "" {
-		return errors.Errorf("GitHub token not found")
-	}
 
-	client := github.NewClient(
-		oauth2.NewClient(r.Context(), oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: info.GitHubToken},
-		)),
-	)
-
-	user, _, err := client.Users.Get(r.Context(), "")
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	ghTeams, _, err := client.Teams.ListUserTeams(r.Context(), nil)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	cachedTeams := []string{}
-	for _, team := range ghTeams {
-		name := path.Join(team.GetOrganization().GetLogin(), team.GetSlug())
-		_, ok := mw.teams[name]
-		if ok {
-			cachedTeams = append(cachedTeams, name)
-		}
-	}
-
-	if len(cachedTeams) == 0 {
-		return errors.Errorf("login failed: user is not part of any required team")
-	}
-
-	info.Login = user.GetLogin()
-	info.Name = user.GetName()
+	info.Username = idTokenClaims.Username
+	info.Name = idTokenClaims.Name
 	info.UpdatedAt = time.Now()
-	info.Teams = cachedTeams
+	info.Roles = idTokenClaims.RealmAccess.Roles
 
 	session.Values["auth-info"] = info
 	err = session.Save(r, w)
