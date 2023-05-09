@@ -53,7 +53,7 @@ func init() {
 	gob.Register(AuthInfo{})
 }
 
-type AuthConfig struct {
+type OIDCAuthConfig struct {
 	ClientID     string
 	ClientSecret string
 	ConfigURL    string
@@ -61,7 +61,7 @@ type AuthConfig struct {
 	SigningAlgs  []string
 }
 
-// AuthMiddleware is an HTTP request middleware that adds login endpoints. The
+// Middleware is an HTTP request middleware that adds login endpoints. The
 // request makes use of sessions, therefore the SessionMiddleware is required.
 //
 // The teams argument contains a whitelist of team names, that are copied into
@@ -74,30 +74,30 @@ type AuthConfig struct {
 //
 // Endpoint "/auth/callback" gets called by the user after being redirected
 // from GitHub after a successful login.
-func AuthMiddleware(creds AuthConfig, teams ...string) func(http.Handler) http.Handler {
+func (c OIDCAuthConfig) Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return authMiddlewareFunc(next, creds, teams...)
+		return c.authMiddlewareFunc(next)
 	}
 }
 
-func authMiddlewareFunc(next http.Handler, creds AuthConfig, teams ...string) http.Handler {
-	provider, err := oidc.NewProvider(context.Background(), creds.ConfigURL)
+func (c OIDCAuthConfig) authMiddlewareFunc(next http.Handler) http.Handler {
+	provider, err := oidc.NewProvider(context.Background(), c.ConfigURL)
 	if err != nil {
 		logrus.Error(err)
 	}
 
 	oidcConfig := &oidc.Config{
-		ClientID:             creds.ClientID,
-		SupportedSigningAlgs: creds.SigningAlgs,
+		ClientID:             c.ClientID,
+		SupportedSigningAlgs: c.SigningAlgs,
 	}
 
 	mw := authMiddleware{
 		next:  next,
 		teams: map[string]struct{}{},
 		config: &oauth2.Config{
-			ClientID:     creds.ClientID,
-			ClientSecret: creds.ClientSecret,
-			RedirectURL:  creds.RedirectURL,
+			ClientID:     c.ClientID,
+			ClientSecret: c.ClientSecret,
+			RedirectURL:  c.RedirectURL,
 			Scopes:       []string{oidc.ScopeOpenID, "email", "profile", "roles"},
 			Endpoint:     provider.Endpoint(),
 		},
@@ -183,11 +183,11 @@ func (mw *authMiddleware) handleCallback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	mw.refreshSessionData(w, r, &claims)
+	refreshSessionData(w, r, &claims)
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
-func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Request, idTokenClaims *IDTokenClaims) error {
+func refreshSessionData(w http.ResponseWriter, r *http.Request, idTokenClaims *IDTokenClaims) error {
 	session, err := SessionFromRequest(r)
 	if err != nil {
 		return errors.WithStack(err)
@@ -210,6 +210,23 @@ func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Requ
 	}
 
 	return nil
+}
+
+func DevAuthMiddleware(next http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		var claims IDTokenClaims
+
+		claims.Username = "dummy@example.com"
+		claims.Name = "John Doe"
+		claims.RealmAccess.Roles = []string{"rebuy-platform", "rebuy-tech"}
+
+		refreshSessionData(w, r, &claims)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	})
+	mux.HandleFunc("/", next.ServeHTTP)
+
+	return mux
 }
 
 // AuthTemplateFunctions returns auth related template functions.  These can
