@@ -3,13 +3,18 @@ package webutil
 import (
 	"context"
 	"crypto/rand"
+	"embed"
 	"encoding/base64"
 	"encoding/gob"
+	"fmt"
 	"html/template"
+	"io/fs"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -53,7 +58,7 @@ func init() {
 	gob.Register(AuthInfo{})
 }
 
-type OIDCAuthConfig struct {
+type AuthConfig struct {
 	ClientID     string
 	ClientSecret string
 	ConfigURL    string
@@ -74,13 +79,13 @@ type OIDCAuthConfig struct {
 //
 // Endpoint "/auth/callback" gets called by the user after being redirected
 // from GitHub after a successful login.
-func (c OIDCAuthConfig) Middleware() func(http.Handler) http.Handler {
+func (c AuthConfig) Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return c.authMiddlewareFunc(next)
 	}
 }
 
-func (c OIDCAuthConfig) authMiddlewareFunc(next http.Handler) http.Handler {
+func (c AuthConfig) authMiddlewareFunc(next http.Handler) http.Handler {
 	provider, err := oidc.NewProvider(context.Background(), c.ConfigURL)
 	if err != nil {
 		logrus.Error(err)
@@ -212,21 +217,53 @@ func refreshSessionData(w http.ResponseWriter, r *http.Request, idTokenClaims *I
 	return nil
 }
 
-func DevAuthMiddleware(next http.Handler) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		var claims IDTokenClaims
+//go:embed templates/*
+var templateFS embed.FS
 
-		claims.Username = "dummy@example.com"
-		claims.Name = "John Doe"
-		claims.RealmAccess.Roles = []string{"rebuy-platform", "rebuy-tech"}
+// DevAuthMiddleware is a dummy auth middleware that does not any actual
+// authentication. It is supposed to be used for local development.
+// The roles parameter defines which roles can be selected in the dummy login
+// form.
+func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
+	subFS, _ := fs.Sub(templateFS, "templates")
+	vh := NewViewHandler(subFS)
 
-		refreshSessionData(w, r, &claims)
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-	})
-	mux.HandleFunc("/", next.ServeHTTP)
+	roleNames := map[string]string{}
+	for _, r := range roles {
+		roleNames[fmt.Sprintf("role-%s", r)] = r
+	}
 
-	return mux
+	return func(next http.Handler) http.Handler {
+		router := chi.NewRouter()
+		router.HandleFunc("/*", next.ServeHTTP)
+
+		router.Get("/auth/login", vh.Wrap(func(v *View, r *http.Request) Response {
+			return v.HTML(http.StatusOK, "dev-login.html", map[string]any{
+				"username": "dummy@example.com",
+				"name":     "John Doe",
+				"roles":    roleNames,
+			})
+		}))
+
+		router.Post("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+			var claims IDTokenClaims
+
+			claims.Username = r.PostFormValue("username")
+			claims.Name = r.PostFormValue("name")
+
+			for name, role := range roleNames {
+				value := r.PostFormValue(name)
+				if strings.TrimSpace(value) != "" {
+					claims.RealmAccess.Roles = append(claims.RealmAccess.Roles, role)
+				}
+			}
+
+			refreshSessionData(w, r, &claims)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		})
+
+		return router
+	}
 }
 
 // AuthTemplateFunctions returns auth related template functions.  These can
