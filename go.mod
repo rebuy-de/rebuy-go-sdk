@@ -12,6 +12,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.5.0
 	github.com/evanw/esbuild v0.17.17
 	github.com/gemnasium/logrus-graylog-hook/v3 v3.1.0
+	github.com/go-chi/chi/v5 v5.0.8
 	github.com/golang/protobuf v1.5.3
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-querystring v1.1.0

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>SDK Dev Login</title>
+    <style>
+      html {
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+
+      *, *:before, *:after {
+        box-sizing: inherit;
+      }
+
+      body, h1, h2, h3, h4, h5, h6, p, ol, ul {
+        margin: 0;
+        padding: 0;
+        font-weight: normal;
+      }
+
+      body {
+        padding: 2em;
+      }
+
+      h1 {
+        margin-bottom: 1em;
+      }
+
+      form {
+        display: table;
+      }
+
+      form > div {
+        display: table-row;
+      }
+
+      form > div > label, form > div > input, form > div > div {
+        display: table-cell;
+        margin: 0.25em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SDK Dev Login</h1>
+    <form method="post">
+      <div>
+        <label for="input-username">Username</label>
+        <input id="input-username" name="username" value="{{.username}}">
+      </div>
+      <div>
+        <label for="input-name">Name</label>
+        <input id="input-name" name="name" value="{{.name}}">
+      </div>
+      <div>
+        <div>Roles</div>
+        <div>
+          {{ range $name, $label := .roles }}
+          <div>
+            <input type="checkbox" id="{{ $name }}" name="{{ $name }}">
+            <label class="container" for="{{ $name }}">{{ $label }}</label>
+          </div>
+          {{ end }}
+        </div>
+      </div>
+      <div>
+        <div> </div>
+        <input type="submit" value="Login">
+      </div>
+    </form>
+  </body>
+</html>

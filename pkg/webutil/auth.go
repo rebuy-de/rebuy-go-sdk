@@ -3,13 +3,18 @@ package webutil
 import (
 	"context"
 	"crypto/rand"
+	"embed"
 	"encoding/base64"
 	"encoding/gob"
+	"fmt"
 	"html/template"
+	"io/fs"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -61,7 +66,7 @@ type AuthConfig struct {
 	SigningAlgs  []string
 }
 
-// AuthMiddleware is an HTTP request middleware that adds login endpoints. The
+// Middleware is an HTTP request middleware that adds login endpoints. The
 // request makes use of sessions, therefore the SessionMiddleware is required.
 //
 // The teams argument contains a whitelist of team names, that are copied into
@@ -74,30 +79,30 @@ type AuthConfig struct {
 //
 // Endpoint "/auth/callback" gets called by the user after being redirected
 // from GitHub after a successful login.
-func AuthMiddleware(creds AuthConfig, teams ...string) func(http.Handler) http.Handler {
+func (c AuthConfig) Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return authMiddlewareFunc(next, creds, teams...)
+		return c.authMiddlewareFunc(next)
 	}
 }
 
-func authMiddlewareFunc(next http.Handler, creds AuthConfig, teams ...string) http.Handler {
-	provider, err := oidc.NewProvider(context.Background(), creds.ConfigURL)
+func (c AuthConfig) authMiddlewareFunc(next http.Handler) http.Handler {
+	provider, err := oidc.NewProvider(context.Background(), c.ConfigURL)
 	if err != nil {
 		logrus.Error(err)
 	}
 
 	oidcConfig := &oidc.Config{
-		ClientID:             creds.ClientID,
-		SupportedSigningAlgs: creds.SigningAlgs,
+		ClientID:             c.ClientID,
+		SupportedSigningAlgs: c.SigningAlgs,
 	}
 
 	mw := authMiddleware{
 		next:  next,
 		teams: map[string]struct{}{},
 		config: &oauth2.Config{
-			ClientID:     creds.ClientID,
-			ClientSecret: creds.ClientSecret,
-			RedirectURL:  creds.RedirectURL,
+			ClientID:     c.ClientID,
+			ClientSecret: c.ClientSecret,
+			RedirectURL:  c.RedirectURL,
 			Scopes:       []string{oidc.ScopeOpenID, "email", "profile", "roles"},
 			Endpoint:     provider.Endpoint(),
 		},
@@ -183,11 +188,11 @@ func (mw *authMiddleware) handleCallback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	mw.refreshSessionData(w, r, &claims)
+	refreshSessionData(w, r, &claims)
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
-func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Request, idTokenClaims *IDTokenClaims) error {
+func refreshSessionData(w http.ResponseWriter, r *http.Request, idTokenClaims *IDTokenClaims) error {
 	session, err := SessionFromRequest(r)
 	if err != nil {
 		return errors.WithStack(err)
@@ -210,6 +215,55 @@ func (mw *authMiddleware) refreshSessionData(w http.ResponseWriter, r *http.Requ
 	}
 
 	return nil
+}
+
+//go:embed templates/*
+var templateFS embed.FS
+
+// DevAuthMiddleware is a dummy auth middleware that does not any actual
+// authentication. It is supposed to be used for local development.
+// The roles parameter defines which roles can be selected in the dummy login
+// form.
+func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
+	subFS, _ := fs.Sub(templateFS, "templates")
+	vh := NewViewHandler(subFS)
+
+	roleNames := map[string]string{}
+	for _, r := range roles {
+		roleNames[fmt.Sprintf("role-%s", r)] = r
+	}
+
+	return func(next http.Handler) http.Handler {
+		router := chi.NewRouter()
+		router.HandleFunc("/*", next.ServeHTTP)
+
+		router.Get("/auth/login", vh.Wrap(func(v *View, r *http.Request) Response {
+			return v.HTML(http.StatusOK, "dev-login.html", map[string]any{
+				"username": "dummy@example.com",
+				"name":     "John Doe",
+				"roles":    roleNames,
+			})
+		}))
+
+		router.Post("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+			var claims IDTokenClaims
+
+			claims.Username = r.PostFormValue("username")
+			claims.Name = r.PostFormValue("name")
+
+			for name, role := range roleNames {
+				value := r.PostFormValue(name)
+				if strings.TrimSpace(value) != "" {
+					claims.RealmAccess.Roles = append(claims.RealmAccess.Roles, role)
+				}
+			}
+
+			refreshSessionData(w, r, &claims)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		})
+
+		return router
+	}
 }
 
 // AuthTemplateFunctions returns auth related template functions.  These can
