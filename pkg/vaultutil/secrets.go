@@ -48,6 +48,14 @@ type SlackSecrets struct {
 	Channel           string `vault:"slack-channel"`
 }
 
+type SlackTestSecrets struct {
+	VerificationToken string `vault:"slack-test-verification-token"`
+	SigningSecret     string `vault:"slack-test-signing-secret"`
+	Token             string `vault:"slack-test-token"`
+	AppToken          string `vault:"slack-test-app-token"`
+	Channel           string `vault:"slack-test-channel"`
+}
+
 type OIDCSecrets struct {
 	ClientID     string `vault:"oidc-client-id"`
 	ClientSecret string `vault:"oidc-client-secret"`

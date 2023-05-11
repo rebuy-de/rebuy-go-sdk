@@ -85,4 +85,44 @@ func TestDecodeSecret(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, have, want)
 	})
+
+	t.Run("Nested", func(t *testing.T) {
+		type secrets struct {
+			Token  string        `vault:"token"`
+			Slack  SlackSecrets  `vault:",squash"`
+			GitHub GitHubSecrets `vault:",squash"`
+		}
+
+		want := secrets{
+			Token: "much-secretz",
+			Slack: SlackSecrets{
+				VerificationToken: "a",
+				SigningSecret:     "b",
+				Token:             "c",
+				AppToken:          "d",
+				Channel:           "e",
+			},
+			GitHub: GitHubSecrets{
+				AppID:          42,
+				InstallationID: 1337,
+				PrivateKey:     "blubber",
+			},
+		}
+		have, err := DecodeSecretWithPrefix[secrets](&api.Secret{
+			Data: map[string]any{
+				"token":                    "much-secretz",
+				"slack-verification-token": "a",
+				"slack-signing-secret":     "b",
+				"slack-token":              "c",
+				"slack-app-token":          "d",
+				"slack-channel":            "e",
+				"github-app-id":            42,
+				"github-installation-id":   1337,
+				"github-private-key":       "blubber",
+			},
+		}, "test-")
+
+		require.NoError(t, err)
+		require.Equal(t, have, want)
+	})
 }
