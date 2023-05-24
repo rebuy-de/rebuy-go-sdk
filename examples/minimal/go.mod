@@ -50,7 +50,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/goreleaser/chglog v0.4.2 // indirect
 	github.com/goreleaser/fileglob v1.3.0 // indirect
-	github.com/goreleaser/nfpm/v2 v2.28.0 // indirect
+	github.com/goreleaser/nfpm/v2 v2.29.0 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -58,7 +58,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.16.5 // indirect
-	github.com/klauspost/pgzip v1.2.5 // indirect
+	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
