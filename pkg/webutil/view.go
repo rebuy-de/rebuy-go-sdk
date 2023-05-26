@@ -74,7 +74,37 @@ type View struct {
 	handler *ViewHandler
 }
 
+func (v *View) HTML(status int, filename string, data any) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		buf, err := v.handler.Render(filename, r, data)
+		if err != nil {
+			v.Error(http.StatusInternalServerError, err)(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(status)
+		buf.WriteTo(w)
+	}
+}
+
 func (v *View) Error(status int, err error) http.HandlerFunc {
+	return ViewError(status, err)
+}
+
+func (v *View) Errorf(status int, text string, a ...interface{}) http.HandlerFunc {
+	return ViewErrorf(status, text, a...)
+}
+
+func (v *View) Redirect(status int, location string, args ...interface{}) http.HandlerFunc {
+	return ViewRedirect(status, location, args...)
+}
+
+func (v *View) JSON(status int, data any) http.HandlerFunc {
+	return ViewJSON(status, data)
+}
+
+func ViewError(status int, err error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		l := logrus.
 			WithField("stacktrace", fmt.Sprintf("%+v", err)).
@@ -91,18 +121,18 @@ func (v *View) Error(status int, err error) http.HandlerFunc {
 	}
 }
 
-func (v *View) Errorf(status int, text string, a ...interface{}) http.HandlerFunc {
-	return v.Error(status, fmt.Errorf(text, a...))
+func ViewErrorf(status int, text string, a ...interface{}) http.HandlerFunc {
+	return ViewError(status, fmt.Errorf(text, a...))
 }
 
-func (v *View) Redirect(status int, location string, args ...interface{}) http.HandlerFunc {
+func ViewRedirect(status int, location string, args ...interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		url := fmt.Sprintf(location, args...)
 		http.Redirect(w, r, url, status)
 	}
 }
 
-func (v *View) JSON(status int, data any) http.HandlerFunc {
+func ViewJSON(status int, data any) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		buf := new(bytes.Buffer)
 		enc := json.NewEncoder(buf)
@@ -110,25 +140,11 @@ func (v *View) JSON(status int, data any) http.HandlerFunc {
 
 		err := enc.Encode(data)
 		if err != nil {
-			v.Error(http.StatusInternalServerError, err)(w, r)
+			ViewError(http.StatusInternalServerError, err)(w, r)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(status)
-		buf.WriteTo(w)
-	}
-}
-
-func (v *View) HTML(status int, filename string, data any) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		buf, err := v.handler.Render(filename, r, data)
-		if err != nil {
-			v.Error(http.StatusInternalServerError, err)(w, r)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(status)
 		buf.WriteTo(w)
 	}
