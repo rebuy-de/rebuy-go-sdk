@@ -76,10 +76,15 @@ type View struct {
 
 func (v *View) Error(status int, err error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logrus.
+		l := logrus.
 			WithField("stacktrace", fmt.Sprintf("%+v", err)).
-			WithError(errors.WithStack(err)).
-			Errorf("request failed: %s", err)
+			WithError(errors.WithStack(err))
+
+		if status >= 500 {
+			l.Errorf("request failed: %s", err)
+		} else {
+			l.Warnf("request failed: %s", err)
+		}
 
 		w.WriteHeader(status)
 		fmt.Fprint(w, err.Error())
