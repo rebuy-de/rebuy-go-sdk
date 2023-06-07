@@ -22,6 +22,7 @@ Please take a look at the examples directory to see how it actually looks like.
 │   ├── `root.go`
 │   └── `...`
 ├── `pkg/`
+│   ├── `app/...`
 │   ├── `dal/...`
 │   ├── `bll/...`
 │   └── `...`
@@ -44,6 +45,13 @@ Please take a look at the examples directory to see how it actually looks like.
   modules. See [wiki][tools-wiki] for more details.
 * `/cmd/root.go` contains the definition for all [Cobra][Cobra] commands and
   the Runners (see below) of the application.
+* `/pkg/app` contains separate components of the application. The `/pkg/app`
+  directory serves basically the same purpose as the `/cmd`, but is separated
+  into multiple sub-packages. This is useful when the `/cmd` directory grows
+  too big and contains components that are mostly independent from each other.
+  How the sub packages of `/pkg/app` are designed is highly dependent on the
+  application. It could be split model-based (eg users, projects, ...) or it
+  could be split purpose-based (eg web, controllers, ...).
 * `/pkg/bll` stands for "business logic layer" and contains sub-packages that
   solve a specific use-case of the application.
 * `/pkg/dal` stands for "data access layer" and contains sub-packages that
