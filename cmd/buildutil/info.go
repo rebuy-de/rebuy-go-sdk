@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v5/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/tools/go/packages"
 )

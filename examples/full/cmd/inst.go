@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v5/pkg/instutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v5/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/instutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/logutil"
 )
 
 // inst.go contains all functions for handling instrumentation (ie metrics and
