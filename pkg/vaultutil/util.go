@@ -2,7 +2,7 @@ package vaultutil
 
 import (
 	"github.com/hashicorp/vault/api"
-	"github.com/rebuy-de/rebuy-go-sdk/v5/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/logutil"
 )
 
 func prettyPrintSecret(original *api.Secret) string {

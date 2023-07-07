@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v5/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/logutil"
 )
 
 const (
