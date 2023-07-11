@@ -90,7 +90,7 @@ func (m *authMiddleware) handler(next http.Handler) http.Handler {
 			Expires:  time.Now().Add(7 * 24 * time.Hour), // TODO
 			Secure:   true,
 			HttpOnly: true,
-			SameSite: http.SameSiteStrictMode,
+			SameSite: http.SameSiteLaxMode,
 		}
 		http.SetCookie(w, &cookie)
 
