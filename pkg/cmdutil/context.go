@@ -89,6 +89,8 @@ func (c compositeContext) Value(key any) any {
 // ContextWithValuesFrom creates a new context, but still references the values
 // from the given context. This is helpful if a background context is needed
 // that needs to have the values of an exiting context.
+//
+// Deprecated: Use [context.WithoutCancel] instead.
 func ContextWithValuesFrom(value context.Context) context.Context {
 	bg := context.Background()
 
