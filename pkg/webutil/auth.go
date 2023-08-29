@@ -27,8 +27,12 @@ const (
 	authSessionName = `oauth`
 )
 
-func cookieName() string {
+func idTokenCookieName() string {
 	return cmdutil.Name + "-token"
+}
+
+func refreshTokenCookieName() string {
+	return cmdutil.Name + "-refresh-token"
 }
 
 type AuthInfo struct {
@@ -52,9 +56,14 @@ func (i AuthInfo) HasRole(want string) bool {
 	return false
 }
 
+type Tokens struct {
+	IDToken      string
+	RefreshToken string
+}
+
 type authMiddleware struct {
 	getClaimFromRequest     func(*http.Request) (*AuthInfo, error)
-	createTokenFromCallback func(*http.Request) (string, error)
+	createTokenFromCallback func(*http.Request) (Tokens, error)
 	handleLogin             func(http.ResponseWriter, *http.Request)
 }
 
@@ -76,23 +85,32 @@ func (m *authMiddleware) handler(next http.Handler) http.Handler {
 	router.HandleFunc("/auth/login", m.handleLogin)
 
 	router.HandleFunc("/auth/callback", func(w http.ResponseWriter, r *http.Request) {
-		token, err := m.createTokenFromCallback(r)
+		tokens, err := m.createTokenFromCallback(r)
 		if err != nil {
 			fmt.Fprintf(w, "handle callback: %v", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		cookie := http.Cookie{
-			Name:     cookieName(),
-			Value:    token,
+		http.SetCookie(w, &http.Cookie{
+			Name:     idTokenCookieName(),
+			Value:    tokens.IDToken,
 			Path:     "/",
-			Expires:  time.Now().Add(7 * 24 * time.Hour), // TODO
+			Expires:  time.Now().Add(7 * 24 * time.Hour),
 			Secure:   true,
 			HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
-		}
-		http.SetCookie(w, &cookie)
+		})
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     refreshTokenCookieName(),
+			Value:    tokens.RefreshToken,
+			Path:     "/auth/refresh",
+			Expires:  time.Now().Add(31 * 24 * time.Hour),
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		})
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
@@ -149,7 +167,7 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 			http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 		},
 		getClaimFromRequest: func(r *http.Request) (*AuthInfo, error) {
-			cookie, err := r.Cookie(cookieName())
+			cookie, err := r.Cookie(idTokenCookieName())
 			if err != nil {
 				return nil, fmt.Errorf("get auth cookie")
 			}
@@ -167,38 +185,41 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 
 			return &authInfo, nil
 		},
-		createTokenFromCallback: func(r *http.Request) (string, error) {
+		createTokenFromCallback: func(r *http.Request) (Tokens, error) {
 			oauthState, err := r.Cookie(authStateCookie)
 			if err != nil {
-				return "", fmt.Errorf("get auth cookie: %w", err)
+				return Tokens{}, fmt.Errorf("get auth cookie: %w", err)
 			}
 
 			if r.FormValue("state") != oauthState.Value {
-				return "", fmt.Errorf("invalid oauth state cookie")
+				return Tokens{}, fmt.Errorf("invalid oauth state cookie")
 			}
 
 			token, err := oauth2Config.Exchange(r.Context(), r.FormValue("code"))
 			if err != nil {
-				return "", fmt.Errorf("exchange token: %w", err)
+				return Tokens{}, fmt.Errorf("exchange token: %w", err)
 			}
 
 			rawIDToken, ok := token.Extra("id_token").(string)
 			if !ok {
-				return "", fmt.Errorf("no id_token field in oauth2 token")
+				return Tokens{}, fmt.Errorf("no id_token field in oauth2 token")
 			}
 
 			idToken, err := verifier.Verify(r.Context(), rawIDToken)
 			if err != nil {
-				return "", fmt.Errorf("verify token: %w", err)
+				return Tokens{}, fmt.Errorf("verify token: %w", err)
 			}
 
 			var claims AuthInfo
 			err = idToken.Claims(&claims)
 			if err != nil {
-				return "", fmt.Errorf("unmarshal claims: %w", err)
+				return Tokens{}, fmt.Errorf("unmarshal claims: %w", err)
 			}
 
-			return rawIDToken, nil
+			return Tokens{
+				IDToken:      rawIDToken,
+				RefreshToken: token.RefreshToken,
+			}, nil
 		},
 	}
 
@@ -249,7 +270,7 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 			})
 		}),
 		getClaimFromRequest: func(r *http.Request) (*AuthInfo, error) {
-			cookie, err := r.Cookie(cookieName())
+			cookie, err := r.Cookie(idTokenCookieName())
 			if err != nil {
 				return nil, fmt.Errorf("get cookie: %w", err)
 			}
@@ -267,7 +288,7 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 
 			return &claims, nil
 		},
-		createTokenFromCallback: func(r *http.Request) (string, error) {
+		createTokenFromCallback: func(r *http.Request) (Tokens, error) {
 			var claims AuthInfo
 
 			claims.Username = r.PostFormValue("username")
@@ -282,12 +303,15 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 
 			jsonPayload, err := json.Marshal(claims)
 			if err != nil {
-				return "", fmt.Errorf("marshal cookie: %v", err)
+				return Tokens{}, fmt.Errorf("marshal cookie: %v", err)
 			}
 
 			b64Payload := base64.RawURLEncoding.EncodeToString(jsonPayload)
 
-			return string(b64Payload), nil
+			return Tokens{
+				IDToken:      string(b64Payload),
+				RefreshToken: "noop",
+			}, nil
 		},
 	}
 
