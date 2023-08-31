@@ -27,12 +27,8 @@ const (
 	authSessionName = `oauth`
 )
 
-func idTokenCookieName() string {
+func cookieName() string {
 	return cmdutil.Name + "-token"
-}
-
-func refreshTokenCookieName() string {
-	return cmdutil.Name + "-refresh-token"
 }
 
 type AuthInfo struct {
@@ -56,21 +52,16 @@ func (i AuthInfo) HasRole(want string) bool {
 	return false
 }
 
-type Tokens struct {
-	IDToken      string
-	RefreshToken string
-}
-
 type authMiddleware struct {
-	getClaimFromRequest     func(*http.Request) (*AuthInfo, error)
-	createTokenFromCallback func(*http.Request) (Tokens, error)
+	getClaimFromRequest     func(http.ResponseWriter, *http.Request) (*AuthInfo, error)
+	createTokenFromCallback func(*http.Request) (*oauth2.Token, error)
 	handleLogin             func(http.ResponseWriter, *http.Request)
 }
 
 func (m *authMiddleware) handler(next http.Handler) http.Handler {
 	router := chi.NewRouter()
 	router.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
-		claims, err := m.getClaimFromRequest(r)
+		claims, err := m.getClaimFromRequest(w, r)
 		if err != nil {
 			logutil.Get(r.Context()).Warnf("auth middleware: %v", err.Error())
 		} else {
@@ -85,37 +76,43 @@ func (m *authMiddleware) handler(next http.Handler) http.Handler {
 	router.HandleFunc("/auth/login", m.handleLogin)
 
 	router.HandleFunc("/auth/callback", func(w http.ResponseWriter, r *http.Request) {
-		tokens, err := m.createTokenFromCallback(r)
+		token, err := m.createTokenFromCallback(r)
 		if err != nil {
 			fmt.Fprintf(w, "handle callback: %v", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     idTokenCookieName(),
-			Value:    tokens.IDToken,
-			Path:     "/",
-			Expires:  time.Now().Add(7 * 24 * time.Hour),
-			Secure:   true,
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     refreshTokenCookieName(),
-			Value:    tokens.RefreshToken,
-			Path:     "/auth/refresh",
-			Expires:  time.Now().Add(31 * 24 * time.Hour),
-			Secure:   true,
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		})
+		err = writeTokenCookie(w, token)
+		if err != nil {
+			fmt.Fprintf(w, "write token cookie: %v", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
 
 	return router
+}
+
+func writeTokenCookie(w http.ResponseWriter, token *oauth2.Token) error {
+	payload, err := json.Marshal(token)
+	if err != nil {
+		return fmt.Errorf("marshal json: %w", err)
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieName(),
+		Value:    base64.RawURLEncoding.EncodeToString(payload),
+		Path:     "/",
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return nil
 }
 
 type AuthSecrets struct {
@@ -145,11 +142,6 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 		return nil, fmt.Errorf("init OIDC provider: %w", err)
 	}
 
-	oidcConfig := &oidc.Config{
-		ClientID:             config.Secrets.ClientID,
-		SupportedSigningAlgs: config.SigningAlgs,
-	}
-
 	oauth2Config := &oauth2.Config{
 		ClientID:     config.Secrets.ClientID,
 		ClientSecret: config.Secrets.ClientSecret,
@@ -158,68 +150,74 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 		Endpoint:     provider.Endpoint(),
 	}
 
-	verifier := provider.Verifier(oidcConfig)
-
 	m := authMiddleware{
 		handleLogin: func(w http.ResponseWriter, r *http.Request) {
 			oauthState := generateCookie(w)
 			u := oauth2Config.AuthCodeURL(oauthState)
 			http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 		},
-		getClaimFromRequest: func(r *http.Request) (*AuthInfo, error) {
-			cookie, err := r.Cookie(idTokenCookieName())
+		getClaimFromRequest: func(w http.ResponseWriter, r *http.Request) (*AuthInfo, error) {
+			cookie, err := r.Cookie(cookieName())
 			if err != nil {
 				return nil, fmt.Errorf("get auth cookie")
 			}
 
-			idToken, err := verifier.Verify(r.Context(), cookie.Value)
+			decoded, err := base64.RawURLEncoding.DecodeString(cookie.Value)
 			if err != nil {
-				return nil, fmt.Errorf("verify token: %w", err)
+				return nil, fmt.Errorf("decode auth cookie")
 			}
 
-			var authInfo AuthInfo
-			err = idToken.Claims(&authInfo)
+			var token oauth2.Token
+			err = json.Unmarshal(decoded, &token)
 			if err != nil {
-				return nil, fmt.Errorf("unmarshal claims: %w", err)
+				return nil, fmt.Errorf("decode token: %w", err)
 			}
 
-			return &authInfo, nil
+			tokenSource := oauth2Config.TokenSource(r.Context(), &token)
+			ui, err := provider.UserInfo(r.Context(), tokenSource)
+			if err != nil {
+				return nil, fmt.Errorf("get userinfo: %w", err)
+			}
+
+			freshToken, err := tokenSource.Token()
+			if err != nil {
+				return nil, fmt.Errorf("get fresh token: %w", err)
+			}
+
+			if freshToken.Expiry.After(token.Expiry) {
+				// This means the token was automatically refreshed by the
+				// oauth library when callind UserInfo(). We need to pass this
+				// token down to the user.
+				err = writeTokenCookie(w, freshToken)
+				if err != nil {
+					return nil, fmt.Errorf("write new token to cookie: %w", err)
+				}
+			}
+
+			var info AuthInfo
+			err = ui.Claims(&info)
+			if err != nil {
+				return nil, fmt.Errorf("get claim from userinfo: %w", err)
+			}
+
+			return &info, nil
 		},
-		createTokenFromCallback: func(r *http.Request) (Tokens, error) {
+		createTokenFromCallback: func(r *http.Request) (*oauth2.Token, error) {
 			oauthState, err := r.Cookie(authStateCookie)
 			if err != nil {
-				return Tokens{}, fmt.Errorf("get auth cookie: %w", err)
+				return nil, fmt.Errorf("get auth cookie: %w", err)
 			}
 
 			if r.FormValue("state") != oauthState.Value {
-				return Tokens{}, fmt.Errorf("invalid oauth state cookie")
+				return nil, fmt.Errorf("invalid oauth state cookie")
 			}
 
 			token, err := oauth2Config.Exchange(r.Context(), r.FormValue("code"))
 			if err != nil {
-				return Tokens{}, fmt.Errorf("exchange token: %w", err)
+				return nil, fmt.Errorf("exchange token: %w", err)
 			}
 
-			rawIDToken, ok := token.Extra("id_token").(string)
-			if !ok {
-				return Tokens{}, fmt.Errorf("no id_token field in oauth2 token")
-			}
-
-			idToken, err := verifier.Verify(r.Context(), rawIDToken)
-			if err != nil {
-				return Tokens{}, fmt.Errorf("verify token: %w", err)
-			}
-
-			var claims AuthInfo
-			err = idToken.Claims(&claims)
-			if err != nil {
-				return Tokens{}, fmt.Errorf("unmarshal claims: %w", err)
-			}
-
-			return Tokens{
-				IDToken:      rawIDToken,
-				RefreshToken: token.RefreshToken,
-			}, nil
+			return token, nil
 		},
 	}
 
@@ -269,8 +267,8 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 				"roles":    roleNames,
 			})
 		}),
-		getClaimFromRequest: func(r *http.Request) (*AuthInfo, error) {
-			cookie, err := r.Cookie(idTokenCookieName())
+		getClaimFromRequest: func(_ http.ResponseWriter, r *http.Request) (*AuthInfo, error) {
+			cookie, err := r.Cookie(cookieName())
 			if err != nil {
 				return nil, fmt.Errorf("get cookie: %w", err)
 			}
@@ -288,7 +286,7 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 
 			return &claims, nil
 		},
-		createTokenFromCallback: func(r *http.Request) (Tokens, error) {
+		createTokenFromCallback: func(r *http.Request) (*oauth2.Token, error) {
 			var claims AuthInfo
 
 			claims.Username = r.PostFormValue("username")
@@ -303,14 +301,13 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 
 			jsonPayload, err := json.Marshal(claims)
 			if err != nil {
-				return Tokens{}, fmt.Errorf("marshal cookie: %v", err)
+				return nil, fmt.Errorf("marshal cookie: %v", err)
 			}
 
 			b64Payload := base64.RawURLEncoding.EncodeToString(jsonPayload)
 
-			return Tokens{
-				IDToken:      string(b64Payload),
-				RefreshToken: "noop",
+			return &oauth2.Token{
+				AccessToken: string(b64Payload),
 			}, nil
 		},
 	}
