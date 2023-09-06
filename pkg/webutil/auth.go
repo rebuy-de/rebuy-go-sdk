@@ -31,10 +31,6 @@ const (
 	authSessionName = `oauth`
 )
 
-func cookieName() string {
-	return cmdutil.Name + "-token"
-}
-
 type AuthInfo struct {
 	Username    string `json:"preferred_username"`
 	Name        string `json:"name"`
@@ -93,25 +89,6 @@ func (m *authMiddleware) handler(next http.Handler) http.Handler {
 	return router
 }
 
-func writeTokenCookie(w http.ResponseWriter, token *oauth2.Token) error {
-	payload, err := json.Marshal(token)
-	if err != nil {
-		return fmt.Errorf("marshal json: %w", err)
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     cookieName(),
-		Value:    base64.RawURLEncoding.EncodeToString(payload),
-		Path:     "/",
-		Expires:  time.Now().Add(7 * 24 * time.Hour),
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	})
-
-	return nil
-}
-
 type AuthSecrets struct {
 	ClientID     string `vault:"client_id"`
 	ClientSecret string `vault:"client_secret"`
@@ -160,14 +137,9 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 			http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 		},
 		getClaimFromRequest: func(w http.ResponseWriter, r *http.Request) (*AuthInfo, error) {
-			cookie, err := r.Cookie(cookieName())
+			token, err := encrypter.ReadCookie(r)
 			if err != nil {
-				return nil, fmt.Errorf("get auth cookie")
-			}
-
-			token, err := encrypter.Decrypt(cookie.Value)
-			if err != nil {
-				return nil, fmt.Errorf("decrypt token: %w", err)
+				return nil, fmt.Errorf("get auth cookie: %w", err)
 			}
 
 			tokenSource := oauth2Config.TokenSource(r.Context(), token)
@@ -185,9 +157,9 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 				// This means the token was automatically refreshed by the
 				// oauth library when callind UserInfo(). We need to pass this
 				// token down to the user.
-				err = writeTokenCookie(w, freshToken)
+				err = encrypter.WriteCookie(w, token)
 				if err != nil {
-					return nil, fmt.Errorf("write new token to cookie: %w", err)
+					return nil, fmt.Errorf("write refreshed token cookie: %w", err)
 				}
 			}
 
@@ -214,20 +186,10 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 				return fmt.Errorf("exchange token: %w", err)
 			}
 
-			cookieValue, err := encrypter.Encrypt(token)
+			err = encrypter.WriteCookie(w, token)
 			if err != nil {
-				return fmt.Errorf("encrypt token: %w", err)
+				return fmt.Errorf("write token cookie: %w", err)
 			}
-
-			http.SetCookie(w, &http.Cookie{
-				Name:     cookieName(),
-				Value:    cookieValue,
-				Path:     "/",
-				Expires:  time.Now().Add(7 * 24 * time.Hour),
-				Secure:   true,
-				HttpOnly: true,
-				SameSite: http.SameSiteLaxMode,
-			})
 
 			return nil
 		},
@@ -280,7 +242,7 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 			})
 		}),
 		getClaimFromRequest: func(_ http.ResponseWriter, r *http.Request) (*AuthInfo, error) {
-			cookie, err := r.Cookie(cookieName())
+			cookie, err := r.Cookie("rebuy-go-sdk-auth")
 			if err != nil {
 				return nil, fmt.Errorf("get cookie: %w", err)
 			}
@@ -317,7 +279,7 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 			}
 
 			http.SetCookie(w, &http.Cookie{
-				Name:     cookieName(),
+				Name:     "rebuy-go-sdk-auth",
 				Value:    base64.RawURLEncoding.EncodeToString(jsonPayload),
 				Path:     "/",
 				Expires:  time.Now().Add(7 * 24 * time.Hour),
@@ -400,6 +362,43 @@ func newCookieEncrypter[T any](key string) (*cookieEncrypter[T], error) {
 	return &cookieEncrypter[T]{
 		block: block,
 	}, nil
+}
+
+func (e cookieEncrypter[T]) cookieName() string {
+	return cmdutil.Name + "-token"
+}
+
+func (e cookieEncrypter[T]) WriteCookie(w http.ResponseWriter, obj *T) error {
+	cookieValue, err := e.Encrypt(obj)
+	if err != nil {
+		return fmt.Errorf("encrypt cookie: %w", err)
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     e.cookieName(),
+		Value:    cookieValue,
+		Path:     "/",
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return nil
+}
+
+func (e cookieEncrypter[T]) ReadCookie(r *http.Request) (*T, error) {
+	cookie, err := r.Cookie(e.cookieName())
+	if err != nil {
+		return nil, fmt.Errorf("get auth cookie")
+	}
+
+	token, err := e.Decrypt(cookie.Value)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt token: %w", err)
+	}
+
+	return token, nil
 }
 
 func (e cookieEncrypter[T]) Encrypt(obj *T) (string, error) {
