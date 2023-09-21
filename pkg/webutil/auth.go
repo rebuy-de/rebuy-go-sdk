@@ -126,7 +126,7 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 		ClientID:     config.Secrets.ClientID,
 		ClientSecret: config.Secrets.ClientSecret,
 		RedirectURL:  strings.TrimRight(config.BaseURL, "/") + "/auth/callback",
-		Scopes:       []string{oidc.ScopeOpenID, "email", "roles"},
+		Scopes:       []string{oidc.ScopeOpenID, "email", "roles", "role_list"},
 		Endpoint:     provider.Endpoint(),
 	}
 
