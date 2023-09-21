@@ -148,7 +148,9 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 				return nil, fmt.Errorf("get userinfo: %w", err)
 			}
 
-			fmt.Println(ui)
+			var rawClaims json.RawMessage
+			ui.Claims(&rawClaims)
+			fmt.Println(string(rawClaims))
 
 			freshToken, err := tokenSource.Token()
 			if err != nil {
