@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -210,6 +211,20 @@ type TargetInfo struct {
 	PGO     string
 }
 
+func ReadGoMod() (*modfile.File, error) {
+	data, err := os.ReadFile("go.mod")
+	if err != nil {
+		return nil, fmt.Errorf("read go.mod file: %w", err)
+	}
+
+	file, err := modfile.Parse("go.mod", data, nil)
+	if err != nil {
+		return nil, fmt.Errorf("parse go.mod file: %w", err)
+	}
+
+	return file, nil
+}
+
 func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo, error) {
 	var (
 		err  error
@@ -220,11 +235,20 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 
 	logrus.Info("Collecting build information")
 
+	gomod, err := ReadGoMod()
+	if err != nil {
+		return info, err
+	}
+
+	info.Go.Module = gomod.Module.Mod.Path
+	info.Go.Dir, err = os.Getwd()
+	if err != nil {
+		return info, err
+	}
+
 	e := NewChainExecutor(ctx)
 
 	info.BuildDate = time.Now().Format(time.RFC3339)
-	info.Go.Module = e.OutputString(p.GoCommand, "list", "-m", "-mod=mod")
-	info.Go.Dir = e.OutputString(p.GoCommand, "list", "-m", "-mod=mod", "-f", "{{.Dir}}")
 	info.System.OS = e.OutputString(p.GoCommand, "env", "GOOS")
 	info.System.Arch = e.OutputString(p.GoCommand, "env", "GOARCH")
 	info.System.Ext = e.OutputString(p.GoCommand, "env", "GOEXE")
