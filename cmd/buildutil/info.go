@@ -223,8 +223,8 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	e := NewChainExecutor(ctx)
 
 	info.BuildDate = time.Now().Format(time.RFC3339)
-	info.Go.Module = e.OutputString(p.GoCommand, "list", "-m", "-mod=mod")
-	info.Go.Dir = e.OutputString(p.GoCommand, "list", "-m", "-mod=mod", "-f", "{{.Dir}}")
+	info.Go.Module = e.OutputString(p.GoCommand, "list")
+	info.Go.Dir = e.OutputString(p.GoCommand, "list", "-f", "{{.Dir}}")
 	info.System.OS = e.OutputString(p.GoCommand, "env", "GOOS")
 	info.System.Arch = e.OutputString(p.GoCommand, "env", "GOARCH")
 	info.System.Ext = e.OutputString(p.GoCommand, "env", "GOEXE")
