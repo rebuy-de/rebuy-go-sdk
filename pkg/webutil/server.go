@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/logutil"
 	"golang.org/x/sync/errgroup"
 )
 

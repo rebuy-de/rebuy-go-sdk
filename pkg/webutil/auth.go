@@ -19,9 +19,9 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
-	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/logutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/typeutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/typeutil"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )
