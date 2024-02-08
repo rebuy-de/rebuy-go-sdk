@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/cmdutil"
 	"github.com/tidwall/pretty"
 )
 

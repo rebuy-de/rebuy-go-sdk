@@ -1,13 +1,13 @@
-module github.com/rebuy-de/rebuy-go-sdk/v6/examples/full
+module github.com/rebuy-de/rebuy-go-sdk/v7/examples/full
 
 go 1.21
 
-replace github.com/rebuy-de/rebuy-go-sdk/v6 => ../..
+replace github.com/rebuy-de/rebuy-go-sdk/v7 => ../..
 
 require (
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/pkg/errors v0.9.1
-	github.com/rebuy-de/rebuy-go-sdk/v6 v6.0.0
+	github.com/rebuy-de/rebuy-go-sdk/v7 v7.0.0
 	github.com/redis/go-redis/v9 v9.4.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0

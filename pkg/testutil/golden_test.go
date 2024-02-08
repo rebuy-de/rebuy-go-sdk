@@ -3,7 +3,7 @@ package testutil_test
 import (
 	"testing"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v6/pkg/testutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/testutil"
 )
 
 type exampleData struct {

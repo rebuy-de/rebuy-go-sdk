@@ -1,4 +1,4 @@
-module github.com/rebuy-de/rebuy-go-sdk/v6
+module github.com/rebuy-de/rebuy-go-sdk/v7
 
 go 1.21
 
