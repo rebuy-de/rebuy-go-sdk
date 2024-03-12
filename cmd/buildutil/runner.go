@@ -139,13 +139,18 @@ func (r *Runner) RunClean(ctx context.Context, cmd *cobra.Command, args []string
 func (r *Runner) RunVendor(ctx context.Context, cmd *cobra.Command, args []string) {
 	defer r.Inst.Durations.Steps.Stopwatch("vendor")()
 
-	call(ctx, r.Parameters.GoCommand, "mod", "vendor")
+	if r.Info.Go.Work == "" {
+		call(ctx, r.Parameters.GoCommand, "mod", "vendor")
+	} else {
+		call(ctx, r.Parameters.GoCommand, "work", "vendor")
+	}
 }
 
 func (r *Runner) RunTest(ctx context.Context, cmd *cobra.Command, args []string) {
 	defer r.Inst.Durations.Steps.Stopwatch("test")()
 
 	r.RunTestFormat(ctx, cmd, args)
+	r.RunTestStaticcheck(ctx, cmd, args)
 	r.RunTestVet(ctx, cmd, args)
 	r.RunTestPackages(ctx, cmd, args)
 }
@@ -157,6 +162,22 @@ func (r *Runner) RunTestFormat(ctx context.Context, cmd *cobra.Command, args []s
 	logrus.Info("Testing file formatting (gofmt)")
 	defer r.Inst.Durations.Testing.Stopwatch("fmt")()
 	call(ctx, "gofmt", a...)
+}
+
+func (r *Runner) RunTestStaticcheck(ctx context.Context, cmd *cobra.Command, args []string) {
+	fail := []string{
+		"all",
+		"-SA1019", // Using a deprecated function, variable, constant or field
+	}
+
+	logrus.Info("Testing staticcheck")
+	defer r.Inst.Durations.Testing.Stopwatch("staticcheck")()
+	call(ctx, r.Parameters.GoCommand,
+		"run", "honnef.co/go/tools/cmd/staticcheck",
+		"-f", "stylish",
+		"-fail", strings.Join(fail, ","),
+		"./...",
+	)
 }
 
 func (r *Runner) RunTestVet(ctx context.Context, cmd *cobra.Command, args []string) {

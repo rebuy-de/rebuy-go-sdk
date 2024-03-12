@@ -153,6 +153,7 @@ type BuildInfo struct {
 		Module  string
 		Dir     string
 		Version string
+		Work    string
 	}
 
 	Commit struct {
@@ -255,6 +256,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	info.Commit.Date = time.Unix(e.OutputInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
 	info.Commit.Hash = e.OutputString("git", "rev-parse", "HEAD")
 	info.Commit.Branch = e.OutputString("git", "rev-parse", "--abbrev-ref", "HEAD")
+	info.Go.Work = e.OutputString(p.GoCommand, "env", "GOWORK")
 
 	info.SDKVersion, err = ParseVersion(e.OutputString(p.GoCommand, "list", "-mod=readonly", "-m", "-f", "{{.Version}}", "github.com/rebuy-de/rebuy-go-sdk/..."))
 	if err != nil {
