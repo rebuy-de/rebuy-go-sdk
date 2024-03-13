@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func FromContext[T any](ctx context.Context, key string) *T {
+func FromContext[T any](ctx context.Context, key any) *T {
 	raw := ctx.Value(key)
 	if raw == nil {
 		return nil
@@ -19,15 +19,18 @@ func FromContext[T any](ctx context.Context, key string) *T {
 	return typed
 }
 
-func FromContextSingleton[T any](ctx context.Context) *T {
-	var name *T
-	return FromContext[T](ctx, fmt.Sprintf("singleton::%T", name))
+type singletonKey string
+
+func getSingletonKey[T any]() singletonKey {
+	var dummy *T
+	var name = fmt.Sprintf("%T", dummy)
+	return singletonKey(name)
 }
 
-func ContextWithValue[T any](ctx context.Context, key string, value *T) context.Context {
-	return context.WithValue(ctx, key, value)
+func FromContextSingleton[T any](ctx context.Context) *T {
+	return FromContext[T](ctx, getSingletonKey[T]())
 }
 
 func ContextWithValueSingleton[T any](ctx context.Context, value *T) context.Context {
-	return ContextWithValue(ctx, fmt.Sprintf("singleton::%T", value), value)
+	return context.WithValue(ctx, getSingletonKey[T](), value)
 }

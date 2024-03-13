@@ -35,7 +35,7 @@ func Exit(code int) {
 // function.
 func HandleExit() {
 	if e := recover(); e != nil {
-		if exit, ok := e.(exitCode); ok == true {
+		if exit, ok := e.(exitCode); ok {
 			os.Exit(exit.code)
 		}
 		panic(e) // not an Exit, bubble up

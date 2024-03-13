@@ -289,7 +289,9 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		info.Go.Name = nameMatch[1]
 	}
 
-	cmdutil.Must(e.Err())
+	if e.Err() != nil {
+		return info, e.Err()
+	}
 
 	targetSystems := []SystemInfo{}
 	for _, target := range p.TargetSystems {
@@ -324,7 +326,9 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		pkgs, err := packages.Load(&packages.Config{
 			Context: ctx,
 		}, search)
-		cmdutil.Must(err)
+		if err != nil {
+			return info, err
+		}
 
 		for _, pkg := range pkgs {
 			if pkg.Name != "main" {
@@ -354,7 +358,9 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	}
 
 	testPackages, err := packages.Load(nil, "./...")
-	cmdutil.Must(err)
+	if err != nil {
+		return info, err
+	}
 
 	info.Test.Packages = []string{}
 	info.Test.Files = []string{}
