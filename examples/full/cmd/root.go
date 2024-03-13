@@ -90,7 +90,6 @@ func (r *DaemonRunner) Run(ctx context.Context) error {
 // DevRunner bootstraps the application for local development. It defines the
 // related flags and calls the actual server code.
 type DevRunner struct {
-	redisAddress string
 }
 
 // Bind implements the cmdutil.Runner interface and defines command line flags.
