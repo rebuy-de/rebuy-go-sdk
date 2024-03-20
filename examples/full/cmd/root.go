@@ -7,9 +7,9 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/podutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/redisutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/podutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/redisutil"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

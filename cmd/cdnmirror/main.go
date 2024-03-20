@@ -13,7 +13,7 @@ import (
 
 	"github.com/evanw/esbuild/pkg/api"
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/executil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/executil"
 )
 
 type ChainExecutor struct {

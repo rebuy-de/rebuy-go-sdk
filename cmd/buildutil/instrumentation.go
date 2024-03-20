@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v7/cmd/buildutil/internal/typeutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/cmd/buildutil/internal/typeutil"
 	"github.com/sirupsen/logrus"
 )
 

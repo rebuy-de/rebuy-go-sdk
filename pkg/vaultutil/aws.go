@@ -7,7 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
 )
 
 type awsCredentialsProvider struct {
