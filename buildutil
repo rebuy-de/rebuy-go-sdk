@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 set -eu
-go mod vendor
+test -z "$(go env GOWORK)" && go mod vendor || go work vendor
 go generate ./...
 exec go run ./cmd/buildutil "$@"

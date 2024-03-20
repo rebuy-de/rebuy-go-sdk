@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
@@ -153,6 +153,7 @@ type BuildInfo struct {
 		Module  string
 		Dir     string
 		Version string
+		Work    string
 	}
 
 	Commit struct {
@@ -255,6 +256,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	info.Commit.Date = time.Unix(e.OutputInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
 	info.Commit.Hash = e.OutputString("git", "rev-parse", "HEAD")
 	info.Commit.Branch = e.OutputString("git", "rev-parse", "--abbrev-ref", "HEAD")
+	info.Go.Work = e.OutputString(p.GoCommand, "env", "GOWORK")
 
 	info.SDKVersion, err = ParseVersion(e.OutputString(p.GoCommand, "list", "-mod=readonly", "-m", "-f", "{{.Version}}", "github.com/rebuy-de/rebuy-go-sdk/..."))
 	if err != nil {
@@ -287,7 +289,9 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		info.Go.Name = nameMatch[1]
 	}
 
-	cmdutil.Must(e.Err())
+	if e.Err() != nil {
+		return info, e.Err()
+	}
 
 	targetSystems := []SystemInfo{}
 	for _, target := range p.TargetSystems {
@@ -322,7 +326,9 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		pkgs, err := packages.Load(&packages.Config{
 			Context: ctx,
 		}, search)
-		cmdutil.Must(err)
+		if err != nil {
+			return info, err
+		}
 
 		for _, pkg := range pkgs {
 			if pkg.Name != "main" {
@@ -352,7 +358,9 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	}
 
 	testPackages, err := packages.Load(nil, "./...")
-	cmdutil.Must(err)
+	if err != nil {
+		return info, err
+	}
 
 	info.Test.Packages = []string{}
 	info.Test.Files = []string{}

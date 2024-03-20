@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
 )
 
 func StartDevcontainer(ctx context.Context, conn *Connection, name string, image string, opts ...CreateContainerOption) (*InspectContainerResult, error) {

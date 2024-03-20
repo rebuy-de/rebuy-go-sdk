@@ -190,6 +190,9 @@ func (c *Connection) InspectContainer(name string) (*InspectContainerResult, err
 	resp, err := c.request(
 		RequestPath("containers/%s/json", name),
 	)
+	if err != nil {
+		return nil, err
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {

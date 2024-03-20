@@ -68,6 +68,8 @@ func (b *Broadcast[T]) Read(ctx context.Context, id string) (*T, string, error) 
 				return nil, id, errors.WithStack(err)
 			}
 
+			//lint:ignore SA4004 We just want to have the first message and
+			//returning withing two loops is easier than checking lengths.
 			return value, sm.ID, nil
 		}
 	}

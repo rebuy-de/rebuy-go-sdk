@@ -7,9 +7,9 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/podutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/redisutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/podutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/redisutil"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -90,7 +90,6 @@ func (r *DaemonRunner) Run(ctx context.Context) error {
 // DevRunner bootstraps the application for local development. It defines the
 // related flags and calls the actual server code.
 type DevRunner struct {
-	redisAddress string
 }
 
 // Bind implements the cmdutil.Runner interface and defines command line flags.

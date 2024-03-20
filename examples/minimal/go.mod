@@ -1,18 +1,20 @@
-module github.com/rebuy-de/rebuy-go-sdk/v7/examples/minimal
+module github.com/rebuy-de/rebuy-go-sdk/v8/examples/minimal
 
 go 1.22.0
 
-replace github.com/rebuy-de/rebuy-go-sdk/v7 => ../..
+replace github.com/rebuy-de/rebuy-go-sdk/v8 => ../..
 
 require (
-	github.com/rebuy-de/rebuy-go-sdk/v7 v7.0.0
+	github.com/rebuy-de/rebuy-go-sdk/v8 v8.0.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
+	honnef.co/go/tools v0.4.7
 )
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/AlekSi/pointer v1.2.0 // indirect
+	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
@@ -76,6 +78,7 @@ require (
 	gitlab.com/digitalxero/go-conventional-commit v1.0.7 // indirect
 	golang.org/x/crypto v0.19.0 // indirect
 	golang.org/x/exp v0.0.0-20240213143201-ec583247a57a // indirect
+	golang.org/x/exp/typeparams v0.0.0-20221208152030-732eee02a75a // indirect
 	golang.org/x/mod v0.15.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect

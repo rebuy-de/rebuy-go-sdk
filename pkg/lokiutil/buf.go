@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/afiskon/promtail-client/logproto"
-	"github.com/rebuy-de/rebuy-go-sdk/v7/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
