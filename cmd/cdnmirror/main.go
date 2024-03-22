@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -53,21 +52,26 @@ func (g *Generate) Bind(cmd *cobra.Command) error {
 
 func (g *Generate) Run(ctx context.Context) error {
 	err := os.MkdirAll(targetPathPrefix, 0755)
-	cmdutil.Must(err)
+	if err != nil {
+		return err
+	}
 
-	writeGitignore()
+	err = writeGitignore()
+	if err != nil {
+		return err
+	}
+
 	return g.download()
 }
 
-func writeGitignore() {
+func writeGitignore() error {
 	filename := path.Join(targetPathPrefix, ".gitignore")
 
 	buf := new(bytes.Buffer)
 	fmt.Fprintln(buf, "*")
 	fmt.Fprintln(buf, "!.gitignore")
 
-	err := ioutil.WriteFile(filename, buf.Bytes(), 0644)
-	cmdutil.Must(err)
+	return os.WriteFile(filename, buf.Bytes(), 0644)
 }
 
 func (g *Generate) download() error {
@@ -98,7 +102,7 @@ func (g *Generate) download() error {
 			MinifySyntax:      true,
 		})
 		if len(result.Errors) != 0 {
-			cmdutil.Must(errors.Errorf("%#v", result.Errors))
+			return errors.Errorf("%#v", result.Errors)
 		}
 		code = string(result.Code)
 
@@ -106,6 +110,11 @@ func (g *Generate) download() error {
 		code = string(body)
 	default:
 		return fmt.Errorf("invalid minify option %q", g.Minify)
+	}
+
+	err = os.MkdirAll(path.Dir(targetFile), 0755)
+	if err != nil {
+		return fmt.Errorf("create target dir: %w", err)
 	}
 
 	f, err := os.Create(targetFile)
