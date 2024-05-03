@@ -25,6 +25,16 @@ type meta struct {
 	log  logrus.FieldLogger
 }
 
+func (m meta) subsystem() string {
+	subsystems := []string{"/"}
+
+	for _, t := range m.path {
+		subsystems = append(subsystems, t.subsystem)
+	}
+
+	return path.Join(subsystems...)
+}
+
 type trace struct {
 	id        string
 	subsystem string
@@ -38,6 +48,15 @@ func Get(ctx context.Context) logrus.FieldLogger {
 		return logrus.StandardLogger()
 	}
 	return m.log
+}
+
+// GetSubsystem extracts the name of the subsystem from the given context.
+func GetSubsystem(ctx context.Context) string {
+	m, ok := ctx.Value(contextKeyMeta).(meta)
+	if !ok {
+		return ""
+	}
+	return m.subsystem()
 }
 
 // Start creates a new logger and stores it in the returned context.
@@ -55,18 +74,15 @@ func Start(ctx context.Context, subsystem string, opts ...ContextOption) context
 		subsystem: subsystem,
 	})
 
-	subsystems := []string{"/"}
 	ids := []string{}
 
 	for _, t := range m.path {
 		name := fmt.Sprintf("trace-id-%s", t.subsystem)
 		m.log = m.log.WithField(name, t.id)
-
-		subsystems = append(subsystems, t.subsystem)
 		ids = append(ids, t.id)
 	}
 
-	m.log = m.log.WithField("subsystem", path.Join(subsystems...))
+	m.log = m.log.WithField("subsystem", m.subsystem())
 	m.log = m.log.WithField("trace-id", strings.Join(ids, "-"))
 
 	for _, opt := range opts {
@@ -126,10 +142,10 @@ func WithFields(ctx context.Context, fields logrus.Fields) context.Context {
 
 // FromStruct converts any struct into a valid logrus.Fields. It can be customized with the logfield annotation:
 //
-//     type Instance struct {
-//         InstanceID   string `logfield:"instance-id"`
-//         InstanceName string `logfield:"instance-name"`
-//     }
+//	type Instance struct {
+//	    InstanceID   string `logfield:"instance-id"`
+//	    InstanceName string `logfield:"instance-name"`
+//	}
 //
 // See mapstructure docs for more information:
 // https://pkg.go.dev/github.com/mitchellh/mapstructure?tab=doc
