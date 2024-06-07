@@ -2,8 +2,6 @@ package cmdutil
 
 import (
 	"os"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -40,23 +38,4 @@ func HandleExit() {
 		}
 		panic(e) // not an Exit, bubble up
 	}
-}
-
-// Must exits the application via Exit(1) and logs the error, if err does not
-// equal nil. Additionally it logs the error with `%+v` to the debug log, so it
-// can used together with github.com/pkg/errors to retrive more details about
-// the error.
-//
-// Deprecated: Bubble the error up to the Runner.Run function and return it
-// there instead. It is still preferable to let the application die, when there
-// is no obvious way of handling it, but in reality this is not often the case
-// and Must is encouraging permature exits.
-func Must(err error) {
-	if err == nil {
-		return
-	}
-
-	log.Debugf("%+v", err)
-	log.Error(err)
-	Exit(ExitCodeGeneralError)
 }
