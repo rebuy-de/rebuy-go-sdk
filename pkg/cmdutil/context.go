@@ -53,7 +53,7 @@ func wrapRootConext(run RunFuncWithContext) RunFunc {
 // background it creates a new context with ContextWithValuesFrom and cancels
 // it after the original one got canceled.
 func ContextWithDelay(in context.Context, delay time.Duration) context.Context {
-	out := ContextWithValuesFrom(in)
+	out := context.WithoutCancel(in)
 	out, cancel := context.WithCancel(out)
 
 	go func() {

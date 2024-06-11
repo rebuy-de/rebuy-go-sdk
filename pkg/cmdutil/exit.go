@@ -2,6 +2,8 @@ package cmdutil
 
 import (
 	"os"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -38,4 +40,22 @@ func HandleExit() {
 		}
 		panic(e) // not an Exit, bubble up
 	}
+}
+
+// Must exits the application via Exit(1) and logs the error, if err does not
+// equal nil. Additionally it logs the error with `%+v` to the debug log, so it
+// can used together with github.com/pkg/errors to retrive more details about
+// the error.
+//
+// Deprecated: This should also not be used within the SDK, but removing this
+// would require a refactoring, that would be unnecessarily visible in
+// application code.
+func must(err error) {
+	if err == nil {
+		return
+	}
+
+	logrus.Debugf("%+v", err)
+	logrus.Error(err)
+	Exit(ExitCodeGeneralError)
 }
