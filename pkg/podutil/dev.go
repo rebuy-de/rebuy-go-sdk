@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
 )
 
@@ -48,7 +47,9 @@ func StartDevcontainer(ctx context.Context, conn *Connection, name string, image
 			// API.
 			TimeoutSeconds: 3600 * 8,
 		}, opts...)
-		cmdutil.Must(err)
+		if err != nil {
+			return nil, err
+		}
 
 		container, err = conn.InspectContainer(name)
 		if err != nil {

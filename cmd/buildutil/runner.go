@@ -9,8 +9,6 @@ import (
 	"path"
 	"strings"
 
-	_ "github.com/goreleaser/nfpm/v2/deb" // blank import to register the format
-	_ "github.com/goreleaser/nfpm/v2/rpm" // blank import to register the format
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -55,19 +53,7 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringSliceVarP(
 		&r.Parameters.TargetPackages, "package", "p", []string{},
 		"Packages to build.")
-	cmd.PersistentFlags().StringVar(
-		&r.Parameters.S3URL, "s3-url", "",
-		"S3 URL to upload compiled releases.")
 
-	cmd.PersistentFlags().BoolVar(
-		&r.Parameters.CreateCompressed, "compress", false,
-		"Creates .tgz artifacts for POSIX targets and .zip for windows.")
-	cmd.PersistentFlags().BoolVar(
-		&r.Parameters.CreateRPM, "rpm", false,
-		"Creates .rpm artifacts for linux targets.")
-	cmd.PersistentFlags().BoolVar(
-		&r.Parameters.CreateDEB, "deb", false,
-		"Creates .deb artifacts for linux targets.")
 	cmd.PersistentFlags().BoolVar(
 		&r.Parameters.CGO, "cgo", false,
 		"Enable CGO.")

@@ -42,13 +42,6 @@ func SignalContext(ctx context.Context, signals ...os.Signal) context.Context {
 type RunFunc func(cmd *cobra.Command, args []string)
 type RunFuncWithContext func(ctx context.Context, cmd *cobra.Command, args []string)
 
-func wrapRootConext(run RunFuncWithContext) RunFunc {
-	return func(cmd *cobra.Command, args []string) {
-		run(SignalRootContext(), cmd, args)
-	}
-
-}
-
 // ContextWithDelay delays the context cancel by the given delay. In the
 // background it creates a new context with ContextWithValuesFrom and cancels
 // it after the original one got canceled.
@@ -62,26 +55,4 @@ func ContextWithDelay(in context.Context, delay time.Duration) context.Context {
 		time.Sleep(delay)
 	}()
 	return out
-}
-
-type compositeContext struct {
-	deadline context.Context
-	done     context.Context
-	err      context.Context
-	value    context.Context
-}
-
-func (c compositeContext) Deadline() (deadline time.Time, ok bool) {
-	return c.deadline.Deadline()
-}
-func (c compositeContext) Done() <-chan struct{} {
-	return c.done.Done()
-}
-
-func (c compositeContext) Err() error {
-	return c.err.Err()
-}
-
-func (c compositeContext) Value(key any) any {
-	return c.value.Value(key)
 }
