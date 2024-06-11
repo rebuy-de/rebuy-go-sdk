@@ -27,8 +27,6 @@ type Server struct {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	ctx = InstInit(ctx)
-
 	// Using a errors group is a good practice to manage multiple parallel
 	// running routines and should used once on program startup.
 	group, ctx := errgroup.WithContext(ctx)

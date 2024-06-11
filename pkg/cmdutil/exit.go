@@ -3,7 +3,7 @@ package cmdutil
 import (
 	"os"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -47,16 +47,15 @@ func HandleExit() {
 // can used together with github.com/pkg/errors to retrive more details about
 // the error.
 //
-// Deprecated: Bubble the error up to the Runner.Run function and return it
-// there instead. It is still preferable to let the application die, when there
-// is no obvious way of handling it, but in reality this is not often the case
-// and Must is encouraging permature exits.
-func Must(err error) {
+// Deprecated: This should also not be used within the SDK, but removing this
+// would require a refactoring, that would be unnecessarily visible in
+// application code.
+func must(err error) {
 	if err == nil {
 		return
 	}
 
-	log.Debugf("%+v", err)
-	log.Error(err)
+	logrus.Debugf("%+v", err)
+	logrus.Error(err)
 	Exit(ExitCodeGeneralError)
 }

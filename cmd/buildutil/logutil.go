@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
 	"github.com/tidwall/pretty"
 )
 
-func dumpJSON(data interface{}) {
+func dumpJSON(data interface{}) error {
 	b, err := json.MarshalIndent(data, "", "    ")
-	cmdutil.Must(err)
+	if err != nil {
+		return err
+	}
 
 	b = pretty.Color(b, pretty.TerminalStyle)
 	fmt.Fprintln(os.Stderr, string(b))
+
+	return nil
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -12,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
@@ -173,11 +171,10 @@ type BuildInfo struct {
 }
 
 type ArtifactInfo struct {
-	Kind       string
-	Filename   string
-	S3Location *S3URL   `json:",omitempty"`
-	Aliases    []string `json:",omitempty"`
-	System     SystemInfo
+	Kind     string
+	Filename string
+	Aliases  []string `json:",omitempty"`
+	System   SystemInfo
 }
 
 func (i *BuildInfo) NewArtifactInfo(kind string, name string, system SystemInfo, ext string) ArtifactInfo {
@@ -395,53 +392,5 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		}
 	}
 
-	if p.S3URL != "" {
-		base, err := ParseS3URL(p.S3URL)
-		if err != nil {
-			return info, errors.WithStack(err)
-		}
-
-		for i, a := range info.Artifacts {
-			u := base.Subpath(a.Filename)
-			info.Artifacts[i].S3Location = &u
-		}
-	}
-
 	return info, nil
-}
-
-type S3URL struct {
-	Bucket string
-	Key    string
-}
-
-func ParseS3URL(raw string) (*S3URL, error) {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse S3 URL")
-	}
-
-	if u.Scheme != "s3" && u.Scheme != "" {
-		return nil, errors.Errorf("Unknown scheme %s for the S3 URL", u.Scheme)
-	}
-
-	return &S3URL{
-		Bucket: u.Host,
-		Key:    strings.TrimPrefix(path.Clean(u.Path), "/"),
-	}, nil
-}
-
-func (u S3URL) Subpath(p ...string) S3URL {
-	p = append([]string{u.Key}, p...)
-	u.Key = path.Join(p...)
-	return u // This is actually a copy, since we do not use pointers.
-}
-
-func (u S3URL) String() string {
-	return fmt.Sprintf("s3://%s/%s", u.Bucket, u.Key)
-}
-
-func (u S3URL) MarshalJSON() ([]byte, error) {
-	s := u.String()
-	return json.Marshal(s)
 }

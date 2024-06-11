@@ -24,7 +24,7 @@ func New(use, desc string, options ...Option) *cobra.Command {
 
 	for _, o := range options {
 		err := o(cmd)
-		Must(err)
+		must(err)
 
 		if cmd.PreRun != nil {
 			preRuns = append(preRuns, cmd.PreRun)
@@ -62,19 +62,6 @@ func WithSubCommand(sub *cobra.Command) Option {
 	}
 }
 
-// deprecated: Use WithRun instead. It gets replaced, because different
-// subcommands (eg dev and daemon) usually do not share flags. Therefore it is
-// cumbersome to mangle their flags into the same struct. WithRunner allows
-// using separate structs for subcommands.
-//
-// See examples in https://github.com/rebuy-de/rebuy-go-sdk/pull/147/files for migration demonstration.
-func WithRun(run RunFuncWithContext) Option {
-	return func(cmd *cobra.Command) error {
-		cmd.Run = wrapRootConext(run)
-		return nil
-	}
-}
-
 // Binder defines the interface used by the generic [WithRun] function.
 type Runner interface {
 	Bind(*cobra.Command) error
@@ -91,7 +78,7 @@ func WithRunner(runner Runner) Option {
 		cmd.Run = func(cmd *cobra.Command, args []string) {
 			ctx := SignalRootContext()
 			err := runner.Run(ctx)
-			Must(err)
+			must(err)
 		}
 		return nil
 	}
