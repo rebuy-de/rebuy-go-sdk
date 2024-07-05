@@ -14,28 +14,36 @@ import (
 )
 
 type JetViewer struct {
-	views *jet.Set
+	views       *jet.Set
+	htmlOptions []JetViewerHTMLOption
 }
 
-type JetOption func(*jet.Set)
+type JetOption func(*JetViewer)
 
-func JetFunctionOption(name string, fn any) JetOption {
-	return func(set *jet.Set) {
-		set.AddGlobal(name, fn)
+func WithJetViewerHTMLOption(o JetViewerHTMLOption) JetOption {
+	return func(jet *JetViewer) {
+		jet.htmlOptions = append(jet.htmlOptions, o)
 	}
 }
 
+func JetFunctionOption(name string, fn any) JetOption {
+	return func(jet *JetViewer) {
+		jet.views.AddGlobal(name, fn)
+	}
+}
+
+// deprecated: use JetFunctionOption
 func JetFunctionMapOption(funcs map[string]any) JetOption {
-	return func(set *jet.Set) {
+	return func(jet *JetViewer) {
 		for name, fn := range funcs {
-			set.AddGlobal(name, fn)
+			jet.views.AddGlobal(name, fn)
 		}
 	}
 }
 
 func JetVarOption(key string, value any) JetOption {
-	return func(set *jet.Set) {
-		set.AddGlobal(key, value)
+	return func(jet *JetViewer) {
+		jet.views.AddGlobal(key, value)
 	}
 }
 
@@ -63,15 +71,21 @@ func NewJetViewer(js *jet.Set, options ...JetOption) *JetViewer {
 
 func (j *JetViewer) apply(options ...JetOption) {
 	for _, option := range options {
-		option(j.views)
+		option(j)
 	}
 }
 
-type JetViewerHTMLOption func(*jet.VarMap)
+type JetViewerHTMLOption func(*http.Request, *jet.VarMap)
 
 func WithVar(name string, value any) JetViewerHTMLOption {
-	return func(vars *jet.VarMap) {
+	return func(_ *http.Request, vars *jet.VarMap) {
 		vars.Set(name, value)
+	}
+}
+
+func WithRequestVar(name string, fn func(*http.Request) any) JetViewerHTMLOption {
+	return func(r *http.Request, vars *jet.VarMap) {
+		vars.Set(name, fn(r))
 	}
 }
 
@@ -99,8 +113,12 @@ func (j *JetViewer) HTML(status int, filename string, data any, opts ...JetViewe
 		vars := make(jet.VarMap)
 		vars.Set("currentURLPath", r.URL.Path)
 
+		for _, o := range j.htmlOptions {
+			o(r, &vars)
+		}
+
 		for _, o := range opts {
-			o(&vars)
+			o(r, &vars)
 		}
 
 		err = view.Execute(w, vars, data)
