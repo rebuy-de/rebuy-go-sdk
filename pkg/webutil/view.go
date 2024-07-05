@@ -12,11 +12,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Deprecated: Use webutil.JetViewer
 type ViewHandler struct {
 	FS       fs.FS
 	FuncMaps []TemplateFuncMap
 }
 
+// Deprecated: Use webutil.JetViewer
 func NewViewHandler(fs fs.FS, fms ...TemplateFuncMap) *ViewHandler {
 	v := &ViewHandler{
 		FS:       fs,
@@ -26,6 +28,7 @@ func NewViewHandler(fs fs.FS, fms ...TemplateFuncMap) *ViewHandler {
 	return v
 }
 
+// Deprecated: Use webutil.JetViewer
 type ResponseHandlerFunc func(*View, *http.Request) Response
 
 func (h *ViewHandler) Wrap(fn ResponseHandlerFunc) http.HandlerFunc {
@@ -52,6 +55,7 @@ func (h *ViewHandler) Render(filename string, r *http.Request, d interface{}) (*
 	return buf, errors.Wrap(err, "executing template failed")
 }
 
+// Deprecated
 type TemplateFuncMap func(*http.Request) template.FuncMap
 
 func SimpleTemplateFuncMap(name string, fn interface{}) TemplateFuncMap {
@@ -62,6 +66,7 @@ func SimpleTemplateFuncMap(name string, fn interface{}) TemplateFuncMap {
 	}
 }
 
+// Deprecated
 func SimpleTemplateFuncMaps(fm template.FuncMap) TemplateFuncMap {
 	return func(_ *http.Request) template.FuncMap {
 		return fm

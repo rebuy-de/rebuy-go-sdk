@@ -3,6 +3,7 @@ module github.com/rebuy-de/rebuy-go-sdk/v8
 go 1.22.0
 
 require (
+	github.com/CloudyKit/jet/v6 v6.2.0
 	github.com/afiskon/promtail-client v0.0.0-20190305142237-506f3f921e9c
 	github.com/alicebob/miniredis/v2 v2.31.1
 	github.com/aws/aws-sdk-go-v2 v1.25.0
@@ -49,6 +50,7 @@ require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/AlekSi/pointer v1.2.0 // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53 // indirect
 	github.com/DataDog/appsec-internal-go v1.6.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/obfuscate v0.48.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.48.1 // indirect
