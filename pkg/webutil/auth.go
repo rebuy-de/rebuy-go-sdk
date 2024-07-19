@@ -312,6 +312,8 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 //	{{ else }}
 //	  <a class="nav-link" href="/auth/login">Login</span></a>
 //	{{ end }}
+//
+// Deprecated: use AuthJetOptions
 func AuthTemplateFunctions(r *http.Request) template.FuncMap {
 	authenticated := true
 	info := AuthInfoFromRequest(r)
@@ -327,6 +329,17 @@ func AuthTemplateFunctions(r *http.Request) template.FuncMap {
 			return info
 		},
 	}
+}
+
+func AuthJetOptions() JetOption {
+	return JetOptions(
+		WithRequestVar("AuthIsAuthenticated", func(r *http.Request) bool {
+			return AuthInfoFromRequest(r) != nil
+		}),
+		WithRequestVar("AuthInfo", func(r *http.Request) *AuthInfo {
+			return AuthInfoFromRequest(r)
+		}),
+	)
 }
 
 // AuthInfoFromContext extracts the AuthInfo from the given context. The

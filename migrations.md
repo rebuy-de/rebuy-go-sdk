@@ -270,7 +270,7 @@ The builtin template engine has some shortcommings like being able to pass multi
 ### Hints
 
 * The handler function signatures changed from `func(*webutil.View, *http.Request) webutil.Response` to `func(*http.Request) webutil.Response`.
-* Wrap function changes from `webutil.ViewHandler.Wrap` to `webutil.Wrap`.
+* Wrap function changes from `webutil.ViewHandler.Wrap` to `webutil.WrapView`.
 * Since the `View` interface is not part of the function signature, it needs to be added to the struct where the handler function is attached to.
 * Non-HTML responses are now created with functions directly from the `webutil` package. For example `return webutilext.ViewError(http.StatusInternalServerError, err)` instead of `return v.Error(http.StatusBadRequest, fmt.Errorf(`unknown value for "until"`))`. where `v` was passed to the handler.
 
