@@ -1,7 +1,6 @@
 package webutil
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -14,42 +13,14 @@ import (
 )
 
 type JetViewer struct {
-	views       *jet.Set
-	htmlOptions []JetViewerHTMLOption
-}
-
-type JetOption func(*JetViewer)
-
-func WithJetViewerHTMLOption(o JetViewerHTMLOption) JetOption {
-	return func(jet *JetViewer) {
-		jet.htmlOptions = append(jet.htmlOptions, o)
-	}
-}
-
-func JetFunctionOption(name string, fn any) JetOption {
-	return func(jet *JetViewer) {
-		jet.views.AddGlobal(name, fn)
-	}
-}
-
-// deprecated: use JetFunctionOption
-func JetFunctionMapOption(funcs map[string]any) JetOption {
-	return func(jet *JetViewer) {
-		for name, fn := range funcs {
-			jet.views.AddGlobal(name, fn)
-		}
-	}
-}
-
-func JetVarOption(key string, value any) JetOption {
-	return func(jet *JetViewer) {
-		jet.views.AddGlobal(key, value)
-	}
+	views   *jet.Set
+	options []JetOption
 }
 
 func NewJetViewer(js *jet.Set, options ...JetOption) *JetViewer {
 	jv := &JetViewer{
-		views: js,
+		views:   js,
+		options: options,
 	}
 
 	jv.views.AddGlobal("contains", strings.Contains)
@@ -64,36 +35,10 @@ func NewJetViewer(js *jet.Set, options ...JetOption) *JetViewer {
 		return v
 	})
 
-	jv.apply(options...)
-
 	return jv
 }
 
-func (j *JetViewer) apply(options ...JetOption) {
-	for _, option := range options {
-		option(j)
-	}
-}
-
-type JetViewerHTMLOption func(*http.Request, *jet.VarMap)
-
-func WithVar(name string, value any) JetViewerHTMLOption {
-	return func(_ *http.Request, vars *jet.VarMap) {
-		vars.Set(name, value)
-	}
-}
-
-func WithRequestVar(name string, fn func(*http.Request) any) JetViewerHTMLOption {
-	return func(r *http.Request, vars *jet.VarMap) {
-		vars.Set(name, fn(r))
-	}
-}
-
-func WithVarf(name string, s string, a ...any) JetViewerHTMLOption {
-	return WithVar(name, fmt.Sprintf(s, a...))
-}
-
-func (j *JetViewer) HTML(status int, filename string, data any, opts ...JetViewerHTMLOption) http.HandlerFunc {
+func (j *JetViewer) HTML(status int, filename string, data any, opts ...JetOption) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		span, ctx := tracer.StartSpanFromContext(
 			r.Context(), "render",
@@ -113,7 +58,7 @@ func (j *JetViewer) HTML(status int, filename string, data any, opts ...JetViewe
 		vars := make(jet.VarMap)
 		vars.Set("currentURLPath", r.URL.Path)
 
-		for _, o := range j.htmlOptions {
+		for _, o := range j.options {
 			o(r, &vars)
 		}
 
