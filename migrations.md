@@ -197,6 +197,14 @@ Configure `.github/dependabot.yml`:
           - "*"
 ```
 
+#### 8. Add Yarn to Dockerfile
+
+With Alpine it would look like this:
+
+```
+RUN apk add --no-cache git git-lfs openssl nodejs yarn
+```
+
 ### Hints
 
 #### Example index.css
