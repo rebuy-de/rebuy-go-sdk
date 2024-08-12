@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/gosimple/slug"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 )
@@ -77,7 +78,7 @@ func Start(ctx context.Context, subsystem string, opts ...ContextOption) context
 	ids := []string{}
 
 	for _, t := range m.path {
-		name := fmt.Sprintf("trace-id-%s", t.subsystem)
+		name := fmt.Sprintf("trace-id-%s", slug.Make(t.subsystem))
 		m.log = m.log.WithField(name, t.id)
 		ids = append(ids, t.id)
 	}
