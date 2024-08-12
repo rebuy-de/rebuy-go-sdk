@@ -20,6 +20,7 @@ require (
 	github.com/goreleaser/nfpm/v2 v2.35.3
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.2.2
+	github.com/gosimple/slug v1.14.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/vault/api v1.12.0
 	github.com/mitchellh/mapstructure v1.5.0
@@ -106,6 +107,7 @@ require (
 	github.com/google/rpmpack v0.5.0 // indirect
 	github.com/goreleaser/chglog v0.5.0 // indirect
 	github.com/goreleaser/fileglob v1.3.0 // indirect
+	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.4 // indirect
