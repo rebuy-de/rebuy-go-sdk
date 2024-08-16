@@ -1,6 +1,6 @@
 module github.com/rebuy-de/rebuy-go-sdk/v8
 
-go 1.22.0
+go 1.23.0
 
 require (
 	github.com/afiskon/promtail-client v0.0.0-20190305142237-506f3f921e9c
