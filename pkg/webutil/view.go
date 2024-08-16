@@ -12,11 +12,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 type ViewHandler struct {
 	FS       fs.FS
 	FuncMaps []TemplateFuncMap
 }
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 func NewViewHandler(fs fs.FS, fms ...TemplateFuncMap) *ViewHandler {
 	v := &ViewHandler{
 		FS:       fs,
@@ -28,12 +30,14 @@ func NewViewHandler(fs fs.FS, fms ...TemplateFuncMap) *ViewHandler {
 
 type ResponseHandlerFunc func(*View, *http.Request) Response
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 func (h *ViewHandler) Wrap(fn ResponseHandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fn(&View{handler: h}, r)(w, r)
 	}
 }
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 func (h *ViewHandler) Render(filename string, r *http.Request, d interface{}) (*bytes.Buffer, error) {
 	t := template.New(filename)
 
@@ -70,10 +74,12 @@ func SimpleTemplateFuncMaps(fm template.FuncMap) TemplateFuncMap {
 
 type Response = http.HandlerFunc
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 type View struct {
 	handler *ViewHandler
 }
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 func (v *View) Error(status int, err error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		l := logrus.
@@ -91,10 +97,12 @@ func (v *View) Error(status int, err error) http.HandlerFunc {
 	}
 }
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 func (v *View) Errorf(status int, text string, a ...interface{}) http.HandlerFunc {
 	return v.Error(status, fmt.Errorf(text, a...))
 }
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 func (v *View) Redirect(status int, location string, args ...interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		url := fmt.Sprintf(location, args...)
@@ -102,6 +110,7 @@ func (v *View) Redirect(status int, location string, args ...interface{}) http.H
 	}
 }
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 func (v *View) JSON(status int, data any) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		buf := new(bytes.Buffer)
@@ -120,6 +129,7 @@ func (v *View) JSON(status int, data any) http.HandlerFunc {
 	}
 }
 
+// Deprecated: M0003 Use GoTemplateViewer and View* functions instead.
 func (v *View) HTML(status int, filename string, data any) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		buf, err := v.handler.Render(filename, r, data)
