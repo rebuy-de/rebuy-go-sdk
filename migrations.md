@@ -3,7 +3,24 @@
 This file contains a list of tasks that are either required or at least
 strongly recommended to align projects using this SDK.
 
-## 2024-07-19 Replace cdnmirror with yarn
+## M0003 2024-08-16 Change viewer interfaces of webutil
+
+### Reasoning
+
+The previous interface is a bit awkward to use with dependency injection together with splitting the HTTP handlers into
+multiple structs. Additionally there were cases where we wanted to use the `webutil.Response` type for convenience, but
+did not actually need any HTML rendering.
+
+Therefore the interfaces are changed this way:
+* The new `webuitil.WrapView` function replaces the old `webuitl.ViewHandler.Wrap` function and does not require any
+  template definitions.
+* All `webutil.Response` functions, that do not need templates, are pure functions now (ie not attached to a type).
+* The handler interface gets reduced to `func(*http.Request) Response`, so it does not contain the view parameter
+  anymore. When using HTML, it is required to attach the `webutil.GoTemplateViewer` to the struct that implements the
+  handler.
+
+
+## M0002 2024-07-19 Replace cdnmirror with yarn
 
 ### Reasoning
 
@@ -231,7 +248,7 @@ The URL follows this pattern: `https://unpkg.com/{package}@{version}/{import}`, 
 
 There is not guarantee that this work, tho.
 
-## 2024-06-14 Remove all uses of `github.com/pkg/errors`
+## M0001 2024-06-14 Remove all uses of `github.com/pkg/errors`
 
 ### Reasoning
 
