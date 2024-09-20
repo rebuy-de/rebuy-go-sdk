@@ -3,6 +3,12 @@
 This file contains a list of tasks that are either required or at least
 strongly recommended to align projects using this SDK.
 
+## M0006 2024-09-20 Use webutil.NewServer
+
+### Reasoning
+
+The setup of the HTTP server has a lot of repetition in every project. Therefore, we move it into the SDK.
+
 ## M0005 2024-09-20 Streamline templates and assets
 
 ### Reasoning
