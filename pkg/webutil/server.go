@@ -84,6 +84,22 @@ func AssetDefaultDev() (AssetPathPrefix, AssetCacheDuration) {
 		AssetCacheDuration(time.Second)
 }
 
+// Middlewares defines all chi middlewares. It needs to be provided as list to dig and not as single middlewares, since
+// order matters and dig does not guarantee any ordering. To just append middlewares, you need to append them to the
+// ones from `DefaultMiddlewares`
+type Middlewares []func(http.Handler) http.Handler
+
+func DefaultMiddlewares() Middlewares {
+	return Middlewares{
+		middleware.Compress(7),
+		chitrace.Middleware(),
+
+		// HX-Target is set by HTMX and used by us to decide whether to send the
+		// whole page or just a frame.
+		middleware.SetHeader("vary", "hx-target"),
+	}
+}
+
 // Server is a web server targeted on projects that have a user-facing web interface. It supports dependency injection
 // using dig.
 type Server struct {
@@ -91,6 +107,7 @@ type Server struct {
 	AssetPathPrefix    AssetPathPrefix
 	AssetCacheDuration AssetCacheDuration
 	Handlers           []Handler
+	Middlewares        Middlewares
 }
 
 // ServerParams defines all parameters that are needed for the Server. Its fields can be injected using dig.
@@ -100,7 +117,8 @@ type ServerParams struct {
 	AssetFS            AssetFS
 	AssetPathPrefix    AssetPathPrefix
 	AssetCacheDuration AssetCacheDuration
-	Handlers           []Handler `group:"handler"`
+	Handlers           []Handler   `group:"handler"`
+	Middlewares        Middlewares `optional:"true"`
 }
 
 // Handler is the interface that HTTP handlers need to implement to get picked up and served by the Server.
@@ -114,11 +132,17 @@ func ProvideHandler(c *dig.Container, fn any) error {
 }
 
 func NewServer(p ServerParams) *Server {
+	middlewares := p.Middlewares
+	if len(middlewares) == 0 {
+		middlewares = DefaultMiddlewares()
+	}
+
 	return &Server{
 		AssetFS:            p.AssetFS,
 		AssetPathPrefix:    p.AssetPathPrefix,
 		AssetCacheDuration: p.AssetCacheDuration,
 		Handlers:           p.Handlers,
+		Middlewares:        middlewares,
 	}
 }
 
@@ -135,12 +159,9 @@ func (s *Server) Run(ctx context.Context) error {
 	ctx = cmdutil.ContextWithDelay(ctx, 5*time.Second)
 
 	router := chi.NewRouter()
-	router.Use(middleware.Compress(7))
-	router.Use(chitrace.Middleware())
-
-	// HX-Target is set by HTMX and used by us to decide whether to send the
-	// whole page or just a frame.
-	router.Use(middleware.SetHeader("vary", "hx-target"))
+	for _, mw := range s.Middlewares {
+		router.Use(mw)
+	}
 
 	for _, h := range s.Handlers {
 		h.Register(router)
