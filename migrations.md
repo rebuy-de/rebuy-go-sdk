@@ -222,16 +222,23 @@ package web
 import (
 	"embed"
 	"io/fs"
+	"os"
+
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/webutil"
 )
 
 //go:generate yarn install
 //go:generate yarn build
 
 //go:embed all:dist/*
-var Dist embed.FS
+var embedded embed.FS
 
-func FS() fs.FS {
-	result, err := fs.Sub(Dist, "dist")
+func DevFS() webutil.AssetFS {
+	return os.DirFS("web/dist")
+}
+
+func ProdFS() webutil.AssetFS {
+	result, err := fs.Sub(embedded, "dist")
 	if err != nil {
 		panic(err)
 	}
@@ -368,8 +375,8 @@ This should run without errors and generate the directories `web/dist` and `web/
 
 #### 6. Update directory references
 
-* use `web.FS()` instead of `//go:embed`
-* use `os.DirFS("web/dist")` instead of `os.DirFS("cmd/assets")` in dev command
+* use `web.ProdFS()` instead of `//go:embed`
+* use `web.DevFS()` instead of `os.DirFS("cmd/assets")` in dev command
 
 #### 7. Configure Dependabot
 
