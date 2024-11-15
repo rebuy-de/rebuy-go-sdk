@@ -78,3 +78,9 @@ func ViewInlineHTML(status int, data string, a ...any) http.HandlerFunc {
 		fmt.Fprintf(w, data, a...)
 	}
 }
+
+func ViewNoContent(status int) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(status)
+	}
+}
