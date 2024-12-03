@@ -1,7 +1,7 @@
 package vaultutil
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 
 	"github.com/hashicorp/vault/api"
@@ -14,7 +14,7 @@ const (
 )
 
 func KubernetesToken(client *api.Client, role string) (*api.Secret, error) {
-	jwt, err := ioutil.ReadFile(KubernetesTokenPath)
+	jwt, err := os.ReadFile(KubernetesTokenPath)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
