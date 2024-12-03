@@ -335,7 +335,7 @@ func (r *Runner) RunArtifacts(ctx context.Context, cmd *cobra.Command, args []st
 				Platform:   artifact.System.OS,
 				Version:    version,
 				Release:    release,
-				Maintainer: "reBuy Platform Team <dl-scb-tech-platform@rebuy.com>",
+				Maintainer: "rebuy Platform Team <dl-scb-tech-platform@rebuy.com>",
 				Overridables: nfpm.Overridables{
 					Contents: contents,
 				},
