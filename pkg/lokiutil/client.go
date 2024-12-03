@@ -2,7 +2,7 @@ package lokiutil
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -156,7 +156,7 @@ func (c *Client) sendBatch(batch Batch) error {
 	}
 	defer resp.Body.Close()
 
-	resBody, err := ioutil.ReadAll(resp.Body)
+	resBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return errors.WithStack(err)
 	}

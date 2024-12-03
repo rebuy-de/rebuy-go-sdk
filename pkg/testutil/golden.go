@@ -2,7 +2,6 @@ package testutil
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 
 	"github.com/pmezard/go-difflib/difflib"
@@ -21,14 +20,14 @@ type TB interface {
 
 func assertGolden(t TB, filename string, data []byte, showDiff bool) {
 	if os.Getenv(GoldenUpdateEnv) != "" {
-		err := ioutil.WriteFile(filename, data, os.FileMode(0644))
+		err := os.WriteFile(filename, data, os.FileMode(0644))
 		if err != nil {
 			t.Error(err)
 			return
 		}
 	}
 
-	golden, err := ioutil.ReadFile(filename)
+	golden, err := os.ReadFile(filename)
 	if os.IsNotExist(err) {
 		golden = []byte{}
 	} else if err != nil {
