@@ -10,7 +10,12 @@ import (
 	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
 )
 
+// Deprecated: Use AdminAPIListenAndServeWithAddress instead
 func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) {
+	AdminAPIListenAndServeWithAddress(ctx, "0.0.0.0", "8090")
+}
+
+func AdminAPIListenAndServeWithAddress(ctx context.Context, host, port string) {
 	ctx = logutil.Start(ctx, "admin-api")
 	mux := http.NewServeMux()
 
@@ -20,15 +25,6 @@ func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintln(w, "SHUTTING DOWN")
 			return
-		}
-
-		for _, h := range healthy {
-			err := h()
-			if err != nil {
-				w.WriteHeader(http.StatusServiceUnavailable)
-				fmt.Fprintln(w, err.Error())
-				return
-			}
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -51,9 +47,9 @@ func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) {
 	bg := context.Background()
 
 	go func() {
-		logutil.Get(ctx).Debugf("admin api listening on port 8090")
+		logutil.Get(ctx).Debugf("admin api listening on port %s", port)
 
-		err := ListenAndServeWithContext(bg, "0.0.0.0:8090", mux)
+		err := ListenAndServeWithContext(bg, fmt.Sprintf("%s:%s", host, port), mux)
 		if err != nil {
 			logutil.Get(ctx).Error(err.Error())
 		}
