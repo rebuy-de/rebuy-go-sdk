@@ -53,6 +53,10 @@ func RunProvidedWorkers(ctx context.Context, c *dig.Container) error {
 	return c.Invoke(func(in WorkerGroup) error {
 		workers := []Worker{}
 		for _, c := range in.All {
+			if c == nil {
+				continue
+			}
+
 			for _, w := range c.Workers() {
 				workers = append(workers,
 					NamedWorkerFromType(w, c),
