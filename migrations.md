@@ -471,7 +471,7 @@ There is not guarantee that this work, tho.
 
 ### Reasoning
 
-[github.com/pkg/errors](https://github.com/pkg/errors)` is deprecated. Since the built-in `errors` package improved a bit in the recent Go versions, we should remove all uses of `github.com/pkg/errors` and replace it with the `errors` package.
+[github.com/pkg/errors](https://github.com/pkg/errors) is deprecated. Since the built-in `errors` package improved a bit in the recent Go versions, we should remove all uses of `github.com/pkg/errors` and replace it with the `errors` package.
 
 ### Hints
 
