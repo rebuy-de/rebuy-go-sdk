@@ -19,6 +19,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
+	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/typeutil"
@@ -64,7 +65,7 @@ func (m *authMiddleware) handler(next http.Handler) http.Handler {
 		claims, err := m.getClaimFromRequest(w, r)
 		if err != nil {
 			logutil.Get(r.Context()).Warnf("auth middleware: %v", err.Error())
-		} else {
+		} else if claims != nil {
 			ctx := r.Context()
 			ctx = typeutil.ContextWithValueSingleton(ctx, claims)
 			r = r.WithContext(ctx)
@@ -140,6 +141,9 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 			token, err := encrypter.ReadCookie(r)
 			if err != nil {
 				return nil, fmt.Errorf("get auth cookie: %w", err)
+			}
+			if token == nil {
+				return nil, nil
 			}
 
 			tokenSource := oauth2Config.TokenSource(r.Context(), token)
@@ -243,6 +247,9 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 		}),
 		getClaimFromRequest: func(_ http.ResponseWriter, r *http.Request) (*AuthInfo, error) {
 			cookie, err := r.Cookie("rebuy-go-sdk-auth")
+			if errors.Is(err, http.ErrNoCookie) {
+				return nil, nil
+			}
 			if err != nil {
 				return nil, fmt.Errorf("get cookie: %w", err)
 			}
@@ -389,8 +396,11 @@ func (e cookieEncrypter[T]) WriteCookie(w http.ResponseWriter, obj *T) error {
 
 func (e cookieEncrypter[T]) ReadCookie(r *http.Request) (*T, error) {
 	cookie, err := r.Cookie(e.cookieName())
+	if errors.Is(err, http.ErrNoCookie) {
+		return nil, nil
+	}
 	if err != nil {
-		return nil, fmt.Errorf("get auth cookie")
+		return nil, fmt.Errorf("get auth cookie: %w", err)
 	}
 
 	token, err := e.Decrypt(cookie.Value)
