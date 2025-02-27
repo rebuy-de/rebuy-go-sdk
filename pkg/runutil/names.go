@@ -9,9 +9,9 @@ import (
 )
 
 // NamedWorker assigns a new logutil subsystem on startup. See logutil.Start.
-func NamedWorker(worker Worker, name string, a ...any) Worker {
+func NamedWorker(worker Worker, name string) Worker {
 	return WorkerFunc(func(ctx context.Context) error {
-		ctx = logutil.Start(ctx, fmt.Sprintf(name, a...))
+		ctx = logutil.Start(ctx, name)
 		return worker.Run(ctx)
 	})
 }
