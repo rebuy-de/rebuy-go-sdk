@@ -84,7 +84,7 @@ func (g *Generate) download() error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf(resp.Status)
+		return fmt.Errorf("%s", resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
