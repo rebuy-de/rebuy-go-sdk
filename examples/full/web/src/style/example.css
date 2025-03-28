@@ -1,0 +1,33 @@
+/* Example custom styles */
+.app-header {
+    margin-bottom: 2rem;
+}
+
+.app-footer {
+    margin-top: 2rem;
+    padding: 1.5rem 0;
+    border-top: 1px solid #dbdbdb;
+}
+
+[data-theme="dark"] .app-footer {
+    border-top: 1px solid #363636;
+}
+
+/* Custom button styles */
+.button.is-custom {
+    background-color: #48c774;
+    border-color: transparent;
+    color: #fff;
+}
+
+.button.is-custom:hover {
+    background-color: #3ec46d;
+}
+
+[data-theme="dark"] .button.is-custom {
+    background-color: #257942;
+}
+
+[data-theme="dark"] .button.is-custom:hover {
+    background-color: #2b8a49;
+}

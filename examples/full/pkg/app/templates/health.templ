@@ -1,0 +1,82 @@
+package templates
+
+import "time"
+
+type Component struct {
+	Name      string
+	Healthy   bool
+	LastCheck time.Time
+}
+
+type Worker struct {
+	Name    string
+	Running bool
+	LastRun time.Time
+}
+
+type HealthData struct {
+	Components []Component
+	Workers    []Worker
+}
+
+templ formatTime(t time.Time) {
+	{ t.Format("2006-01-02 15:04:05") }
+}
+
+templ (v *Viewer) HealthPage(data HealthData) {
+	@v.page("Health") {
+		<div class="card">
+			<h2>Health Status</h2>
+			<div>
+				<h3>System Status</h3>
+				<table>
+					<tr>
+						<th>Component</th>
+						<th>Status</th>
+						<th>Last Check</th>
+					</tr>
+					for _, component := range data.Components {
+						<tr>
+							<td>{ component.Name }</td>
+							<td>
+								if component.Healthy {
+									<span style="color: green">Healthy</span>
+								} else {
+									<span style="color: red">Unhealthy</span>
+								}
+							</td>
+							<td>
+								@formatTime(component.LastCheck)
+							</td>
+						</tr>
+					}
+				</table>
+			</div>
+			<div>
+				<h3>Worker Status</h3>
+				<table>
+					<tr>
+						<th>Worker</th>
+						<th>Status</th>
+						<th>Last Run</th>
+					</tr>
+					for _, worker := range data.Workers {
+						<tr>
+							<td>{ worker.Name }</td>
+							<td>
+								if worker.Running {
+									<span style="color: green">Running</span>
+								} else {
+									<span style="color: red">Stopped</span>
+								}
+							</td>
+							<td>
+								@formatTime(worker.LastRun)
+							</td>
+						</tr>
+					}
+				</table>
+			</div>
+		</div>
+	}
+}

@@ -1,0 +1,21 @@
+package templates
+
+templ (v *Viewer) HomePage() {
+	@v.page("Home") {
+		<div class="card">
+			<h2>Welcome to the Full Example App</h2>
+			<p>This is a comprehensive example of using the rebuy-go-sdk.</p>
+		</div>
+		<div class="card">
+			<h3>Features Demonstrated</h3>
+			<ul>
+				<li>Command structure with cmdutil</li>
+				<li>HTTP handlers with webutil</li>
+				<li>Worker management with runutil</li>
+				<li>Development vs. production environments</li>
+				<li>Template rendering</li>
+				<li>Web assets management</li>
+			</ul>
+		</div>
+	}
+}
