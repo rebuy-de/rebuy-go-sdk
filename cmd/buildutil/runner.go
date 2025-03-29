@@ -260,5 +260,17 @@ func (r *Runner) runBuild(ctx context.Context) error {
 		sw()
 	}
 
+	for _, artifact := range r.Info.Artifacts {
+		// create symlinks
+		for _, link := range artifact.Aliases {
+			fullLink := r.dist(link)
+			os.Remove(fullLink)
+			err := os.Symlink(artifact.Filename, fullLink)
+			if err != nil {
+				return fmt.Errorf("create symlink: %w", err)
+			}
+		}
+	}
+
 	return nil
 }
