@@ -1,0 +1,5 @@
+@import "@fortawesome/fontawesome-free/css/all.css";
+@import "bulma/css/bulma.css";
+
+@import './style/bulma-patch.css';
+@import './style/example.css';

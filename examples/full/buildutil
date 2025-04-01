@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 set -eu
-go mod vendor
-go generate ./...
+test -z "$(go env GOWORK)" && go mod vendor || go work vendor
+
+CGO_ENABLED=0 go generate ./...
 exec go run github.com/rebuy-de/rebuy-go-sdk/v8/cmd/buildutil "$@"

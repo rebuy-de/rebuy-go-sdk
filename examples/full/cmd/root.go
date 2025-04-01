@@ -2,131 +2,111 @@ package cmd
 
 import (
 	"context"
-	"embed"
-	"fmt"
-	"io/fs"
-	"os"
+	"errors"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/examples/full/web"
 	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/podutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/redisutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/webutil"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.uber.org/dig"
 )
 
-//go:embed assets/*
-var assetFS embed.FS
-
-//go:embed templates
-var templateFS embed.FS
-
-// NewRootCommand initializes the cobra.Command with support of the cmdutil
-// package.
 func NewRootCommand() *cobra.Command {
 	return cmdutil.New(
-		"full", "rebuy-go-sdk-full-example",
+		"full-example", "A full example app for the rebuy-go-sdk.",
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithLogToGraylog(),
 		cmdutil.WithVersionCommand(),
 		cmdutil.WithVersionLog(logrus.DebugLevel),
 
-		cmdutil.WithSubCommand(cmdutil.New(
-			"daemon", "Run the application",
-			cmdutil.WithRunner(new(DaemonRunner)),
-		)),
+		cmdutil.WithSubCommand(
+			cmdutil.New(
+				"daemon", "Run the application as daemon",
+				cmdutil.WithRunner(new(DaemonRunner)),
+			)),
 
 		cmdutil.WithSubCommand(cmdutil.New(
-			"dev", "Run the application in dev mode for local development",
+			"dev", "Run the application in local dev mode",
 			cmdutil.WithRunner(new(DevRunner)),
 		)),
 	)
 }
 
-// DaemonRunner bootstraps the application for production. It defines the
-// related flags and calls the actual server code.
 type DaemonRunner struct {
 	redisAddress string
+	redisPrefix  string
 }
 
-// Bind implements the cmdutil.Runner interface and defines command line flags.
 func (r *DaemonRunner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringVar(
 		&r.redisAddress, "redis-address", "",
 		`Address of the Redis instance.`)
+	cmd.PersistentFlags().StringVar(
+		&r.redisPrefix, "redis-prefix", "",
+		`Prefix for redis keys.`)
+
 	return nil
 }
 
-// Daemon initializes the server with production-ready settings.
 func (r *DaemonRunner) Run(ctx context.Context) error {
-	var (
-		redisPrefix = redisutil.Prefix("rebuy-go-sdk-example")
-		redisClient = redis.NewClient(&redis.Options{
-			Addr: r.redisAddress,
-		})
+	c := dig.New()
+
+	err := errors.Join(
+		c.Provide(web.ProdFS),
+		c.Provide(func() webutil.AssetFS { return web.ProdFS() }),
+		c.Provide(webutil.AssetDefaultProd),
+		c.Provide(func() *redis.Client {
+			return redis.NewClient(&redis.Options{
+				Addr: r.redisAddress,
+			})
+		}),
 	)
-
-	assetFSSub, err := fs.Sub(assetFS, "assets")
 	if err != nil {
-		return fmt.Errorf("open assets dir: %w", err)
+		return err
 	}
 
-	templateFSSub, err := fs.Sub(templateFS, "templates")
-	if err != nil {
-		return fmt.Errorf("open templates dir: %w", err)
-	}
-
-	s := &Server{
-		RedisClient: redisClient,
-		RedisPrefix: redisPrefix,
-
-		AssetFS:    assetFSSub,
-		TemplateFS: templateFSSub,
-	}
-
-	return s.Run(ctx)
+	return RunServer(ctx, c)
 }
 
-// DevRunner bootstraps the application for local development. It defines the
-// related flags and calls the actual server code.
 type DevRunner struct {
+	redisAddress string
 }
 
-// Bind implements the cmdutil.Runner interface and defines command line flags.
 func (r *DevRunner) Bind(cmd *cobra.Command) error {
+	cmd.PersistentFlags().StringVar(
+		&r.redisAddress, "redis-address", "",
+		`Address of the Redis instance.`)
+
 	return nil
 }
 
-// Run initializes the server with local settings and starts mock-server where
-// possible.
 func (r *DevRunner) Run(ctx context.Context) error {
-	podman, err := podutil.New(podutil.UserSocketPath())
-	if err != nil {
-		return fmt.Errorf("init podman: %w", err)
+	c := dig.New()
+
+	redisAddress := r.redisAddress
+	if redisAddress == "" {
+		redisServer, err := miniredis.Run()
+		if err != nil {
+			return err
+		}
+		redisAddress = redisServer.Addr()
 	}
 
-	keydbContainer, err := podutil.StartDevcontainer(ctx, podman, "boombot-dev-keydb",
-		"docker.io/eqalpha/keydb:latest")
-	if err != nil {
-		return fmt.Errorf("start keydb: %w", err)
-	}
-
-	var (
-		redisPrefix = redisutil.Prefix("rebuy-go-sdk-example")
-		redisClient = redis.NewClient(&redis.Options{
-			Addr: keydbContainer.TCPHostPort(6379),
-		})
+	err := errors.Join(
+		c.Provide(web.DevFS),
+		c.Provide(webutil.AssetDefaultDev),
+		c.Provide(func() *redis.Client {
+			return redis.NewClient(&redis.Options{
+				Addr: redisAddress,
+			})
+		}),
 	)
-
-	s := &Server{
-		RedisClient: redisClient,
-		RedisPrefix: redisPrefix,
-
-		// Reading directly from disk on dev mode, to be able to refresh the
-		// browser without having to restart the server.
-		AssetFS:    os.DirFS("cmd/assets"),
-		TemplateFS: os.DirFS("cmd/templates"),
+	if err != nil {
+		return err
 	}
 
-	return s.Run(ctx)
+	return RunServer(ctx, c)
 }

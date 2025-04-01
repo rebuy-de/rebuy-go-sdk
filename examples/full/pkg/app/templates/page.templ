@@ -1,0 +1,38 @@
+package templates
+
+templ (v *Viewer) base(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href={ v.assetPath("/app.css") }/>
+		</head>
+		<body>
+			<div class="container">
+				<header>
+					<h1>Full Example App</h1>
+					<nav>
+						<a href="/">Home</a> |
+						<a href="/users">Users</a> |
+						<a href="/health">Health</a>
+					</nav>
+				</header>
+				<main>
+					{ children... }
+				</main>
+				<footer>
+					<p>&copy; 2025 Full Example App</p>
+				</footer>
+			</div>
+			<script src={ v.assetPath("/app.js") }></script>
+		</body>
+	</html>
+}
+
+templ (v *Viewer) page(title string) {
+	@v.base(title + " | Full Example App") {
+		{ children... }
+	}
+}

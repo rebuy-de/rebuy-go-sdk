@@ -1,0 +1,31 @@
+/* Patch for bulma dark mode */
+[data-theme="dark"] {
+    --bg-color: #121212;
+    --text-color: #eee;
+    --link-color: #3273dc;
+    --link-hover-color: #2366d1;
+    
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .card {
+    background-color: #1a1a1a;
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .navbar {
+    background-color: #1a1a1a;
+}
+
+[data-theme="dark"] .navbar-item {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] a {
+    color: var(--link-color);
+}
+
+[data-theme="dark"] a:hover {
+    color: var(--link-hover-color);
+}

@@ -1,0 +1,45 @@
+package templates
+
+import "time"
+
+type User struct {
+	ID        string
+	Name      string
+	Email     string
+	CreatedAt time.Time
+}
+
+type UsersData struct {
+	Users []User
+}
+
+templ (v *Viewer) UsersPage(data UsersData) {
+	@v.page("Users") {
+		<div class="card">
+			<h2>Users</h2>
+			<p>This page demonstrates dynamic data rendering.</p>
+			<table>
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Name</th>
+						<th>Email</th>
+						<th>Created At</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, user := range data.Users {
+						<tr>
+							<td>{ user.ID }</td>
+							<td>{ user.Name }</td>
+							<td>{ user.Email }</td>
+							<td>
+								@formatTime(user.CreatedAt)
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
