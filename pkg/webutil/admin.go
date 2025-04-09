@@ -10,12 +10,35 @@ import (
 	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
 )
 
-// Deprecated: Use AdminAPIListenAndServeWithAddress instead
-func AdminAPIListenAndServe(ctx context.Context, healthy ...func() error) {
-	AdminAPIListenAndServeWithAddress(ctx, "0.0.0.0", "8090")
+type adminAPIListenAndServeOptions struct {
+	host string
+	port string
 }
 
-func AdminAPIListenAndServeWithAddress(ctx context.Context, host, port string) {
+type AdminAPIListenAndServeOption func(*adminAPIListenAndServeOptions)
+
+func WithPort(port string) AdminAPIListenAndServeOption {
+	return func(o *adminAPIListenAndServeOptions) {
+		o.port = port
+	}
+}
+
+func WithHost(host string) AdminAPIListenAndServeOption {
+	return func(o *adminAPIListenAndServeOptions) {
+		o.host = host
+	}
+}
+
+func AdminAPIListenAndServe(ctx context.Context, opts ...AdminAPIListenAndServeOption) {
+	config := adminAPIListenAndServeOptions{
+		host: "0.0.0.0",
+		port: "8090",
+	}
+
+	for _, o := range opts {
+		o(&config)
+	}
+
 	ctx = logutil.Start(ctx, "admin-api")
 	mux := http.NewServeMux()
 
@@ -47,9 +70,9 @@ func AdminAPIListenAndServeWithAddress(ctx context.Context, host, port string) {
 	bg := context.Background()
 
 	go func() {
-		logutil.Get(ctx).Debugf("admin api listening on port %s", port)
+		logutil.Get(ctx).Debugf("admin api listening on port %s", config.port)
 
-		err := ListenAndServeWithContext(bg, fmt.Sprintf("%s:%s", host, port), mux)
+		err := ListenAndServeWithContext(bg, fmt.Sprintf("%s:%s", config.host, config.port), mux)
 		if err != nil {
 			logutil.Get(ctx).Error(err.Error())
 		}

@@ -230,7 +230,8 @@ var templateFS embed.FS
 // form.
 func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 	subFS, _ := fs.Sub(templateFS, "templates")
-	vh := NewViewHandler(subFS)
+
+	viewer := NewGoTemplateViewer(subFS)
 
 	roleNames := map[string]string{}
 	for _, r := range roles {
@@ -238,8 +239,8 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 	}
 
 	m := authMiddleware{
-		handleLogin: vh.Wrap(func(v *View, r *http.Request) Response {
-			return v.HTML(http.StatusOK, "dev-login.html", map[string]any{
+		handleLogin: WrapView(func(r *http.Request) Response {
+			return viewer.HTML(http.StatusOK, "dev-login.html", map[string]any{
 				"username": "dummy@example.com",
 				"name":     "John Doe",
 				"roles":    roleNames,
