@@ -114,7 +114,7 @@ func Update(ctx context.Context, opts ...ContextOption) context.Context {
 type ContextOption func(meta) meta
 
 // Field is a ContextOption that sets a single field to the logger.
-func Field(key string, value interface{}) ContextOption {
+func Field(key string, value any) ContextOption {
 	return func(m meta) meta {
 		m.log = m.log.WithField(key, value)
 		return m
@@ -123,7 +123,7 @@ func Field(key string, value interface{}) ContextOption {
 
 // WithField is a shortcut for using the Update function with a single Field
 // option.
-func WithField(ctx context.Context, key string, value interface{}) context.Context {
+func WithField(ctx context.Context, key string, value any) context.Context {
 	return Update(ctx, Field(key, value))
 }
 
@@ -150,7 +150,7 @@ func WithFields(ctx context.Context, fields logrus.Fields) context.Context {
 //
 // See mapstructure docs for more information:
 // https://pkg.go.dev/github.com/mitchellh/mapstructure?tab=doc
-func FromStruct(s interface{}) logrus.Fields {
+func FromStruct(s any) logrus.Fields {
 	fields := logrus.Fields{}
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		TagName: "logfield",
@@ -170,7 +170,7 @@ func FromStruct(s interface{}) logrus.Fields {
 
 // PrettyPrint prints the given struct in a readable form. It tries JSON first,
 // and if it fails it falls back to fmt.Sprintf.
-func PrettyPrint(v interface{}) string {
+func PrettyPrint(v any) string {
 	raw, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return fmt.Sprintf("%#v", v)

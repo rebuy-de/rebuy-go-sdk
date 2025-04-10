@@ -13,9 +13,9 @@ const GoldenUpdateEnv = `TESTUTIL_UPDATE_GOLDEN`
 // TB is a interface that is a subset of the testing.TB interface and therefore
 // every *testing.T struct can be used.
 type TB interface {
-	Error(args ...interface{})
-	Errorf(format string, args ...interface{})
-	Log(args ...interface{})
+	Error(args ...any)
+	Errorf(format string, args ...any)
+	Log(args ...any)
 }
 
 func assertGolden(t TB, filename string, data []byte, showDiff bool) {
@@ -66,7 +66,7 @@ func AssertGolden(t TB, filename string, data []byte) {
 }
 
 // AssertGoldenYAML works like AssertGolden, but converts the data to YAML file.
-func AssertGoldenYAML(t TB, filename string, data interface{}) {
+func AssertGoldenYAML(t TB, filename string, data any) {
 	generated, err := yaml.Marshal(data)
 	if err != nil {
 		t.Error(err)
@@ -79,7 +79,7 @@ func AssertGoldenYAML(t TB, filename string, data interface{}) {
 }
 
 // AssertGoldenJSON works like AssertGolden, but converts the data to JSON file.
-func AssertGoldenJSON(t TB, filename string, data interface{}) {
+func AssertGoldenJSON(t TB, filename string, data any) {
 	generated, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		t.Error(err)
@@ -111,7 +111,7 @@ func AssertGoldenDiff(t TB, filename string, a, b string) {
 }
 
 // AssertGoldenDiffJSON works like AssertGoldenDiff, but converts the data to JSON first.
-func AssertGoldenDiffJSON(t TB, filename string, a, b interface{}) {
+func AssertGoldenDiffJSON(t TB, filename string, a, b any) {
 	aJSON, err := json.MarshalIndent(a, "", "    ")
 	if err != nil {
 		t.Error(err)

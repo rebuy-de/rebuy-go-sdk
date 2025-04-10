@@ -13,7 +13,7 @@ func prettyPrintSecret(original *api.Secret) string {
 	var (
 		secret api.Secret
 		auth   api.SecretAuth
-		data   = map[string]interface{}{}
+		data   = map[string]any{}
 	)
 
 	for k, v := range original.Data {

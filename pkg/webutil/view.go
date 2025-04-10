@@ -7,7 +7,7 @@ import (
 
 type TemplateFuncMap func(*http.Request) template.FuncMap
 
-func SimpleTemplateFuncMap(name string, fn interface{}) TemplateFuncMap {
+func SimpleTemplateFuncMap(name string, fn any) TemplateFuncMap {
 	return func(_ *http.Request) template.FuncMap {
 		return template.FuncMap{
 			name: fn,

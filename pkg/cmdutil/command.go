@@ -121,7 +121,7 @@ func (o *LoggerOption) Bind(cmd *cobra.Command) error {
 
 		if flagGELFAddress != "" {
 			hook := graylog.NewGraylogHook(flagGELFAddress,
-				map[string]interface{}{
+				map[string]any{
 					"uuid":     uuid.New(),
 					"facility": Name,
 				})

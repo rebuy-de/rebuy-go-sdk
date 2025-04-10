@@ -46,7 +46,7 @@ func WithLogToGraylogHostname(hostname string) Option {
 				return
 			}
 
-			hook := graylog.NewGraylogHook(gelfAddress, map[string]interface{}{
+			hook := graylog.NewGraylogHook(gelfAddress, map[string]any{
 				"facility":   Name,
 				"version":    Version,
 				"commit-sha": CommitHash,

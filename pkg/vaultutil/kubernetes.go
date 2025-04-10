@@ -21,7 +21,7 @@ func KubernetesToken(client *api.Client, role string) (*api.Secret, error) {
 
 	var (
 		loc = path.Join("auth", KubernetesAuthMountPoint, "login")
-		cfg = map[string]interface{}{
+		cfg = map[string]any{
 			"role": role,
 			"jwt":  string(jwt),
 		}
