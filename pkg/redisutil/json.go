@@ -57,8 +57,8 @@ func UnmarshalGzipJSON[T any](payload string) (*T, error) {
 }
 
 type RedisSetter interface {
-	Set(context.Context, string, interface{}, time.Duration) *redis.StatusCmd
-	GetSet(context.Context, string, interface{}) *redis.StringCmd
+	Set(context.Context, string, any, time.Duration) *redis.StatusCmd
+	GetSet(context.Context, string, any) *redis.StringCmd
 }
 
 func GzipJSONSet[T any](ctx context.Context, c RedisSetter, key string, v T, expiration time.Duration) error {

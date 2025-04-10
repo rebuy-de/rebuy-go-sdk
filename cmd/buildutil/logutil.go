@@ -8,7 +8,7 @@ import (
 	"github.com/tidwall/pretty"
 )
 
-func dumpJSON(data interface{}) error {
+func dumpJSON(data any) error {
 	b, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		return err

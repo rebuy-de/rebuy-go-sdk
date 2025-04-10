@@ -32,7 +32,7 @@ func SessionSecretSourceVolatile() []byte {
 
 type RedisSessioner interface {
 	Get(context.Context, string) *redis.StringCmd
-	Set(context.Context, string, interface{}, time.Duration) *redis.StatusCmd
+	Set(context.Context, string, any, time.Duration) *redis.StatusCmd
 }
 
 // SessionSecretSourceRedis stores the session secrets in Redis. If the key

@@ -10,7 +10,7 @@ import (
 type RedisIndexer interface {
 	SMembers(ctx context.Context, key string) *redis.StringSliceCmd
 	MGet(ctx context.Context, keys ...string) *redis.SliceCmd
-	SRem(ctx context.Context, key string, members ...interface{}) *redis.IntCmd
+	SRem(ctx context.Context, key string, members ...any) *redis.IntCmd
 }
 
 func IndexVacuum(ctx context.Context, c RedisIndexer, indexKey string, dataKeyPrefix Prefix) error {
@@ -30,7 +30,7 @@ func IndexVacuum(ctx context.Context, c RedisIndexer, indexKey string, dataKeyPr
 		return errors.Wrap(err, "failed to retrieve values")
 	}
 
-	expired := []interface{}{}
+	expired := []any{}
 	for k, value := range values {
 		id := ids[k]
 		if value == nil {
