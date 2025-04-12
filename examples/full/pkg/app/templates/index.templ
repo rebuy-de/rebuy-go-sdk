@@ -1,6 +1,6 @@
 package templates
 
-templ (v *Viewer) HomePage() {
+templ (v *RequestAwareViewer) HomePage() {
 	@v.page("Home") {
 		<div class="card">
 			<h2>Welcome to the Full Example App</h2>
@@ -15,6 +15,7 @@ templ (v *Viewer) HomePage() {
 				<li>Development vs. production environments</li>
 				<li>Template rendering</li>
 				<li>Web assets management</li>
+				<li>Authentication with webutil</li>
 			</ul>
 		</div>
 	}

@@ -1,6 +1,6 @@
 package templates
 
-templ (v *Viewer) base(title string) {
+templ (v *RequestAwareViewer) base(title string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -17,6 +17,7 @@ templ (v *Viewer) base(title string) {
 						<a href="/">Home</a> |
 						<a href="/users">Users</a> |
 						<a href="/health">Health</a>
+						@v.authComponent()
 					</nav>
 				</header>
 				<main>
@@ -31,7 +32,7 @@ templ (v *Viewer) base(title string) {
 	</html>
 }
 
-templ (v *Viewer) page(title string) {
+templ (v *RequestAwareViewer) page(title string) {
 	@v.base(title + " | Full Example App") {
 		{ children... }
 	}

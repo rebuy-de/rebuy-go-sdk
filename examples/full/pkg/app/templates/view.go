@@ -16,6 +16,11 @@ type Viewer struct {
 	assetPathPrefix webutil.AssetPathPrefix
 }
 
+type RequestAwareViewer struct {
+	*Viewer
+	request *http.Request
+}
+
 func New(
 	assetPathPrefix webutil.AssetPathPrefix,
 ) *Viewer {
@@ -26,6 +31,13 @@ func New(
 
 func (v *Viewer) assetPath(path string) string {
 	return fmt.Sprintf("/assets/%v%v", v.assetPathPrefix, path)
+}
+
+func (v *Viewer) WithRequest(r *http.Request) *RequestAwareViewer {
+	return &RequestAwareViewer{
+		Viewer:  v,
+		request: r,
+	}
 }
 
 func View(status int, node templ.Component) webutil.Response {

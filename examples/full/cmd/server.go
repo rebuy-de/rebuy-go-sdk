@@ -23,6 +23,15 @@ func RunServer(ctx context.Context, c *dig.Container) error {
 		webutil.ProvideHandler(c, handlers.NewHealthHandler),
 		webutil.ProvideHandler(c, handlers.NewUsersHandler),
 
+		c.Provide(func(
+			authMiddleware webutil.AuthMiddleware,
+		) webutil.Middlewares {
+			return webutil.Middlewares(append(
+				webutil.DefaultMiddlewares(),
+				authMiddleware,
+			))
+		}),
+
 		// Register background workers
 		runutil.ProvideWorker(c, func(redisClient *redis.Client) *workers.DataSyncWorker {
 			return workers.NewDataSyncWorker(redisClient)

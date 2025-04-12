@@ -1,0 +1,50 @@
+package templates
+
+import "github.com/rebuy-de/rebuy-go-sdk/v8/pkg/webutil"
+
+// isAuthenticated checks if the user is authenticated
+func (v *RequestAwareViewer) isAuthenticated() bool {
+	if v.request == nil {
+		return false
+	}
+
+	// Get auth info from the request context
+	authInfo := webutil.AuthInfoFromRequest(v.request)
+	return authInfo != nil && authInfo.Username != ""
+}
+
+// getUsername returns the username of the authenticated user
+func (v *RequestAwareViewer) getAuthInfo() *webutil.AuthInfo {
+	return webutil.AuthInfoFromRequest(v.request)
+}
+
+templ (v *RequestAwareViewer) authComponent() {
+	<div class="navbar-item has-dropdown is-hoverable">
+		if v.isAuthenticated() {
+			{{ info := v.getAuthInfo() }}
+			<a class="navbar-link">
+				<span class="icon is-small mr-1">
+					<i class="fas fa-user"></i>
+				</span>
+				{ info.Username }
+			</a>
+			<div class="navbar-dropdown is-right">
+				<a href="/auth/logout" class="navbar-item">
+					<span class="icon is-small mr-2">
+						<i class="fas fa-sign-out-alt"></i>
+					</span>
+					Logout
+				</a>
+			</div>
+		} else {
+			<div class="buttons">
+				<a href="/auth/login" class="button is-primary">
+					<span class="icon is-small">
+						<i class="fas fa-sign-in-alt"></i>
+					</span>
+					<span>Log in</span>
+				</a>
+			</div>
+		}
+	</div>
+}

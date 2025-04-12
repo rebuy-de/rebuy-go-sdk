@@ -13,7 +13,7 @@ type UsersData struct {
 	Users []User
 }
 
-templ (v *Viewer) UsersPage(data UsersData) {
+templ (v *RequestAwareViewer) UsersPage(data UsersData) {
 	@v.page("Users") {
 		<div class="card">
 			<h2>Users</h2>

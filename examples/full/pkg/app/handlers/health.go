@@ -11,15 +11,15 @@ import (
 
 // HealthHandler handles the health status page
 type HealthHandler struct {
-	templ *templates.Viewer
+	viewer *templates.Viewer
 }
 
 // NewHealthHandler creates a new health handler
 func NewHealthHandler(
-	templ *templates.Viewer,
+	viewer *templates.Viewer,
 ) *HealthHandler {
 	return &HealthHandler{
-		templ: templ,
+		viewer: viewer,
 	}
 }
 
@@ -67,5 +67,5 @@ func (h *HealthHandler) handleHealth(r *http.Request) webutil.Response {
 		Workers:    workers,
 	}
 
-	return templates.View(http.StatusOK, h.templ.HealthPage(healthData))
+	return templates.View(http.StatusOK, h.viewer.WithRequest(r).HealthPage(healthData))
 }
