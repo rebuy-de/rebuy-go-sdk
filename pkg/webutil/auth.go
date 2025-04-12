@@ -53,6 +53,8 @@ func (i AuthInfo) HasRole(want string) bool {
 	return false
 }
 
+type AuthMiddleware func(http.Handler) http.Handler
+
 type authMiddleware struct {
 	getClaimFromRequest func(http.ResponseWriter, *http.Request) (*AuthInfo, error)
 	handleCallback      func(http.ResponseWriter, *http.Request) error
@@ -228,7 +230,7 @@ var templateFS embed.FS
 // authentication. It is supposed to be used for local development.
 // The roles parameter defines which roles can be selected in the dummy login
 // form.
-func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
+func DevAuthMiddleware(roles ...string) AuthMiddleware {
 	subFS, _ := fs.Sub(templateFS, "templates")
 
 	viewer := NewGoTemplateViewer(subFS)
