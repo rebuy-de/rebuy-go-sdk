@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -44,19 +45,16 @@ type AuthInfo struct {
 // be allowlisted in the AuthMiddleware, otherwise it will return false even if
 // the user is in the team.
 func (i AuthInfo) HasRole(want string) bool {
-	for _, have := range i.RealmAccess.Roles {
-		if have == want {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(i.RealmAccess.Roles, want)
 }
+
+type AuthMiddleware func(http.Handler) http.Handler
 
 type authMiddleware struct {
 	getClaimFromRequest func(http.ResponseWriter, *http.Request) (*AuthInfo, error)
 	handleCallback      func(http.ResponseWriter, *http.Request) error
 	handleLogin         func(http.ResponseWriter, *http.Request)
+	handleLogout        func(http.ResponseWriter, *http.Request)
 }
 
 func (m *authMiddleware) handler(next http.Handler) http.Handler {
@@ -75,6 +73,7 @@ func (m *authMiddleware) handler(next http.Handler) http.Handler {
 	})
 
 	router.HandleFunc("/auth/login", m.handleLogin)
+	router.HandleFunc("/auth/logout", m.handleLogout)
 
 	router.HandleFunc("/auth/callback", func(w http.ResponseWriter, r *http.Request) {
 		err := m.handleCallback(w, r)
@@ -136,6 +135,19 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 			oauthState := generateCookie(w)
 			u := oauth2Config.AuthCodeURL(oauthState)
 			http.Redirect(w, r, u, http.StatusTemporaryRedirect)
+		},
+		handleLogout: func(w http.ResponseWriter, r *http.Request) {
+			cookie := &http.Cookie{
+				Name:     encrypter.cookieName(),
+				Value:    "",
+				Path:     "/",
+				MaxAge:   -1,
+				Secure:   true,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			}
+			http.SetCookie(w, cookie)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 		},
 		getClaimFromRequest: func(w http.ResponseWriter, r *http.Request) (*AuthInfo, error) {
 			token, err := encrypter.ReadCookie(r)
@@ -228,7 +240,7 @@ var templateFS embed.FS
 // authentication. It is supposed to be used for local development.
 // The roles parameter defines which roles can be selected in the dummy login
 // form.
-func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
+func DevAuthMiddleware(roles ...string) AuthMiddleware {
 	subFS, _ := fs.Sub(templateFS, "templates")
 
 	viewer := NewGoTemplateViewer(subFS)
@@ -246,6 +258,19 @@ func DevAuthMiddleware(roles ...string) func(http.Handler) http.Handler {
 				"roles":    roleNames,
 			})
 		}),
+		handleLogout: func(w http.ResponseWriter, r *http.Request) {
+			cookie := &http.Cookie{
+				Name:     "rebuy-go-sdk-auth",
+				Value:    "",
+				Path:     "/",
+				MaxAge:   -1,
+				Secure:   true,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			}
+			http.SetCookie(w, cookie)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		},
 		getClaimFromRequest: func(_ http.ResponseWriter, r *http.Request) (*AuthInfo, error) {
 			cookie, err := r.Cookie("rebuy-go-sdk-auth")
 			if errors.Is(err, http.ErrNoCookie) {

@@ -10,15 +10,15 @@ import (
 
 // IndexHandler handles the home page
 type IndexHandler struct {
-	templ *templates.Viewer
+	viewer *templates.Viewer
 }
 
 // NewIndexHandler creates a new index handler
 func NewIndexHandler(
-	templ *templates.Viewer,
+	viewer *templates.Viewer,
 ) *IndexHandler {
 	return &IndexHandler{
-		templ: templ,
+		viewer: viewer,
 	}
 }
 
@@ -29,5 +29,5 @@ func (h *IndexHandler) Register(r chi.Router) {
 
 // handleIndex renders the home page
 func (h *IndexHandler) handleIndex(r *http.Request) webutil.Response {
-	return templates.View(http.StatusOK, h.templ.HomePage())
+	return templates.View(http.StatusOK, h.viewer.WithRequest(r).HomePage())
 }

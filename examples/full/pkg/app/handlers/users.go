@@ -11,15 +11,15 @@ import (
 
 // UsersHandler handles the users pages
 type UsersHandler struct {
-	templ *templates.Viewer
+	viewer *templates.Viewer
 }
 
 // NewUsersHandler creates a new users handler
 func NewUsersHandler(
-	templ *templates.Viewer,
+	viewer *templates.Viewer,
 ) *UsersHandler {
 	return &UsersHandler{
-		templ: templ,
+		viewer: viewer,
 	}
 }
 
@@ -56,5 +56,5 @@ func (h *UsersHandler) handleUsersList(r *http.Request) webutil.Response {
 		Users: users,
 	}
 
-	return templates.View(http.StatusOK, h.templ.UsersPage(usersData))
+	return templates.View(http.StatusOK, h.viewer.WithRequest(r).UsersPage(usersData))
 }

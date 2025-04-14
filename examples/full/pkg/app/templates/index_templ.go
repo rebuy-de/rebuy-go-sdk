@@ -8,7 +8,7 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func (v *Viewer) HomePage() templ.Component {
+func (v *RequestAwareViewer) HomePage() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -41,7 +41,7 @@ func (v *Viewer) HomePage() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"card\"><h2>Welcome to the Full Example App</h2><p>This is a comprehensive example of using the rebuy-go-sdk.</p></div><div class=\"card\"><h3>Features Demonstrated</h3><ul><li>Command structure with cmdutil</li><li>HTTP handlers with webutil</li><li>Worker management with runutil</li><li>Development vs. production environments</li><li>Template rendering</li><li>Web assets management</li></ul></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"card\"><h2>Welcome to the Full Example App</h2><p>This is a comprehensive example of using the rebuy-go-sdk.</p></div><div class=\"card\"><h3>Features Demonstrated</h3><ul><li>Command structure with cmdutil</li><li>HTTP handlers with webutil</li><li>Worker management with runutil</li><li>Development vs. production environments</li><li>Template rendering</li><li>Web assets management</li><li>Authentication with webutil</li></ul></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

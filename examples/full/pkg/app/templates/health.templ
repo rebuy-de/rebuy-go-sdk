@@ -23,7 +23,7 @@ templ formatTime(t time.Time) {
 	{ t.Format("2006-01-02 15:04:05") }
 }
 
-templ (v *Viewer) HealthPage(data HealthData) {
+templ (v *RequestAwareViewer) HealthPage(data HealthData) {
 	@v.page("Health") {
 		<div class="card">
 			<h2>Health Status</h2>
