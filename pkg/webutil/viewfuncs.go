@@ -48,6 +48,13 @@ func ViewError(status int, err error) http.HandlerFunc {
 	}
 }
 
+// ViewErrorf returns an http.HandlerFunc that writes a formatted error response with the given HTTP status code.
+// It uses fmt.Errorf to format the error message with the provided format string and arguments.
+func ViewErrorf(status int, format string, args ...any) http.HandlerFunc {
+	err := fmt.Errorf(format, args...)
+	return ViewError(status, err)
+}
+
 // ViewRedirectf returns an http.HandlerFunc that redirects to the formatted location string.
 // It uses fmt.Sprintf to format the location with the provided arguments.
 func ViewRedirectf(status int, location string, args ...any) http.HandlerFunc {
