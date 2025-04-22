@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/examples/full/web"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/web"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

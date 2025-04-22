@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 )
 
 //go:generate go run github.com/a-h/templ/cmd/templ generate

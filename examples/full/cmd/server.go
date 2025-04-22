@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v8/examples/full/pkg/app/handlers"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/examples/full/pkg/app/templates"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/examples/full/pkg/app/workers"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/runutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/handlers"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/templates"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/workers"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/runutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/dig"
 )

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
 )
 
 // NamedWorker assigns a new logutil subsystem on startup. See logutil.Start.

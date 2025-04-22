@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v8/examples/minimal/cmd"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/minimal/cmd"
 )
 
 func main() {

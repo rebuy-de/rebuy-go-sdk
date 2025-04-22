@@ -2,7 +2,7 @@ package instutil
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
 )
 
 func init() {

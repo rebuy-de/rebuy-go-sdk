@@ -3,6 +3,18 @@
 This file contains a list of tasks that are either required or at least
 strongly recommended to align projects using this SDK.
 
+## M0008 2024-04-22 Update to v9
+
+Check release notes and upgrade to v9.
+
+* Many deprecated function got removed.
+* Removed `lokiutil` (not used anywhere)
+* Removed `podtuil` (use testcontainers instead)
+* Removed `redisutil.Broadcast` (not used anywhere)
+* `webutil.ViewRedirect` does not support format args anymore. Use `webutil.ViewRedirectf` instead.
+* `webutil.AdminAPIListenAndServe` now uses options. Check go docs for new usage.
+
+
 ## M0007 2024-11-08 Switch to Dependency Injection
 
 ### Reasoning

@@ -1,11 +1,11 @@
-module github.com/rebuy-de/rebuy-go-sdk/v8/examples/minimal
+module github.com/rebuy-de/rebuy-go-sdk/v9/examples/minimal
 
 go 1.24.0
 
-replace github.com/rebuy-de/rebuy-go-sdk/v8 => ../..
+replace github.com/rebuy-de/rebuy-go-sdk/v9 => ../..
 
 require (
-	github.com/rebuy-de/rebuy-go-sdk/v8 v8.7.1
+	github.com/rebuy-de/rebuy-go-sdk/v9 v9.0.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	honnef.co/go/tools v0.6.0

@@ -3,7 +3,7 @@ package runutil
 import (
 	"context"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
 )
 
 // Retry restarts a Worker forever when it exists. This happens regardless of
