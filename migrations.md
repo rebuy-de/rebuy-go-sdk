@@ -14,6 +14,8 @@ Check release notes and upgrade to v9.
 * `webutil.ViewRedirect` does not support format args anymore. Use `webutil.ViewRedirectf` instead.
 * `webutil.AdminAPIListenAndServe` now uses options. Check go docs for new usage.
 * Removed `cdnmirror`. Use Yarn or similar instead.
+* Change signature of `cmdutil.Runner.Run` from `(context.Context)` to `(context.Context, []string)` in order to be able
+  to access positional args.
 
 
 ## M0007 2024-11-08 Switch to Dependency Injection

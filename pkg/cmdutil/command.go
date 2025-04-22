@@ -65,7 +65,7 @@ func WithSubCommand(sub *cobra.Command) Option {
 // Binder defines the interface used by the generic [WithRun] function.
 type Runner interface {
 	Bind(*cobra.Command) error
-	Run(context.Context) error
+	Run(context.Context, []string) error
 }
 
 // WithRunner that accepts a generic type which must implement the [Binder]
@@ -77,7 +77,7 @@ func WithRunner(runner Runner) Option {
 
 		cmd.Run = func(cmd *cobra.Command, args []string) {
 			ctx := SignalRootContext()
-			err := runner.Run(ctx)
+			err := runner.Run(ctx, args)
 			must(err)
 		}
 		return nil

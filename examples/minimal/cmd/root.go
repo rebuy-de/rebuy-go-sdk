@@ -31,7 +31,7 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 	return nil
 }
 
-func (r *Runner) Run(ctx context.Context) error {
+func (r *Runner) Run(ctx context.Context, _ []string) error {
 	fmt.Printf("Hello %s!\n", r.name)
 	return nil
 }

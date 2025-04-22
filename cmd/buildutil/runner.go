@@ -91,7 +91,7 @@ func (r *Runner) dist(parts ...string) string {
 	return path.Join(parts...)
 }
 
-func (r *Runner) Run(ctx context.Context) error {
+func (r *Runner) Run(ctx context.Context, _ []string) error {
 	defer r.Inst.Durations.Steps.Stopwatch("all")()
 
 	return runSeq(ctx,

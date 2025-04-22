@@ -51,7 +51,7 @@ func (r *DaemonRunner) Bind(cmd *cobra.Command) error {
 	return nil
 }
 
-func (r *DaemonRunner) Run(ctx context.Context) error {
+func (r *DaemonRunner) Run(ctx context.Context, _ []string) error {
 	c := dig.New()
 
 	err := errors.Join(
@@ -87,7 +87,7 @@ func (r *DevRunner) Bind(cmd *cobra.Command) error {
 	return nil
 }
 
-func (r *DevRunner) Run(ctx context.Context) error {
+func (r *DevRunner) Run(ctx context.Context, _ []string) error {
 	c := dig.New()
 
 	redisAddress := r.redisAddress
