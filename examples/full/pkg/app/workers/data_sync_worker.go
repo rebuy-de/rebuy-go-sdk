@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/runutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/runutil"
 )
 
 // DataSyncWorker is responsible for periodically syncing data

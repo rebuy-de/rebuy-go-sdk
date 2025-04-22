@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/examples/full/pkg/app/templates"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/templates"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 )
 
 // UsersHandler handles the users pages

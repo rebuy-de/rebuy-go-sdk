@@ -1,4 +1,4 @@
-module github.com/rebuy-de/rebuy-go-sdk/v8/examples/full
+module github.com/rebuy-de/rebuy-go-sdk/v9/examples/full
 
 go 1.24.0
 
@@ -6,7 +6,7 @@ require (
 	github.com/a-h/templ v0.3.857
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/go-chi/chi/v5 v5.2.1
-	github.com/rebuy-de/rebuy-go-sdk/v8 v8.0.0
+	github.com/rebuy-de/rebuy-go-sdk/v9 v9.0.0
 	github.com/redis/go-redis/v9 v9.7.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
@@ -120,4 +120,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/rebuy-de/rebuy-go-sdk/v8 => ../../../rebuy-go-sdk
+replace github.com/rebuy-de/rebuy-go-sdk/v9 => ../../../rebuy-go-sdk

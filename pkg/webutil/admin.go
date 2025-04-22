@@ -7,7 +7,7 @@ import (
 	"net/http/pprof"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
 )
 
 type adminAPIListenAndServeOptions struct {

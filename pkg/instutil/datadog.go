@@ -3,7 +3,7 @@ package instutil
 import (
 	"net/http"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
 	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )

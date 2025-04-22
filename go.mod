@@ -1,4 +1,4 @@
-module github.com/rebuy-de/rebuy-go-sdk/v8
+module github.com/rebuy-de/rebuy-go-sdk/v9
 
 go 1.24.0
 

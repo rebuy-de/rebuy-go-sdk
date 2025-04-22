@@ -3,4 +3,4 @@ set -eu
 test -z "$(go env GOWORK)" && go mod vendor || go work vendor
 
 CGO_ENABLED=0 go generate ./...
-exec go run github.com/rebuy-de/rebuy-go-sdk/v8/cmd/buildutil "$@"
+exec go run github.com/rebuy-de/rebuy-go-sdk/v9/cmd/buildutil "$@"

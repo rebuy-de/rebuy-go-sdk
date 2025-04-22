@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )

@@ -5,7 +5,7 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v8/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 )
 
 //go:generate yarn install
