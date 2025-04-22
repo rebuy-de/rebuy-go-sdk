@@ -13,6 +13,7 @@ Check release notes and upgrade to v9.
 * Removed `redisutil.Broadcast` (not used anywhere)
 * `webutil.ViewRedirect` does not support format args anymore. Use `webutil.ViewRedirectf` instead.
 * `webutil.AdminAPIListenAndServe` now uses options. Check go docs for new usage.
+* Removed `cdnmirror`. Use Yarn or similar instead.
 
 
 ## M0007 2024-11-08 Switch to Dependency Injection
