@@ -8,6 +8,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
+
+    // instutil import ensures the init function of that package is run, which adds the toolstack metrics
+	_ "github.com/rebuy-de/rebuy-go-sdk/v9/pkg/instutil"
 )
 
 type adminAPIListenAndServeOptions struct {
