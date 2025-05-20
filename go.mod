@@ -8,7 +8,6 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.36.2
 	github.com/aws/aws-sdk-go-v2/config v1.29.7
 	github.com/coreos/go-oidc/v3 v3.12.0
-	github.com/evanw/esbuild v0.25.0
 	github.com/gemnasium/logrus-graylog-hook/v3 v3.2.1
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/google/uuid v1.6.0

@@ -3,13 +3,14 @@ package webutil
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/pprof"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
 
-    // instutil import ensures the init function of that package is run, which adds the toolstack metrics
+	// instutil import ensures the init function of that package is run, which adds the toolstack metrics
 	_ "github.com/rebuy-de/rebuy-go-sdk/v9/pkg/instutil"
 )
 
@@ -73,9 +74,11 @@ func AdminAPIListenAndServe(ctx context.Context, opts ...AdminAPIListenAndServeO
 	bg := context.Background()
 
 	go func() {
-		logutil.Get(ctx).Debugf("admin api listening on port %s", config.port)
+		serverAddress := net.JoinHostPort(config.host, config.port)
 
-		err := ListenAndServeWithContext(bg, fmt.Sprintf("%s:%s", config.host, config.port), mux)
+		logutil.Get(ctx).Debugf("admin api listening on %s", serverAddress)
+
+		err := ListenAndServeWithContext(bg, serverAddress, mux)
 		if err != nil {
 			logutil.Get(ctx).Error(err.Error())
 		}
