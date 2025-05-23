@@ -3,12 +3,10 @@ module github.com/rebuy-de/rebuy-go-sdk/v9
 go 1.24.0
 
 require (
-	github.com/DataDog/datadog-agent/pkg/util/log v0.58.0
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/aws/aws-sdk-go-v2 v1.36.2
 	github.com/aws/aws-sdk-go-v2/config v1.29.7
 	github.com/coreos/go-oidc/v3 v3.12.0
-	github.com/gemnasium/logrus-graylog-hook/v3 v3.2.1
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
@@ -22,11 +20,11 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/samber/slog-multi v1.4.0
 	github.com/samber/slog-zerolog/v2 v2.7.3
-	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/pretty v1.2.1
 	go.opentelemetry.io/contrib/bridges/otelslog v0.11.0
+	go.opentelemetry.io/otel v1.36.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.12.2
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.12.2
 	go.opentelemetry.io/otel/sdk/log v0.12.2
@@ -49,6 +47,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.58.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.58.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/trace v0.58.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/log v0.58.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.58.0 // indirect
 	github.com/DataDog/datadog-go/v5 v5.5.0 // indirect
 	github.com/DataDog/go-libddwaf/v3 v3.5.1 // indirect
@@ -144,7 +143,6 @@ require (
 	go.opentelemetry.io/collector/pdata v1.11.0 // indirect
 	go.opentelemetry.io/collector/pdata/pprofile v0.104.0 // indirect
 	go.opentelemetry.io/collector/semconv v0.104.0 // indirect
-	go.opentelemetry.io/otel v1.36.0 // indirect
 	go.opentelemetry.io/otel/log v0.12.2 // indirect
 	go.opentelemetry.io/otel/metric v1.36.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.36.0 // indirect
