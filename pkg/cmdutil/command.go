@@ -3,9 +3,6 @@ package cmdutil
 import (
 	"context"
 
-	graylog "github.com/gemnasium/logrus-graylog-hook/v3"
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -82,53 +79,4 @@ func WithRunner(runner Runner) Option {
 		}
 		return nil
 	}
-}
-
-type LoggerOption struct {
-	JSONFormatter bool
-	GELFLogger    bool
-}
-
-func (o *LoggerOption) Bind(cmd *cobra.Command) error {
-	var (
-		flagJSON        bool
-		flagGELFAddress string
-	)
-
-	// Bind json-logs flag, if enabled.
-	if o.JSONFormatter {
-		cmd.PersistentFlags().BoolVar(
-			&flagJSON, "json-logs", false, "Print the logs in JSON format")
-	}
-
-	// Bind gelf-address flag, if enabled.
-	if o.GELFLogger {
-		cmd.PersistentFlags().StringVar(
-			&flagGELFAddress, "gelf-address", "",
-			`Address to Graylog for logging (format: "ip:port")`)
-	}
-
-	cmd.PreRun = func(cmd *cobra.Command, args []string) {
-		if flagJSON {
-			logrus.SetFormatter(&logrus.JSONFormatter{
-				FieldMap: logrus.FieldMap{
-					logrus.FieldKeyTime:  "time",
-					logrus.FieldKeyLevel: "level",
-					logrus.FieldKeyMsg:   "message",
-				},
-			})
-		}
-
-		if flagGELFAddress != "" {
-			hook := graylog.NewGraylogHook(flagGELFAddress,
-				map[string]any{
-					"uuid":     uuid.New(),
-					"facility": Name,
-				})
-			hook.Level = logrus.DebugLevel
-			logrus.AddHook(hook)
-		}
-	}
-
-	return nil
 }
