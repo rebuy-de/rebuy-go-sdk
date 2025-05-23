@@ -48,9 +48,7 @@ func Init(ctx context.Context, params Params) (*Manager, error) {
 	}
 	client.SetToken(secret.Auth.ClientToken)
 
-	logutil.Get(ctx).
-		WithField("secret-data", prettyPrintSecret(secret)).
-		Debugf("got initial secret")
+	logutil.Get(ctx).Debug("got initial secret", "secret-data", prettyPrintSecret(secret))
 
 	watcher, err := client.NewLifetimeWatcher(&api.LifetimeWatcherInput{
 		Secret:      secret,
@@ -69,36 +67,25 @@ func Init(ctx context.Context, params Params) (*Manager, error) {
 		for ctx.Err() == nil {
 			select {
 			case out := <-watcher.RenewCh():
-				logutil.Get(ctx).
-					WithField("secret-data", prettyPrintSecret(out.Secret)).
-					Debugf("renewed secret")
+				logutil.Get(ctx).Debug("renewed secret", "secret-data", prettyPrintSecret(out.Secret))
 
 			case err := <-watcher.DoneCh():
-				logutil.Get(ctx).
-					WithError(errors.WithStack(err)).
-					Errorf("renewal stopped")
+				logutil.Get(ctx).Error("renewal stopped", "error", errors.WithStack(err))
 				cancel()
 
 			case <-ctx.Done():
-				logutil.Get(ctx).
-					Warnf("renewal canceled")
+				logutil.Get(ctx).Warn("renewal canceled")
 				cancel()
 			}
 		}
 
-		logutil.Get(ctx).
-			WithError(errors.WithStack(err)).
-			Warnf("shutting down vault manager")
+		logutil.Get(ctx).Warn("shutting down vault manager", "error", errors.WithStack(err))
 		watcher.Stop()
 		err := client.Auth().Token().RevokeSelf("")
 		if err != nil {
-			logutil.Get(ctx).
-				WithError(errors.WithStack(err)).
-				Errorf("revoking own token failed")
+			logutil.Get(ctx).Error("revoking own token failed", "error", errors.WithStack(err))
 		} else {
-			logutil.Get(ctx).
-				WithError(errors.WithStack(err)).
-				Debugf("revoking own token succeeded")
+			logutil.Get(ctx).Debug("revoking own token succeeded", "error", errors.WithStack(err))
 		}
 	}()
 

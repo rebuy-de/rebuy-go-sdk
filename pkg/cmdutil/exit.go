@@ -1,9 +1,8 @@
 package cmdutil
 
 import (
+	"log/slog"
 	"os"
-
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const (
@@ -51,7 +50,7 @@ func must(err error) {
 		return
 	}
 
-	log.Debugf("%+v", err)
-	log.Error(err)
+	slog.Debug("error details", "error", err)
+	slog.Error("fatal error", "error", err)
 	Exit(ExitCodeGeneralError)
 }
