@@ -2,12 +2,12 @@ package cmdutil
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -27,12 +27,12 @@ func SignalContext(ctx context.Context, signals ...os.Signal) context.Context {
 
 	go func() {
 		sig := <-c
-		logrus.Debugf("received signal '%v'", sig)
+		slog.Debug("received signal", "signal", sig)
 		cancel()
 
 		sig = <-c
-		logrus.Debugf("received signal '%v'", sig)
-		logrus.Error("Two interrupts received. Exiting immediately. Note that data loss may have occurred.")
+		slog.Debug("received signal", "signal", sig)
+		slog.Error("Two interrupts received. Exiting immediately. Note that data loss may have occurred.")
 		os.Exit(ExitCodeMultipleInterrupts)
 	}()
 

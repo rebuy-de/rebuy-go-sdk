@@ -62,7 +62,7 @@ func (m *authMiddleware) handler(next http.Handler) http.Handler {
 	router.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
 		claims, err := m.getClaimFromRequest(w, r)
 		if err != nil {
-			logutil.Get(r.Context()).Warnf("auth middleware: %v", err.Error())
+			logutil.Get(r.Context()).Warn("auth middleware error", "error", err)
 		} else if claims != nil {
 			ctx := r.Context()
 			ctx = typeutil.ContextWithValueSingleton(ctx, claims)

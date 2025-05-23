@@ -3,13 +3,13 @@ package cmd
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/web"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.uber.org/dig"
 )
@@ -17,10 +17,9 @@ import (
 func NewRootCommand() *cobra.Command {
 	return cmdutil.New(
 		"full-example", "A full example app for the rebuy-go-sdk.",
-		cmdutil.WithLogVerboseFlag(),
-		cmdutil.WithLogToGraylog(),
+		cmdutil.WithLoggingOptions(),
 		cmdutil.WithVersionCommand(),
-		cmdutil.WithVersionLog(logrus.DebugLevel),
+		cmdutil.WithVersionLog(slog.LevelDebug),
 
 		cmdutil.WithSubCommand(
 			cmdutil.New(
