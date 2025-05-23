@@ -4,19 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/executil"
 )
 
 func call(ctx context.Context, command string, args ...string) error {
-	logrus.Debugf("$ %s %s", command, strings.Join(args, " "))
+	slog.Debug(fmt.Sprintf("$ %s %s", command, strings.Join(args, " ")))
 	c := exec.Command(command, args...)
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
@@ -112,7 +112,7 @@ func (r *Runner) collectInfo(ctx context.Context) error {
 
 	dumpJSON(info)
 	if len(info.Commit.DirtyFiles) > 0 {
-		logrus.Warn("The repository contains uncommitted files!")
+		slog.Warn("The repository contains uncommitted files!")
 	}
 
 	r.Info = info
@@ -155,7 +155,7 @@ func (r *Runner) runTestFormat(ctx context.Context) error {
 	a := []string{"-s", "-l"}
 	a = append(a, r.Info.Test.Files...)
 
-	logrus.Info("Testing file formatting (gofmt)")
+	slog.Info("Testing file formatting (gofmt)")
 	defer r.Inst.Durations.Testing.Stopwatch("fmt")()
 	return call(ctx, "gofmt", a...)
 }
@@ -166,7 +166,7 @@ func (r *Runner) runTestStaticcheck(ctx context.Context) error {
 		"-SA1019", // Using a deprecated function, variable, constant or field
 	}
 
-	logrus.Info("Testing staticcheck")
+	slog.Info("Testing staticcheck")
 	defer r.Inst.Durations.Testing.Stopwatch("staticcheck")()
 	return call(ctx, r.Parameters.GoCommand,
 		"run", "honnef.co/go/tools/cmd/staticcheck",
@@ -180,7 +180,7 @@ func (r *Runner) runTestVet(ctx context.Context) error {
 	a := []string{"vet"}
 	a = append(a, r.Info.Test.Packages...)
 
-	logrus.Info("Testing suspicious constructs (go vet)")
+	slog.Info("Testing suspicious constructs (go vet)")
 	defer r.Inst.Durations.Testing.Stopwatch("vet")()
 	return call(ctx, r.Parameters.GoCommand, a...)
 }
@@ -189,7 +189,7 @@ func (r *Runner) runTestPackages(ctx context.Context) error {
 	a := []string{"test"}
 	a = append(a, r.Info.Test.Packages...)
 
-	logrus.Info("Testing packages")
+	slog.Info("Testing packages")
 	defer r.Inst.Durations.Testing.Stopwatch("packages")()
 	return call(ctx, r.Parameters.GoCommand, a...)
 }
@@ -198,7 +198,7 @@ func (r *Runner) runBuild(ctx context.Context) error {
 	defer r.Inst.Durations.Steps.Stopwatch("build")()
 
 	for _, target := range r.Info.Targets {
-		logrus.Infof("Building %s for %s", target.Package, target.System.Name())
+		slog.Info(fmt.Sprintf("Building %s for %s", target.Package, target.System.Name()))
 
 		ldData := []struct {
 			name  string

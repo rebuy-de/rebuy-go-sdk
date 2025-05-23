@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"sync"
 	"time"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v9/cmd/buildutil/internal/typeutil"
-	"github.com/sirupsen/logrus"
 )
 
 type Instrumentation struct {
@@ -41,7 +42,7 @@ func NewInstrumentation() *Instrumentation {
 func (i *Instrumentation) ReadSize(name string) {
 	fi, err := os.Stat(path.Join("dist", name))
 	if err != nil {
-		logrus.WithError(err).Errorf("Failed to get size of %s", name)
+		slog.With("error", err).Error(fmt.Sprintf("Failed to get size of %s", name))
 		return
 	}
 

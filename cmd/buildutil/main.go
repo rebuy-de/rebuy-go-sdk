@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
+	"log/slog"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 func main() {
@@ -17,9 +18,9 @@ func main() {
 func NewRootCommand() *cobra.Command {
 	return cmdutil.New(
 		"buildutil", "Build tool for Go projects as part of the rebuy-go-sdk",
-		cmdutil.WithLogVerboseFlag(),
+		cmdutil.WithLoggingOptions(),
 		cmdutil.WithVersionCommand(),
-		cmdutil.WithVersionLog(logrus.DebugLevel),
+		cmdutil.WithVersionLog(slog.LevelDebug),
 
 		cmdutil.WithRunner(new(Runner)),
 	)
