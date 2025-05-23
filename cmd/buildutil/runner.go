@@ -16,7 +16,7 @@ import (
 )
 
 func call(ctx context.Context, command string, args ...string) error {
-	slog.Debug(fmt.Sprintf("$ %s %s", command, strings.Join(args, " ")))
+	slog.Debug("executing command", "command", command, "args", args)
 	c := exec.Command(command, args...)
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
@@ -198,7 +198,7 @@ func (r *Runner) runBuild(ctx context.Context) error {
 	defer r.Inst.Durations.Steps.Stopwatch("build")()
 
 	for _, target := range r.Info.Targets {
-		slog.Info(fmt.Sprintf("Building %s for %s", target.Package, target.System.Name()))
+		slog.Info("building target", "package", target.Package, "system", target.System.Name())
 
 		ldData := []struct {
 			name  string

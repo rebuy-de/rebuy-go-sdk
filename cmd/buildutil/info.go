@@ -297,7 +297,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	for _, target := range p.TargetSystems {
 		parts := strings.Split(target, "/")
 		if len(parts) != 2 {
-			slog.Error(fmt.Sprintf("Invalid format for cross compiling target '%s'.", target))
+			slog.Error("invalid format for cross compiling target", "target", target)
 			cmdutil.Exit(1)
 		}
 
@@ -334,7 +334,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 			if pkg.Name != "main" {
 				continue
 			}
-			slog.Debug(fmt.Sprintf("Found Package %s", pkg.PkgPath))
+			slog.Debug("found package", "path", pkg.PkgPath)
 
 			for _, targetSystem := range targetSystems {
 				tinfo := TargetInfo{
