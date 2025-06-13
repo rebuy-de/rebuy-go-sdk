@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"path"
 	"strings"
 
 	"github.com/gosimple/slug"
 	"github.com/mitchellh/mapstructure"
-	"github.com/sirupsen/logrus"
 )
 
 type contextKey string
@@ -23,7 +23,7 @@ const (
 // logger with a full tracing path.
 type meta struct {
 	path []trace
-	log  logrus.FieldLogger
+	log  *slog.Logger
 }
 
 func (m meta) subsystem() string {
@@ -42,11 +42,11 @@ type trace struct {
 }
 
 // Get extracts the current logger from the given context. It returns the
-// standard logger, if there is no logger in the context.
-func Get(ctx context.Context) logrus.FieldLogger {
+// default logger, if there is no logger in the context.
+func Get(ctx context.Context) *slog.Logger {
 	m, ok := ctx.Value(contextKeyMeta).(meta)
 	if !ok {
-		return logrus.StandardLogger()
+		return slog.Default()
 	}
 	return m.log
 }
@@ -69,22 +69,30 @@ func Start(ctx context.Context, subsystem string, opts ...ContextOption) context
 		m = meta{}
 	}
 
-	m.log = logrus.StandardLogger()
+	m.log = slog.Default()
 	m.path = append(m.path, trace{
 		id:        randomString(12),
 		subsystem: subsystem,
 	})
 
 	ids := []string{}
+	attrs := []slog.Attr{}
 
 	for _, t := range m.path {
 		name := fmt.Sprintf("trace-id-%s", slug.Make(t.subsystem))
-		m.log = m.log.WithField(name, t.id)
+		attrs = append(attrs, slog.String(name, t.id))
 		ids = append(ids, t.id)
 	}
 
-	m.log = m.log.WithField("subsystem", m.subsystem())
-	m.log = m.log.WithField("trace-id", strings.Join(ids, "-"))
+	attrs = append(attrs, slog.String("subsystem", m.subsystem()))
+	attrs = append(attrs, slog.String("trace-id", strings.Join(ids, "-")))
+	
+	// Convert []slog.Attr to []any for slog.With
+	withArgs := make([]any, len(attrs))
+	for i, attr := range attrs {
+		withArgs[i] = attr
+	}
+	m.log = m.log.With(withArgs...)
 
 	for _, opt := range opts {
 		m = opt(m)
@@ -116,7 +124,7 @@ type ContextOption func(meta) meta
 // Field is a ContextOption that sets a single field to the logger.
 func Field(key string, value any) ContextOption {
 	return func(m meta) meta {
-		m.log = m.log.WithField(key, value)
+		m.log = m.log.With(slog.Any(key, value))
 		return m
 	}
 }
@@ -128,20 +136,24 @@ func WithField(ctx context.Context, key string, value any) context.Context {
 }
 
 // Fields is a ContextOption that sets the given fields to the logger.
-func Fields(fields logrus.Fields) ContextOption {
+func Fields(fields map[string]any) ContextOption {
 	return func(m meta) meta {
-		m.log = m.log.WithFields(fields)
+		attrs := make([]any, 0, len(fields)*2)
+		for k, v := range fields {
+			attrs = append(attrs, k, v)
+		}
+		m.log = m.log.With(attrs...)
 		return m
 	}
 }
 
 // WithFields is a shortcut for using the Update function with a single Fields
 // option.
-func WithFields(ctx context.Context, fields logrus.Fields) context.Context {
+func WithFields(ctx context.Context, fields map[string]any) context.Context {
 	return Update(ctx, Fields(fields))
 }
 
-// FromStruct converts any struct into a valid logrus.Fields. It can be customized with the logfield annotation:
+// FromStruct converts any struct into a valid map[string]any for logging. It can be customized with the logfield annotation:
 //
 //	type Instance struct {
 //	    InstanceID   string `logfield:"instance-id"`
@@ -150,19 +162,19 @@ func WithFields(ctx context.Context, fields logrus.Fields) context.Context {
 //
 // See mapstructure docs for more information:
 // https://pkg.go.dev/github.com/mitchellh/mapstructure?tab=doc
-func FromStruct(s any) logrus.Fields {
-	fields := logrus.Fields{}
+func FromStruct(s any) map[string]any {
+	fields := map[string]any{}
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		TagName: "logfield",
 		Result:  &fields,
 	})
 	if err != nil {
-		return logrus.Fields{"logfield-error": err}
+		return map[string]any{"logfield-error": err}
 	}
 
 	err = dec.Decode(s)
 	if err != nil {
-		return logrus.Fields{"logfield-error": err}
+		return map[string]any{"logfield-error": err}
 	}
 
 	return fields

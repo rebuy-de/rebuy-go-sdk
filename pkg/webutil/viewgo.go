@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"html/template"
 	"io/fs"
+	"log/slog"
 	"net/http"
-
-	"github.com/sirupsen/logrus"
 )
 
 type GoTemplateViewer struct {
@@ -49,7 +48,7 @@ func (v *GoTemplateViewer) HTML(status int, filename string, data any) http.Hand
 			w.WriteHeader(http.StatusInternalServerError)
 
 			// We do not send the actual error to the client, since we don't know what we already sent.
-			logrus.Errorf("failed to render: %v", err.Error())
+			slog.Error("failed to render", "error", err)
 		}
 	}
 }

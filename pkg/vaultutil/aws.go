@@ -23,9 +23,7 @@ func (p *awsCredentialsProvider) Retrieve(ctx context.Context) (aws.Credentials,
 		return value, errors.WithStack(err)
 	}
 
-	logutil.Get(p.manager.ctx).
-		WithField("secret-data", prettyPrintSecret(secret)).
-		Debugf("created new AWS lease")
+	logutil.Get(p.manager.ctx).Debug("created new AWS lease", "secret-data", prettyPrintSecret(secret))
 
 	var (
 		duration   = time.Duration(secret.LeaseDuration) * time.Second
