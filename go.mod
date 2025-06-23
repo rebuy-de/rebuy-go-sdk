@@ -9,8 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.7
 	github.com/coreos/go-oidc/v3 v3.12.0
 	github.com/gemnasium/logrus-graylog-hook/v3 v3.2.1
-	github.com/go-chi/chi/v5 v5.2.1
-	github.com/google/uuid v1.6.0
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
 	github.com/gosimple/slug v1.15.0
@@ -87,6 +86,7 @@ require (
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
