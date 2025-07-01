@@ -3,6 +3,7 @@ description: Reads the documentation for rebuy-go-sdk into the LLM context.
 ---
 
 - The examples below might have a wrong import path that needs to be adjusted to the project go module.
+- Always use `./buildutil` for compiling the project.
 
 # File main.go
 
