@@ -2,8 +2,12 @@
 description: Reads the documentation for rebuy-go-sdk into the LLM context.
 ---
 
+# General Advice
+
 - The examples below might have a wrong import path that needs to be adjusted to the project go module.
 - Always use `./buildutil` for compiling the project.
+- Strings that are passed into dependency injections should have a dedicated type (`type FooParam string`) that gets
+  converted back into a plain `string` in the `New*` functions.
 
 # File main.go
 
@@ -335,11 +339,13 @@ import (
 
 type Viewer struct {
 	assetPathPrefix webutil.AssetPathPrefix
+    // All values that are needed by the templates and are provided by dig should go here.
 }
 
 type RequestAwareViewer struct {
 	*Viewer
 	request *http.Request
+    // Should only contain fields that change between requests. Everything else should be injected into the Viewer.
 }
 
 func New(
