@@ -114,11 +114,11 @@ type Server struct {
 type ServerParams struct {
 	dig.In
 
-	AssetFS            AssetFS
-	AssetPathPrefix    AssetPathPrefix
-	AssetCacheDuration AssetCacheDuration
-	Handlers           []Handler   `group:"handler"`
-	Middlewares        Middlewares `optional:"true"`
+	AssetFS            AssetFS            `optional:"true"`
+	AssetPathPrefix    AssetPathPrefix    `optional:"true"`
+	AssetCacheDuration AssetCacheDuration `optional:"true"`
+	Handlers           []Handler          `group:"handler"`
+	Middlewares        Middlewares        `optional:"true"`
 }
 
 // Handler is the interface that HTTP handlers need to implement to get picked up and served by the Server.
@@ -167,13 +167,15 @@ func (s *Server) Run(ctx context.Context) error {
 		h.Register(router)
 	}
 
-	assetPath := "/assets/" + string(s.AssetPathPrefix)
-	cacheControl := fmt.Sprintf("public, max-age=%d",
-		time.Duration(s.AssetCacheDuration).Truncate(time.Second)/time.Second)
-	router.Route(assetPath, func(router chi.Router) {
-		router.Use(middleware.SetHeader("Cache-Control", cacheControl))
-		router.Handle("/*", http.StripPrefix(assetPath, http.FileServer(http.FS(s.AssetFS))))
-	})
+	if s.AssetFS != nil {
+		assetPath := "/assets/" + string(s.AssetPathPrefix)
+		cacheControl := fmt.Sprintf("public, max-age=%d",
+			time.Duration(s.AssetCacheDuration).Truncate(time.Second)/time.Second)
+		router.Route(assetPath, func(router chi.Router) {
+			router.Use(middleware.SetHeader("Cache-Control", cacheControl))
+			router.Handle("/*", http.StripPrefix(assetPath, http.FileServer(http.FS(s.AssetFS))))
+		})
+	}
 
 	logutil.Get(ctx).Info("http server listening on port 8080")
 	return errors.WithStack(ListenAndServeWithContext(
