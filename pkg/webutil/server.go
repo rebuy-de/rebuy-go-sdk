@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	chitrace "github.com/DataDog/dd-trace-go/contrib/go-chi/chi.v5/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/pkg/errors"
@@ -16,7 +17,6 @@ import (
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/runutil"
 	"go.uber.org/dig"
 	"golang.org/x/sync/errgroup"
-	chitrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/go-chi/chi.v5"
 )
 
 // ListenAndServeWithContext does the same as http.ListenAndServe with the
