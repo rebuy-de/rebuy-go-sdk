@@ -3,9 +3,9 @@ package instutil
 import (
 	"net/http"
 
+	httptrace "github.com/DataDog/dd-trace-go/contrib/net/http/v2"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
-	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 func InitDefaultTracer() {
@@ -21,7 +21,7 @@ func InitDefaultTracer() {
 func InitHTTPTracing() {
 	// This is a global action, since we are using the default client.
 	_ = httptrace.WrapClient(http.DefaultClient,
-		httptrace.RTWithResourceNamer(func(r *http.Request) string {
+		httptrace.WithResourceNamer(func(r *http.Request) string {
 			return r.Host
 		}))
 }
