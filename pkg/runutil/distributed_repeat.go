@@ -1,11 +1,10 @@
-package runutil
+package coordinate
 
 import (
 	"context"
 	"fmt"
 	"math/rand"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
@@ -47,71 +46,51 @@ func (r *DistributedRepeat) Run(ctx context.Context) error {
 	}
 
 	for ctx.Err() == nil {
-		err := r.attemptExecution(ctx, hostname)
+		ok, err := r.client.SetNX(ctx, r.name, hostname, r.cooldown).Result()
 		if err != nil {
-			return err
+			return fmt.Errorf("setnx %#v for lock: %w", r.name, err)
 		}
-	}
 
-	return nil
-}
-
-func (r *DistributedRepeat) attemptExecution(ctx context.Context, hostname string) error {
-	ok, err := r.client.SetNX(ctx, r.name, hostname, r.cooldown).Result()
-	if err != nil {
-		return fmt.Errorf("setnx %#v for lock: %w", r.name, err)
-	}
-
-	if ok {
-		ticker := time.NewTicker(r.cooldown / 10)
-		done := make(chan struct{})
-		var wg sync.WaitGroup
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-done:
-					return
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					// Use a timeout context to prevent blocking indefinitely on cancelled parent context
-					expireCtx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-					err := r.client.Expire(expireCtx, r.name, r.cooldown).Err()
-					cancel()
-					if err != nil {
-						logutil.Get(ctx).Errorf("refreshing repeat lock: %s", err.Error())
+		if ok {
+			ticker := time.NewTicker(r.cooldown / 10)
+			done := make(chan struct{})
+			go func() {
+				for {
+					select {
+					case <-done:
+						return
+					case <-ctx.Done():
+						return
+					case <-ticker.C:
+						err := r.client.Expire(ctx, r.name, r.cooldown).Err()
+						if err != nil {
+							logutil.Get(ctx).Errorf("refreshing repeat lock: %s", err.Error())
+						}
 					}
 				}
+			}()
+
+			err := r.runOnce(ctx)
+			close(done)
+			if err != nil {
+				return err
 			}
-		}()
-
-		err := r.runOnce(ctx)
-		close(done)
-		wg.Wait()
-
-		if err != nil {
-			return err
 		}
-	}
 
-	wait, err := r.client.TTL(ctx, r.name).Result()
-	if err != nil {
-		return fmt.Errorf("get ttl %#v for lock: %w", r.name, err)
-	}
+		wait, err := r.client.TTL(ctx, r.name).Result()
+		if err != nil {
+			return fmt.Errorf("get ttl %#v for lock: %w", r.name, err)
+		}
 
-	// add jitter of 0% - 5% of total wait time
-	jitter := time.Duration(float64(r.cooldown) / 20. * rand.Float64())
+		// add jitter of 0% - 5% of total wait time
+		jitter := time.Duration(float64(r.cooldown) / 20. * rand.Float64())
 
-	logutil.Get(ctx).Debugf("distributed sleep is sleeping for %v + %v = %v", wait, jitter, wait+jitter)
+		logutil.Get(ctx).Debugf("distributed sleep is sleeping for %v + %v = %v", wait, jitter, wait+jitter)
 
-	select {
-	case <-time.After(wait + jitter):
-	case <-ctx.Done():
+		select {
+		case <-time.After(wait + jitter):
+		case <-ctx.Done():
+		}
 	}
 
 	return nil
