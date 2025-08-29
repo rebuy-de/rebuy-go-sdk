@@ -11,7 +11,6 @@ import (
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/runutil"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -19,7 +18,7 @@ type DistributedRepeat struct {
 	client   redis.UniversalClient
 	name     string
 	cooldown time.Duration
-	job      runutil.Job
+	job      Job
 }
 
 // NewDistributedRepeat creates a [runutil.Worker] from a [runutil.Job] similar to [runutil.Repeat]. The difference is
@@ -31,7 +30,7 @@ type DistributedRepeat struct {
 // The lock gets refreshed every tenth of the cooldown to prevent issues when the job takes longer than the cooldown.
 //
 // [1]: https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html
-func NewDistributedRepeat(client redis.UniversalClient, name string, cooldown time.Duration, job runutil.Job) runutil.Worker {
+func NewDistributedRepeat(client redis.UniversalClient, name string, cooldown time.Duration, job Job) Worker {
 	return &DistributedRepeat{
 		client:   client,
 		name:     name,
