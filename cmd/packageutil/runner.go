@@ -125,13 +125,11 @@ func (r *Runner) Run(ctx context.Context, args []string) error {
 }
 
 func parseBinaryName(filename string) (*BinaryInfo, error) {
+	ext := ""
 	name := filename
-	var ext string
-
-	// Handle extension
 	if strings.HasSuffix(name, ".exe") {
 		ext = ".exe"
-		name = strings.TrimSuffix(name, ".exe")
+		name = name[:len(name)-4]
 	}
 
 	parts := strings.Split(name, "-")
@@ -139,7 +137,6 @@ func parseBinaryName(filename string) (*BinaryInfo, error) {
 		return nil, fmt.Errorf("insufficient parts in filename (expected at least 4, got %d)", len(parts))
 	}
 
-	// Parse from the end: last two parts are arch and os
 	arch := parts[len(parts)-1]
 	os := parts[len(parts)-2]
 
@@ -147,14 +144,9 @@ func parseBinaryName(filename string) (*BinaryInfo, error) {
 		return nil, fmt.Errorf("unrecognized OS: %s", os)
 	}
 
-	// Binary name is first part, version is everything between name and os-arch
-	binaryName := parts[0]
-	versionParts := parts[1 : len(parts)-2]
-	version := strings.Join(versionParts, "-")
-
 	return &BinaryInfo{
-		Name:    binaryName,
-		Version: version,
+		Name:    parts[0],
+		Version: strings.Join(parts[1:len(parts)-2], "-"),
 		System: SystemInfo{
 			OS:   os,
 			Arch: arch,
@@ -173,11 +165,6 @@ func isValidOS(os string) bool {
 		"netbsd":  true,
 	}
 	return validOSes[os]
-}
-
-func (r *Runner) dist(parts ...string) string {
-	allParts := append([]string{"dist"}, parts...)
-	return path.Join(allParts...)
 }
 
 func isValidBinaryFile(file string) (bool, string) {
@@ -259,24 +246,23 @@ func (r *Runner) discoverBinaries(ctx context.Context, targetFiles []string) err
 	return r.validatePackageCompatibility()
 }
 
-func (r *Runner) validatePackageCompatibility() error {
-	systemCounts := make(map[string]int)
+func (r *Runner) hasLinuxBinary() bool {
 	for _, binary := range r.Binaries {
-		systemCounts[binary.System.OS]++
-	}
-
-	var errors []string
-
-	if r.Parameters.CreateRPM {
-		linuxCount := systemCounts["linux"]
-		if linuxCount == 0 {
-			errors = append(errors, "RPM packages can only be created from Linux binaries, but no Linux binaries were provided")
+		if binary.System.OS == "linux" {
+			return true
 		}
 	}
+	return false
+}
 
-	if r.Parameters.CreateDEB {
-		linuxCount := systemCounts["linux"]
-		if linuxCount == 0 {
+func (r *Runner) validatePackageCompatibility() error {
+	var errors []string
+
+	if (r.Parameters.CreateRPM || r.Parameters.CreateDEB) && !r.hasLinuxBinary() {
+		if r.Parameters.CreateRPM {
+			errors = append(errors, "RPM packages can only be created from Linux binaries, but no Linux binaries were provided")
+		}
+		if r.Parameters.CreateDEB {
 			errors = append(errors, "DEB packages can only be created from Linux binaries, but no Linux binaries were provided")
 		}
 	}
@@ -311,31 +297,29 @@ func (r *Runner) createArtifacts(ctx context.Context) error {
 		name := binaries[0].Name
 
 		if r.Parameters.CreateCompressed {
+			var format, ext string
 			if system.OS == "windows" {
-				artifact, err := r.createZipArtifact(name, system, binaries)
-				if err != nil {
-					return err
-				}
-				r.Artifacts = append(r.Artifacts, artifact)
+				format, ext = "zip", "zip"
 			} else {
-				artifact, err := r.createTgzArtifact(name, system, binaries)
-				if err != nil {
-					return err
-				}
-				r.Artifacts = append(r.Artifacts, artifact)
+				format, ext = "tgz", "tar.gz"
 			}
+			artifact, err := r.createArchiveArtifact(format, ext, name, system, binaries)
+			if err != nil {
+				return err
+			}
+			r.Artifacts = append(r.Artifacts, artifact)
 		}
 
 		if system.OS == "linux" {
 			if r.Parameters.CreateRPM {
-				artifact, err := r.createRPMArtifact(name, system, binaries)
+				artifact, err := r.createSystemPackage("rpm", name, system, binaries)
 				if err != nil {
 					return err
 				}
 				r.Artifacts = append(r.Artifacts, artifact)
 			}
 			if r.Parameters.CreateDEB {
-				artifact, err := r.createDEBArtifact(name, system, binaries)
+				artifact, err := r.createSystemPackage("deb", name, system, binaries)
 				if err != nil {
 					return err
 				}
@@ -362,16 +346,23 @@ func processArchiveFile(binary BinaryInfo, addToArchive func(binary BinaryInfo, 
 	return addToArchive(binary, f, fi)
 }
 
-func (r *Runner) createTgzArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	filename := fmt.Sprintf("%s-%s-%s.tar.gz", name, binaries[0].Version, system.FileSuffix())
-	logrus.Infof("Creating tgz artifact: %s", filename)
+func (r *Runner) createArchiveArtifact(format, ext, name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
+	filename := fmt.Sprintf("%s-%s-%s.%s", name, binaries[0].Version, system.FileSuffix(), ext)
+	logrus.Infof("Creating %s artifact: %s", format, filename)
 
-	dst, err := os.Create(r.dist(filename))
+	dst, err := os.Create(filepath.Join("dist", filename))
 	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to create tgz file: %w", err)
+		return ArtifactInfo{}, fmt.Errorf("failed to create %s file: %w", format, err)
 	}
 	defer dst.Close()
 
+	if format == "tgz" {
+		return r.createTarGzArchive(dst, format, filename, system, binaries)
+	}
+	return r.createZipArchive(dst, format, filename, system, binaries)
+}
+
+func (r *Runner) createTarGzArchive(dst *os.File, format, filename string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
 	zw := gzip.NewWriter(dst)
 	defer zw.Close()
 
@@ -399,22 +390,13 @@ func (r *Runner) createTgzArtifact(name string, system SystemInfo, binaries []Bi
 	}
 
 	return ArtifactInfo{
-		Kind:     "tgz",
+		Kind:     format,
 		Filename: filename,
 		System:   system,
 	}, nil
 }
 
-func (r *Runner) createZipArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	filename := fmt.Sprintf("%s-%s-%s.zip", name, binaries[0].Version, system.FileSuffix())
-	logrus.Infof("Creating zip artifact: %s", filename)
-
-	dst, err := os.Create(r.dist(filename))
-	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to create zip file: %w", err)
-	}
-	defer dst.Close()
-
+func (r *Runner) createZipArchive(dst *os.File, format, filename string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
 	zw := zip.NewWriter(dst)
 	defer zw.Close()
 
@@ -442,7 +424,7 @@ func (r *Runner) createZipArtifact(name string, system SystemInfo, binaries []Bi
 	}
 
 	return ArtifactInfo{
-		Kind:     "zip",
+		Kind:     format,
 		Filename: filename,
 		System:   system,
 	}, nil
@@ -485,7 +467,7 @@ func (r *Runner) createSystemPackage(format, name string, system SystemInfo, bin
 		return ArtifactInfo{}, fmt.Errorf("failed to get %s packager: %w", format, err)
 	}
 
-	w, err := os.Create(r.dist(filename))
+	w, err := os.Create(filepath.Join("dist", filename))
 	if err != nil {
 		return ArtifactInfo{}, fmt.Errorf("failed to create %s file: %w", format, err)
 	}
@@ -501,14 +483,6 @@ func (r *Runner) createSystemPackage(format, name string, system SystemInfo, bin
 		Filename: filename,
 		System:   system,
 	}, nil
-}
-
-func (r *Runner) createRPMArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	return r.createSystemPackage("rpm", name, system, binaries)
-}
-
-func (r *Runner) createDEBArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	return r.createSystemPackage("deb", name, system, binaries)
 }
 
 func (r *Runner) uploadArtifacts(ctx context.Context) error {
@@ -537,31 +511,36 @@ func (r *Runner) uploadArtifacts(ctx context.Context) error {
 	uploader := manager.NewUploader(s3.NewFromConfig(cfg))
 
 	for _, artifact := range r.Artifacts {
-		s3Location := base.Subpath(artifact.Filename)
-
-		logrus.Infof("Uploading %s", s3Location.String())
-
-		f, err := os.Open(r.dist(artifact.Filename))
-		if err != nil {
-			return fmt.Errorf("failed to open artifact %s: %w", artifact.Filename, err)
+		if err := r.uploadSingleArtifact(ctx, uploader, base, artifact); err != nil {
+			return err
 		}
+	}
 
-		tags := url.Values{}
-		tags.Set("System", artifact.System.Name())
-		tags.Set("Kind", artifact.Kind)
+	return nil
+}
 
-		_, err = uploader.Upload(ctx, &s3.PutObjectInput{
-			Bucket:  &s3Location.Bucket,
-			Key:     &s3Location.Key,
-			Tagging: aws.String(tags.Encode()),
-			Body:    f,
-		})
-		if err != nil {
-			f.Close()
-			return fmt.Errorf("failed to upload %s: %w", artifact.Filename, err)
-		}
+func (r *Runner) uploadSingleArtifact(ctx context.Context, uploader *manager.Uploader, base *S3URL, artifact ArtifactInfo) error {
+	s3Location := base.Subpath(artifact.Filename)
+	logrus.Infof("Uploading %s", s3Location.String())
 
-		f.Close()
+	f, err := os.Open(filepath.Join("dist", artifact.Filename))
+	if err != nil {
+		return fmt.Errorf("failed to open artifact %s: %w", artifact.Filename, err)
+	}
+	defer f.Close()
+
+	tags := url.Values{}
+	tags.Set("System", artifact.System.Name())
+	tags.Set("Kind", artifact.Kind)
+
+	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
+		Bucket:  &s3Location.Bucket,
+		Key:     &s3Location.Key,
+		Tagging: aws.String(tags.Encode()),
+		Body:    f,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload %s: %w", artifact.Filename, err)
 	}
 
 	return nil
