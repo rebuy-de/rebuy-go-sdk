@@ -147,6 +147,32 @@ func TestParseBinaryName(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "application with dashes and no version",
+			filename: "keydb-inspector-linux-amd64",
+			want: &BinaryInfo{
+				Name:    "keydb-inspector",
+				Version: "",
+				System: SystemInfo{
+					OS:   "linux",
+					Arch: "amd64",
+					Ext:  "",
+				},
+			},
+		},
+		{
+			name:     "application with dashes and complex version",
+			filename: "keydb-inspector-v1.0.1+dirty.57.5b2c4cf-linux-amd64",
+			want: &BinaryInfo{
+				Name:    "keydb-inspector",
+				Version: "v1.0.1+dirty.57.5b2c4cf",
+				System: SystemInfo{
+					OS:   "linux",
+					Arch: "amd64",
+					Ext:  "",
+				},
+			},
+		},
 		// Error cases
 		{
 			name:     "insufficient parts",

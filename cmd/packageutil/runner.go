@@ -144,9 +144,27 @@ func parseBinaryName(filename string) (*BinaryInfo, error) {
 		return nil, fmt.Errorf("unrecognized OS: %s", os)
 	}
 
+	var appName, version string
+	
+	versionIndex := -1
+	for i := 1; i < len(parts)-2; i++ {
+		if strings.HasPrefix(parts[i], "v") {
+			versionIndex = i
+			break
+		}
+	}
+	
+	if versionIndex != -1 {
+		appName = strings.Join(parts[:versionIndex], "-")
+		version = strings.Join(parts[versionIndex:len(parts)-2], "-")
+	} else {
+		appName = strings.Join(parts[:len(parts)-2], "-")
+		version = ""
+	}
+
 	return &BinaryInfo{
-		Name:    parts[0],
-		Version: strings.Join(parts[1:len(parts)-2], "-"),
+		Name:    appName,
+		Version: version,
 		System: SystemInfo{
 			OS:   os,
 			Arch: arch,
