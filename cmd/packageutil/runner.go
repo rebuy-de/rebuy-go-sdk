@@ -297,13 +297,13 @@ func (r *Runner) createArtifacts(ctx context.Context) error {
 		name := binaries[0].Name
 
 		if r.Parameters.CreateCompressed {
-			var format, ext string
+			var artifact ArtifactInfo
+			var err error
 			if system.OS == "windows" {
-				format, ext = "zip", "zip"
+				artifact, err = r.createZipArtifact(name, system, binaries)
 			} else {
-				format, ext = "tgz", "tar.gz"
+				artifact, err = r.createTgzArtifact(name, system, binaries)
 			}
-			artifact, err := r.createArchiveArtifact(format, ext, name, system, binaries)
 			if err != nil {
 				return err
 			}
@@ -346,23 +346,16 @@ func processArchiveFile(binary BinaryInfo, addToArchive func(binary BinaryInfo, 
 	return addToArchive(binary, f, fi)
 }
 
-func (r *Runner) createArchiveArtifact(format, ext, name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	filename := fmt.Sprintf("%s-%s-%s.%s", name, binaries[0].Version, system.FileSuffix(), ext)
-	logrus.Infof("Creating %s artifact: %s", format, filename)
+func (r *Runner) createTgzArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
+	filename := fmt.Sprintf("%s-%s.tar.gz", name, system.FileSuffix())
+	logrus.Infof("Creating tgz artifact: %s", filename)
 
 	dst, err := os.Create(filepath.Join("dist", filename))
 	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to create %s file: %w", format, err)
+		return ArtifactInfo{}, fmt.Errorf("failed to create tgz file: %w", err)
 	}
 	defer dst.Close()
 
-	if format == "tgz" {
-		return r.createTarGzArchive(dst, format, filename, system, binaries)
-	}
-	return r.createZipArchive(dst, format, filename, system, binaries)
-}
-
-func (r *Runner) createTarGzArchive(dst *os.File, format, filename string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
 	zw := gzip.NewWriter(dst)
 	defer zw.Close()
 
@@ -390,13 +383,21 @@ func (r *Runner) createTarGzArchive(dst *os.File, format, filename string, syste
 	}
 
 	return ArtifactInfo{
-		Kind:     format,
+		Kind:     "tgz",
 		Filename: filename,
 		System:   system,
 	}, nil
 }
 
-func (r *Runner) createZipArchive(dst *os.File, format, filename string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
+func (r *Runner) createZipArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
+	filename := fmt.Sprintf("%s-%s.zip", name, system.FileSuffix())
+	logrus.Infof("Creating zip artifact: %s", filename)
+
+	dst, err := os.Create(filepath.Join("dist", filename))
+	if err != nil {
+		return ArtifactInfo{}, fmt.Errorf("failed to create zip file: %w", err)
+	}
+	defer dst.Close()
 	zw := zip.NewWriter(dst)
 	defer zw.Close()
 
@@ -424,14 +425,14 @@ func (r *Runner) createZipArchive(dst *os.File, format, filename string, system 
 	}
 
 	return ArtifactInfo{
-		Kind:     format,
+		Kind:     "zip",
 		Filename: filename,
 		System:   system,
 	}, nil
 }
 
 func (r *Runner) createSystemPackage(format, name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	filename := fmt.Sprintf("%s-%s-%s.%s", name, binaries[0].Version, system.FileSuffix(), format)
+	filename := fmt.Sprintf("%s-%s.%s", name, system.FileSuffix(), format)
 	logrus.Infof("Creating %s artifact: %s", format, filename)
 
 	bindir := "/usr/bin"
