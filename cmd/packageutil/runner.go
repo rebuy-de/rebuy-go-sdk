@@ -26,9 +26,7 @@ import (
 )
 
 type PackageParameters struct {
-	TargetSystems  []string
-	TargetPackages []string
-	S3URL          string
+	S3URL string
 
 	CreateCompressed bool
 	CreateRPM        bool
@@ -58,11 +56,9 @@ type BinaryInfo struct {
 }
 
 type ArtifactInfo struct {
-	Kind       string
-	Filename   string
-	S3Location *S3URL
-	Aliases    []string
-	System     SystemInfo
+	Kind     string
+	Filename string
+	System   SystemInfo
 }
 
 type S3URL struct {
@@ -87,8 +83,7 @@ func ParseS3URL(raw string) (*S3URL, error) {
 }
 
 func (u S3URL) Subpath(p ...string) S3URL {
-	p = append([]string{u.Key}, p...)
-	u.Key = path.Join(p...)
+	u.Key = path.Join(append([]string{u.Key}, p...)...)
 	return u
 }
 
@@ -103,12 +98,6 @@ type Runner struct {
 }
 
 func (r *Runner) Bind(cmd *cobra.Command) error {
-	cmd.PersistentFlags().StringSliceVarP(
-		&r.Parameters.TargetSystems, "cross-compile", "x", []string{},
-		"Targets for cross compilation (eg linux/amd64). Can be used multiple times.")
-	cmd.PersistentFlags().StringSliceVarP(
-		&r.Parameters.TargetPackages, "package", "p", []string{},
-		"Packages to search for binaries. Can be used multiple times.")
 	cmd.PersistentFlags().StringVar(
 		&r.Parameters.S3URL, "s3-url", "",
 		"S3 base URL for uploads (e.g., s3://bucket/path/).")
@@ -126,21 +115,13 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 }
 
 func (r *Runner) Run(ctx context.Context, args []string) error {
-	return runSeq(ctx,
-		r.discoverBinaries,
-		r.createArtifacts,
-		r.uploadArtifacts,
-	)
-}
-
-func runSeq(ctx context.Context, fns ...func(ctx context.Context) error) error {
-	for _, fn := range fns {
-		err := fn(ctx)
-		if err != nil {
-			return err
-		}
+	if err := r.discoverBinaries(ctx); err != nil {
+		return err
 	}
-	return nil
+	if err := r.createArtifacts(ctx); err != nil {
+		return err
+	}
+	return r.uploadArtifacts(ctx)
 }
 
 func parseBinaryName(filename string) (*BinaryInfo, error) {
@@ -199,6 +180,27 @@ func (r *Runner) dist(parts ...string) string {
 	return path.Join(allParts...)
 }
 
+func isValidBinaryFile(file string) (bool, string) {
+	info, err := os.Lstat(file)
+	if err != nil {
+		return false, "lstat failed"
+	}
+
+	if info.IsDir() {
+		return false, "is directory"
+	}
+
+	if info.Mode()&os.ModeSymlink != 0 {
+		return false, "is symlink"
+	}
+
+	if info.Mode()&0111 == 0 {
+		return false, "not executable"
+	}
+
+	return true, ""
+}
+
 func (r *Runner) discoverBinaries(ctx context.Context) error {
 	logrus.Info("Discovering binaries")
 
@@ -213,37 +215,16 @@ func (r *Runner) discoverBinaries(ctx context.Context) error {
 	}
 
 	seen := make(map[string]bool)
-
 	logrus.Debugf("Found %d files in dist directory", len(files))
 
 	for _, file := range files {
 		basename := filepath.Base(file)
-		logrus.Debugf("Processing file: %s", basename)
 
-		// Use Lstat to check the file itself, not what it points to
-		info, err := os.Lstat(file)
-		if err != nil {
-			logrus.Debugf("Skipping %s: lstat failed: %v", basename, err)
+		if valid, reason := isValidBinaryFile(file); !valid {
+			logrus.Debugf("Skipping %s: %s", basename, reason)
 			continue
 		}
 
-		if info.IsDir() {
-			logrus.Debugf("Skipping %s: is directory", basename)
-			continue
-		}
-
-		// Skip symlinks - we want actual binaries
-		if info.Mode()&os.ModeSymlink != 0 {
-			logrus.Debugf("Skipping %s: is symlink", basename)
-			continue
-		}
-
-		if info.Mode()&0111 == 0 {
-			logrus.Debugf("Skipping %s: not executable", basename)
-			continue
-		}
-
-		// Parse binary information from filename
 		binary, err := parseBinaryName(basename)
 		if err != nil {
 			logrus.Debugf("Skipping %s: %v", basename, err)
@@ -253,10 +234,8 @@ func (r *Runner) discoverBinaries(ctx context.Context) error {
 		binary.Path = file
 		binary.Basename = basename
 
-		// Only include if we have valid system info and haven't seen this combination
-		key := fmt.Sprintf("%s-%s-%s", binary.Name, binary.System.OS, binary.System.Arch)
-		logrus.Debugf("Final check for %s: OS='%s', Arch='%s', seen=%v", basename, binary.System.OS, binary.System.Arch, seen[key])
-		if binary.System.OS != "" && binary.System.Arch != "" && !seen[key] {
+		key := fmt.Sprintf("%s-%s", binary.System.OS, binary.System.Arch)
+		if !seen[key] {
 			seen[key] = true
 			r.Binaries = append(r.Binaries, *binary)
 			logrus.Debugf("Found binary: %s (%s)", binary.Basename, binary.System.Name())
@@ -329,6 +308,21 @@ func (r *Runner) createArtifacts(ctx context.Context) error {
 	return nil
 }
 
+func processArchiveFile(binary BinaryInfo, addToArchive func(binary BinaryInfo, f *os.File, fi os.FileInfo) error) error {
+	f, err := os.Open(binary.Path)
+	if err != nil {
+		return fmt.Errorf("failed to open binary %s: %w", binary.Path, err)
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat binary %s: %w", binary.Path, err)
+	}
+
+	return addToArchive(binary, f, fi)
+}
+
 func (r *Runner) createTgzArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
 	filename := fmt.Sprintf("%s-%s.tar.gz", name, system.FileSuffix())
 	logrus.Infof("Creating tgz artifact: %s", filename)
@@ -346,32 +340,22 @@ func (r *Runner) createTgzArtifact(name string, system SystemInfo, binaries []Bi
 	defer tw.Close()
 
 	for _, binary := range binaries {
-		f, err := os.Open(binary.Path)
+		err := processArchiveFile(binary, func(binary BinaryInfo, f *os.File, fi os.FileInfo) error {
+			hdr := &tar.Header{
+				Name: binary.Name,
+				Mode: 0755,
+				Size: fi.Size(),
+			}
+			if err := tw.WriteHeader(hdr); err != nil {
+				return fmt.Errorf("failed to write tar header for %s: %w", binary.Name, err)
+			}
+			if _, err := io.Copy(tw, f); err != nil {
+				return fmt.Errorf("failed to copy binary %s to tar: %w", binary.Name, err)
+			}
+			return nil
+		})
 		if err != nil {
-			return ArtifactInfo{}, fmt.Errorf("failed to open binary %s: %w", binary.Path, err)
-		}
-
-		fi, err := f.Stat()
-		if err != nil {
-			f.Close()
-			return ArtifactInfo{}, fmt.Errorf("failed to stat binary %s: %w", binary.Path, err)
-		}
-
-		hdr := &tar.Header{
-			Name: binary.Name,
-			Mode: 0755,
-			Size: fi.Size(),
-		}
-		err = tw.WriteHeader(hdr)
-		if err != nil {
-			f.Close()
-			return ArtifactInfo{}, fmt.Errorf("failed to write tar header for %s: %w", binary.Name, err)
-		}
-
-		_, err = io.Copy(tw, f)
-		f.Close()
-		if err != nil {
-			return ArtifactInfo{}, fmt.Errorf("failed to copy binary %s to tar: %w", binary.Name, err)
+			return ArtifactInfo{}, err
 		}
 	}
 
@@ -396,36 +380,25 @@ func (r *Runner) createZipArtifact(name string, system SystemInfo, binaries []Bi
 	defer zw.Close()
 
 	for _, binary := range binaries {
-		f, err := os.Open(binary.Path)
-		if err != nil {
-			return ArtifactInfo{}, fmt.Errorf("failed to open binary %s: %w", binary.Path, err)
-		}
+		err := processArchiveFile(binary, func(binary BinaryInfo, f *os.File, fi os.FileInfo) error {
+			header, err := zip.FileInfoHeader(fi)
+			if err != nil {
+				return fmt.Errorf("failed to create zip header for %s: %w", binary.Name, err)
+			}
+			header.Name = binary.Name + system.Ext
+			header.Method = zip.Deflate
 
-		fi, err := f.Stat()
+			writer, err := zw.CreateHeader(header)
+			if err != nil {
+				return fmt.Errorf("failed to create zip entry for %s: %w", binary.Name, err)
+			}
+			if _, err := io.Copy(writer, f); err != nil {
+				return fmt.Errorf("failed to copy binary %s to zip: %w", binary.Name, err)
+			}
+			return nil
+		})
 		if err != nil {
-			f.Close()
-			return ArtifactInfo{}, fmt.Errorf("failed to stat binary %s: %w", binary.Path, err)
-		}
-
-		header, err := zip.FileInfoHeader(fi)
-		if err != nil {
-			f.Close()
-			return ArtifactInfo{}, fmt.Errorf("failed to create zip header for %s: %w", binary.Name, err)
-		}
-
-		header.Name = binary.Name + system.Ext
-		header.Method = zip.Deflate
-
-		writer, err := zw.CreateHeader(header)
-		if err != nil {
-			f.Close()
-			return ArtifactInfo{}, fmt.Errorf("failed to create zip entry for %s: %w", binary.Name, err)
-		}
-
-		_, err = io.Copy(writer, f)
-		f.Close()
-		if err != nil {
-			return ArtifactInfo{}, fmt.Errorf("failed to copy binary %s to zip: %w", binary.Name, err)
+			return ArtifactInfo{}, err
 		}
 	}
 
@@ -436,9 +409,9 @@ func (r *Runner) createZipArtifact(name string, system SystemInfo, binaries []Bi
 	}, nil
 }
 
-func (r *Runner) createRPMArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	filename := fmt.Sprintf("%s-%s.rpm", name, system.FileSuffix())
-	logrus.Infof("Creating rpm artifact: %s", filename)
+func (r *Runner) createSystemPackage(format, name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
+	filename := fmt.Sprintf("%s-%s.%s", name, system.FileSuffix(), format)
+	logrus.Infof("Creating %s artifact: %s", format, filename)
 
 	bindir := "/usr/bin"
 	contents := files.Contents{}
@@ -468,82 +441,35 @@ func (r *Runner) createRPMArtifact(name string, system SystemInfo, binaries []Bi
 		return ArtifactInfo{}, fmt.Errorf("failed to validate nfpm info: %w", err)
 	}
 
-	packager, err := nfpm.Get("rpm")
+	packager, err := nfpm.Get(format)
 	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to get rpm packager: %w", err)
+		return ArtifactInfo{}, fmt.Errorf("failed to get %s packager: %w", format, err)
 	}
 
 	w, err := os.Create(r.dist(filename))
 	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to create rpm file: %w", err)
+		return ArtifactInfo{}, fmt.Errorf("failed to create %s file: %w", format, err)
 	}
 	defer w.Close()
 
 	err = packager.Package(nfpm.WithDefaults(info), w)
 	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to package rpm: %w", err)
+		return ArtifactInfo{}, fmt.Errorf("failed to package %s: %w", format, err)
 	}
 
 	return ArtifactInfo{
-		Kind:     "rpm",
+		Kind:     format,
 		Filename: filename,
 		System:   system,
 	}, nil
 }
 
+func (r *Runner) createRPMArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
+	return r.createSystemPackage("rpm", name, system, binaries)
+}
+
 func (r *Runner) createDEBArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	filename := fmt.Sprintf("%s-%s.deb", name, system.FileSuffix())
-	logrus.Infof("Creating deb artifact: %s", filename)
-
-	bindir := "/usr/bin"
-	contents := files.Contents{}
-
-	for _, binary := range binaries {
-		content := files.Content{
-			Source:      binary.Path,
-			Destination: path.Join(bindir, binary.Name),
-		}
-		contents = append(contents, &content)
-	}
-
-	info := &nfpm.Info{
-		Name:       name,
-		Arch:       system.Arch,
-		Platform:   system.OS,
-		Version:    binaries[0].Version,
-		Release:    "1",
-		Maintainer: "rebuy Platform Team <dl-scb-tech-platform@rebuy.com>",
-		Overridables: nfpm.Overridables{
-			Contents: contents,
-		},
-	}
-
-	err := nfpm.Validate(info)
-	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to validate nfpm info: %w", err)
-	}
-
-	packager, err := nfpm.Get("deb")
-	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to get deb packager: %w", err)
-	}
-
-	w, err := os.Create(r.dist(filename))
-	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to create deb file: %w", err)
-	}
-	defer w.Close()
-
-	err = packager.Package(nfpm.WithDefaults(info), w)
-	if err != nil {
-		return ArtifactInfo{}, fmt.Errorf("failed to package deb: %w", err)
-	}
-
-	return ArtifactInfo{
-		Kind:     "deb",
-		Filename: filename,
-		System:   system,
-	}, nil
+	return r.createSystemPackage("deb", name, system, binaries)
 }
 
 func (r *Runner) uploadArtifacts(ctx context.Context) error {
