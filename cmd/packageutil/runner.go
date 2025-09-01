@@ -363,7 +363,7 @@ func processArchiveFile(binary BinaryInfo, addToArchive func(binary BinaryInfo, 
 }
 
 func (r *Runner) createTgzArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	filename := fmt.Sprintf("%s-%s.tar.gz", name, system.FileSuffix())
+	filename := fmt.Sprintf("%s-%s-%s.tar.gz", name, binaries[0].Version, system.FileSuffix())
 	logrus.Infof("Creating tgz artifact: %s", filename)
 
 	dst, err := os.Create(r.dist(filename))
@@ -406,7 +406,7 @@ func (r *Runner) createTgzArtifact(name string, system SystemInfo, binaries []Bi
 }
 
 func (r *Runner) createZipArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	filename := fmt.Sprintf("%s-%s.zip", name, system.FileSuffix())
+	filename := fmt.Sprintf("%s-%s-%s.zip", name, binaries[0].Version, system.FileSuffix())
 	logrus.Infof("Creating zip artifact: %s", filename)
 
 	dst, err := os.Create(r.dist(filename))
@@ -449,7 +449,7 @@ func (r *Runner) createZipArtifact(name string, system SystemInfo, binaries []Bi
 }
 
 func (r *Runner) createSystemPackage(format, name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
-	filename := fmt.Sprintf("%s-%s.%s", name, system.FileSuffix(), format)
+	filename := fmt.Sprintf("%s-%s-%s.%s", name, binaries[0].Version, system.FileSuffix(), format)
 	logrus.Infof("Creating %s artifact: %s", format, filename)
 
 	bindir := "/usr/bin"
