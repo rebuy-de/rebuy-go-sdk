@@ -115,7 +115,7 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 }
 
 func (r *Runner) Run(ctx context.Context, args []string) error {
-	if err := r.discoverBinaries(ctx); err != nil {
+	if err := r.discoverBinaries(ctx, args); err != nil {
 		return err
 	}
 	if err := r.createArtifacts(ctx); err != nil {
@@ -201,49 +201,88 @@ func isValidBinaryFile(file string) (bool, string) {
 	return true, ""
 }
 
-func (r *Runner) discoverBinaries(ctx context.Context) error {
-	logrus.Info("Discovering binaries")
-
-	distDir := "dist"
-	if _, err := os.Stat(distDir); os.IsNotExist(err) {
-		return fmt.Errorf("dist directory not found - run buildutil first")
-	}
-
-	files, err := filepath.Glob(filepath.Join(distDir, "*"))
+func (r *Runner) resolveSymlink(file string) (string, error) {
+	info, err := os.Lstat(file)
 	if err != nil {
-		return fmt.Errorf("failed to list dist directory: %w", err)
+		return "", fmt.Errorf("failed to lstat file: %w", err)
 	}
 
-	seen := make(map[string]bool)
-	logrus.Debugf("Found %d files in dist directory", len(files))
+	if info.Mode()&os.ModeSymlink == 0 {
+		return file, nil
+	}
 
-	for _, file := range files {
-		basename := filepath.Base(file)
+	resolved, err := filepath.EvalSymlinks(file)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve symlink: %w", err)
+	}
 
-		if valid, reason := isValidBinaryFile(file); !valid {
-			logrus.Debugf("Skipping %s: %s", basename, reason)
-			continue
-		}
+	logrus.Debugf("Resolved symlink %s -> %s", file, resolved)
+	return resolved, nil
+}
 
-		binary, err := parseBinaryName(basename)
+func (r *Runner) discoverBinaries(ctx context.Context, targetFiles []string) error {
+	logrus.Info("Processing target binaries")
+
+	if len(targetFiles) == 0 {
+		return fmt.Errorf("no target binary files specified")
+	}
+
+	logrus.Debugf("Processing %d target files", len(targetFiles))
+
+	for _, file := range targetFiles {
+		actualFile, err := r.resolveSymlink(file)
 		if err != nil {
-			logrus.Debugf("Skipping %s: %v", basename, err)
-			continue
+			return fmt.Errorf("failed to resolve file %s: %w", file, err)
 		}
 
-		binary.Path = file
-		binary.Basename = basename
-
-		key := fmt.Sprintf("%s-%s", binary.System.OS, binary.System.Arch)
-		if !seen[key] {
-			seen[key] = true
-			r.Binaries = append(r.Binaries, *binary)
-			logrus.Debugf("Found binary: %s (%s)", binary.Basename, binary.System.Name())
+		if valid, reason := isValidBinaryFile(actualFile); !valid {
+			return fmt.Errorf("invalid binary file %s: %s", file, reason)
 		}
+
+		actualBasename := filepath.Base(actualFile)
+		binary, err := parseBinaryName(actualBasename)
+		if err != nil {
+			return fmt.Errorf("failed to parse binary name from %s: %w", actualBasename, err)
+		}
+
+		binary.Path = actualFile
+		binary.Basename = actualBasename
+
+		r.Binaries = append(r.Binaries, *binary)
+		logrus.Debugf("Added binary: %s (%s)", binary.Basename, binary.System.Name())
 	}
 
 	if len(r.Binaries) == 0 {
-		return fmt.Errorf("no binaries found in dist directory")
+		return fmt.Errorf("no valid binaries found")
+	}
+
+	return r.validatePackageCompatibility()
+}
+
+func (r *Runner) validatePackageCompatibility() error {
+	systemCounts := make(map[string]int)
+	for _, binary := range r.Binaries {
+		systemCounts[binary.System.OS]++
+	}
+
+	var errors []string
+
+	if r.Parameters.CreateRPM {
+		linuxCount := systemCounts["linux"]
+		if linuxCount == 0 {
+			errors = append(errors, "RPM packages can only be created from Linux binaries, but no Linux binaries were provided")
+		}
+	}
+
+	if r.Parameters.CreateDEB {
+		linuxCount := systemCounts["linux"]
+		if linuxCount == 0 {
+			errors = append(errors, "DEB packages can only be created from Linux binaries, but no Linux binaries were provided")
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("package format validation failed:\n- %s", strings.Join(errors, "\n- "))
 	}
 
 	return nil

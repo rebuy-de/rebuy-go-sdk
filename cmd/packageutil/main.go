@@ -15,7 +15,7 @@ func main() {
 }
 
 func NewRootCommand() *cobra.Command {
-	return cmdutil.New(
+	cmd := cmdutil.New(
 		"packageutil", "Package tool for Go binaries as part of the rebuy-go-sdk",
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithVersionCommand(),
@@ -23,4 +23,9 @@ func NewRootCommand() *cobra.Command {
 
 		cmdutil.WithRunner(new(Runner)),
 	)
+
+	cmd.Args = cobra.MinimumNArgs(1)
+	cmd.Use = "packageutil [flags] binary-file1 [binary-file2 ...]"
+
+	return cmd
 }
