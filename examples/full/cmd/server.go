@@ -7,6 +7,9 @@ import (
 	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/handlers"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/templates"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/workers"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/dal/sqlc"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/digutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/pgutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/runutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 	"github.com/redis/go-redis/v9"
@@ -16,7 +19,17 @@ import (
 func RunServer(ctx context.Context, c *dig.Container) error {
 	// Register core dependencies
 	err := errors.Join(
+		// Provide the context to the container
+		c.Provide(func() context.Context { return ctx }),
+
 		c.Provide(templates.New),
+
+		// Configure Database
+		digutil.ProvideValue[pgutil.Schema](c, "full_example"),
+		digutil.ProvideValue[pgutil.MigrationFS](c, pgutil.MigrationFS(sqlc.MigrationsFS)),
+		c.Provide(pgutil.NewPool, dig.As(new(sqlc.DBTX))),
+		c.Provide(sqlc.New),
+		c.Invoke(pgutil.Migrate),
 
 		// Register HTTP handlers
 		webutil.ProvideHandler(c, handlers.NewIndexHandler),
