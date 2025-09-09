@@ -7,6 +7,8 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/web"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/digutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/pgutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -55,6 +57,9 @@ func (r *DaemonRunner) Run(ctx context.Context, _ []string) error {
 	c := dig.New()
 
 	err := errors.Join(
+		digutil.ProvideValue[pgutil.URI](c, "postgres://postgres:postgres@localhost/postgres?sslmode=disable"),
+		digutil.ProvideValue[pgutil.EnableTracing](c, true),
+
 		c.Provide(web.ProdFS),
 		c.Provide(func() webutil.AssetFS { return web.ProdFS() }),
 		c.Provide(webutil.AssetDefaultProd),
@@ -100,6 +105,8 @@ func (r *DevRunner) Run(ctx context.Context, _ []string) error {
 	}
 
 	err := errors.Join(
+		digutil.ProvideValue[pgutil.URI](c, "postgres://postgres:postgres@localhost/postgres?sslmode=disable"),
+		digutil.ProvideValue[pgutil.EnableTracing](c, true),
 		c.Provide(web.DevFS),
 		c.Provide(webutil.AssetDefaultDev),
 		c.Provide(func() *redis.Client {

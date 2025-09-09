@@ -2,24 +2,28 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/templates"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/dal/sqlc"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 )
 
 // UsersHandler handles the users pages
 type UsersHandler struct {
-	viewer *templates.Viewer
+	viewer  *templates.Viewer
+	queries *sqlc.Queries
 }
 
 // NewUsersHandler creates a new users handler
 func NewUsersHandler(
 	viewer *templates.Viewer,
+	queries *sqlc.Queries,
 ) *UsersHandler {
 	return &UsersHandler{
-		viewer: viewer,
+		viewer:  viewer,
+		queries: queries,
 	}
 }
 
@@ -30,26 +34,25 @@ func (h *UsersHandler) Register(r chi.Router) {
 
 // handleUsersList renders the users list page
 func (h *UsersHandler) handleUsersList(r *http.Request) webutil.Response {
-	// In a real app, we'd fetch users from a database
-	users := []templates.User{
-		{
-			ID:        "1",
-			Name:      "Alice Smith",
-			Email:     "alice@example.com",
-			CreatedAt: time.Now().Add(-72 * time.Hour),
-		},
-		{
-			ID:        "2",
-			Name:      "Bob Johnson",
-			Email:     "bob@example.com",
-			CreatedAt: time.Now().Add(-48 * time.Hour),
-		},
-		{
-			ID:        "3",
-			Name:      "Carol Williams",
-			Email:     "carol@example.com",
-			CreatedAt: time.Now().Add(-24 * time.Hour),
-		},
+	ctx := r.Context()
+	logger := logutil.Get(ctx)
+
+	// Fetch users from database
+	dbUsers, err := h.queries.ListUsers(ctx)
+	if err != nil {
+		logger.WithError(err).Error("failed to fetch users from database")
+		return webutil.ViewError(http.StatusInternalServerError, err)
+	}
+
+	// Convert database users to template users
+	users := make([]templates.User, len(dbUsers))
+	for i, dbUser := range dbUsers {
+		users[i] = templates.User{
+			ID:        dbUser.ID.String(),
+			Name:      dbUser.Name,
+			Email:     dbUser.Email,
+			CreatedAt: dbUser.CreatedAt,
+		}
 	}
 
 	usersData := templates.UsersData{
