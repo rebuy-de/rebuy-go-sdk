@@ -7,101 +7,15 @@ package sqlc
 
 import (
 	"context"
-
-	uuid "github.com/google/uuid"
 )
-
-const countUsers = `-- name: CountUsers :one
-select count(*) from full_example.users
-`
-
-func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countUsers)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const createUser = `-- name: CreateUser :one
-insert into full_example.users (
-    name, email
-) values (
-    $1, $2
-)
-returning id, name, email, created_at, updated_at
-`
-
-type CreateUserParams struct {
-	Name  string `db:"name" json:"name"`
-	Email string `db:"email" json:"email"`
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (FullExampleUser, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Name, arg.Email)
-	var i FullExampleUser
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Email,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const deleteUser = `-- name: DeleteUser :exec
-delete from full_example.users
-where id = $1
-`
-
-func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteUser, id)
-	return err
-}
-
-const getUserByEmail = `-- name: GetUserByEmail :one
-select id, name, email, created_at, updated_at from full_example.users
-where email = $1 limit 1
-`
-
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (FullExampleUser, error) {
-	row := q.db.QueryRow(ctx, getUserByEmail, email)
-	var i FullExampleUser
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Email,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getUserByID = `-- name: GetUserByID :one
-
-select id, name, email, created_at, updated_at from full_example.users
-where id = $1 limit 1
-`
-
-// User management queries
-func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (FullExampleUser, error) {
-	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i FullExampleUser
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Email,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
 
 const listUsers = `-- name: ListUsers :many
+
 select id, name, email, created_at, updated_at from full_example.users
 order by created_at desc
 `
 
+// User management queries
 func (q *Queries) ListUsers(ctx context.Context) ([]FullExampleUser, error) {
 	rows, err := q.db.Query(ctx, listUsers)
 	if err != nil {
@@ -126,70 +40,4 @@ func (q *Queries) ListUsers(ctx context.Context) ([]FullExampleUser, error) {
 		return nil, err
 	}
 	return items, nil
-}
-
-const listUsersWithPagination = `-- name: ListUsersWithPagination :many
-select id, name, email, created_at, updated_at from full_example.users
-order by created_at desc
-limit $1 offset $2
-`
-
-type ListUsersWithPaginationParams struct {
-	Limit  int32 `db:"limit" json:"limit"`
-	Offset int32 `db:"offset" json:"offset"`
-}
-
-func (q *Queries) ListUsersWithPagination(ctx context.Context, arg ListUsersWithPaginationParams) ([]FullExampleUser, error) {
-	rows, err := q.db.Query(ctx, listUsersWithPagination, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []FullExampleUser
-	for rows.Next() {
-		var i FullExampleUser
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Email,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updateUser = `-- name: UpdateUser :one
-update full_example.users
-set 
-    name = $2,
-    email = $3,
-    updated_at = now()
-where id = $1
-returning id, name, email, created_at, updated_at
-`
-
-type UpdateUserParams struct {
-	ID    uuid.UUID `db:"id" json:"id"`
-	Name  string    `db:"name" json:"name"`
-	Email string    `db:"email" json:"email"`
-}
-
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (FullExampleUser, error) {
-	row := q.db.QueryRow(ctx, updateUser, arg.ID, arg.Name, arg.Email)
-	var i FullExampleUser
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Email,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }
