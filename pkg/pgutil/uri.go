@@ -17,7 +17,7 @@ import (
 //
 // Example usage:
 //
-//	uri, err := sqlutil.BuildURI("postgres://localhost:5432/mydb", "user", "pass")
+//	uri, err := pgutil.BuildURI("postgres://localhost:5432/mydb", "user", "pass")
 //	// Returns: "postgres://user:pass@localhost:5432/mydb"
 func BuildURI(base, username, password string) (string, error) {
 	dbURI, err := url.Parse(base)

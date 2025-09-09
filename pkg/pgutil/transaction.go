@@ -17,7 +17,7 @@ import (
 //
 // Example usage:
 //
-//	err := sqlutil.Tx(ctx, pool, func(tx pgx.Tx) error {
+//	err := pgutil.Tx(ctx, pool, func(tx pgx.Tx) error {
 //		qtx := queries.WithTx(tx)
 //		// Use qtx for transactional operations
 //		return nil
@@ -47,7 +47,7 @@ func Tx(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) error
 //
 // Example usage:
 //
-//	conn, closer, err := sqlutil.Hijack(ctx, pool)
+//	conn, closer, err := pgutil.Hijack(ctx, pool)
 //	if err != nil {
 //		return err
 //	}

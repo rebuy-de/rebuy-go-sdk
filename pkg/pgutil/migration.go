@@ -29,7 +29,7 @@ import (
 //	//go:embed migrations/*.sql
 //	var migrationsFS embed.FS
 //
-//	err := sqlutil.MigrateWithEmbeddedFS(ctx, uri, "my_app", migrationsFS, "migrations")
+//	err := pgutil.MigrateWithEmbeddedFS(ctx, uri, "my_app", migrationsFS, "migrations")
 func MigrateWithEmbeddedFS(ctx context.Context, uri string, schemaName string, migrationsFS embed.FS, migrationsDir string) error {
 	config, err := pgx.ParseConfig(uri)
 	if err != nil {
