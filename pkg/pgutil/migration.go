@@ -14,8 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 )
 
-// MigrateWithEmbeddedFS runs database migrations using an embedded filesystem.
-// This is a generic replacement for the migration code duplicated across all projects.
+// Migrate runs database migrations using an embedded filesystem.
 //
 // Parameters:
 //   - ctx: Context for cancellation
@@ -23,14 +22,11 @@ import (
 //   - schemaName: Name of the schema to create (e.g., "llm_gateway", "knowledge_base_bot")
 //   - migrationsFS: Embedded filesystem containing migration files
 //   - migrationsDir: Directory path within the embedded FS (e.g., "migrations")
-//
-// Example usage:
-//
-//	//go:embed migrations/*.sql
-//	var migrationsFS embed.FS
-//
-//	err := pgutil.MigrateWithEmbeddedFS(ctx, uri, "my_app", migrationsFS, "migrations")
-func MigrateWithEmbeddedFS(ctx context.Context, uri string, schemaName string, migrationsFS embed.FS, migrationsDir string) error {
+func Migrate(ctx context.Context, uri URI, schema Schema, migrationsFS MigrationFS) error {
+	return migrateWithEmbeddedFS(ctx, string(uri), string(schema), embed.FS(migrationsFS), "migrations")
+}
+
+func migrateWithEmbeddedFS(ctx context.Context, uri string, schemaName string, migrationsFS embed.FS, migrationsDir string) error {
 	config, err := pgx.ParseConfig(uri)
 	if err != nil {
 		return fmt.Errorf("parse database URI: %w", err)

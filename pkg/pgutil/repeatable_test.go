@@ -1,13 +1,9 @@
 package pgutil
 
 import (
-	"embed"
 	"io/fs"
 	"testing"
 )
-
-//go:embed testdata/repeatable/*.sql
-var testRepeatableFS embed.FS
 
 func TestFilterRepeatableSQLFiles(t *testing.T) {
 	cases := []struct {
@@ -28,13 +24,13 @@ func TestFilterRepeatableSQLFiles(t *testing.T) {
 			},
 			expected: []string{
 				"R_001_create_view.sql",
-				"R_002_seed_data.sql", 
+				"R_002_seed_data.sql",
 				"R_003_update_view.sql",
 			},
 		},
 		{
-			name: "handles empty directory",
-			entries: []fs.DirEntry{},
+			name:     "handles empty directory",
+			entries:  []fs.DirEntry{},
 			expected: []string{},
 		},
 		{
@@ -50,7 +46,7 @@ func TestFilterRepeatableSQLFiles(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := filterRepeatableSQLFiles(tc.entries)
-			
+
 			if len(result) != len(tc.expected) {
 				t.Fatalf("Expected %d files, got %d", len(tc.expected), len(result))
 			}
