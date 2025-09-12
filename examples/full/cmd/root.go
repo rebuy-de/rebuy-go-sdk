@@ -106,7 +106,6 @@ func (r *DevRunner) Run(ctx context.Context, _ []string) error {
 
 	err := errors.Join(
 		digutil.ProvideValue[pgutil.URI](c, "postgres://postgres:postgres@localhost/postgres?sslmode=disable"),
-		digutil.ProvideValue[pgutil.EnableTracing](c, true),
 		c.Provide(web.DevFS),
 		c.Provide(webutil.AssetDefaultDev),
 		c.Provide(func() *redis.Client {
