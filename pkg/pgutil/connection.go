@@ -7,6 +7,7 @@ import (
 
 	pgxtrace "github.com/DataDog/dd-trace-go/contrib/jackc/pgx.v5/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/digutil"
 )
 
 // URI represents a PostgreSQL connection string for dependency injection
@@ -22,8 +23,8 @@ type MigrationFS embed.FS
 type EnableTracing bool
 
 // NewPool creates a new PostgreSQL connection pool using typed parameters
-func NewPool(ctx context.Context, uri URI, enableTracing EnableTracing) (*pgxpool.Pool, error) {
-	if enableTracing {
+func NewPool(ctx context.Context, uri URI, enableTracing digutil.Optional[EnableTracing]) (*pgxpool.Pool, error) {
+	if enableTracing.Value != nil && *enableTracing.Value {
 		pool, err := pgxtrace.NewPool(ctx, string(uri))
 		if err != nil {
 			return nil, fmt.Errorf("connect to database with tracing: %w", err)
