@@ -31,28 +31,3 @@ create index posts_user_id_idx on full_example.posts(user_id);
 create index posts_published_idx on full_example.posts(published);
 create index posts_created_at_idx on full_example.posts(created_at);
 
--- Insert sample data for demonstration
-insert into full_example.users (name, email, created_at) values
-    ('Alice Smith', 'alice@example.com', now() - interval '72 hours'),
-    ('Bob Johnson', 'bob@example.com', now() - interval '48 hours'), 
-    ('Carol Williams', 'carol@example.com', now() - interval '24 hours');
-
--- Add some sample posts
-insert into full_example.posts (user_id, title, content, published, created_at) 
-select 
-    u.id,
-    'Welcome to ' || u.name || '''s Blog',
-    'This is the first post by ' || u.name || '. Welcome to our platform!',
-    true,
-    u.created_at + interval '1 hour'
-from full_example.users u;
-
-insert into full_example.posts (user_id, title, content, published, created_at)
-select
-    u.id,
-    'Draft Post by ' || u.name,
-    'This is a draft post that is not yet published.',
-    false,
-    u.created_at + interval '2 hours'
-from full_example.users u
-where u.email = 'alice@example.com';

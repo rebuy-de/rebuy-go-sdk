@@ -7,7 +7,7 @@
 // # Features
 //
 //   - Connection Management: Unified connection creation with optional DataDog tracing
-//   - Migration Framework: Generic migration execution with embedded filesystems
+//   - Migration Framework: Generic migration execution with embedded filesystems (both normal and repeatable)
 //   - Transaction Wrappers: Reusable transaction and connection hijacking utilities
 //   - URI Construction: Helper functions for database URI manipulation
 //   - SQLC Templates: Standard configuration templates for consistent project setup
@@ -32,7 +32,7 @@
 //	    ctx := context.Background()
 //	    uri := "postgres://user:pass@localhost:5432/mydb"
 //
-//	    // Run migrations
+//	    // Run migrations (both normal and repeatable)
 //	    err := pgutil.MigrateWithEmbeddedFS(ctx, uri, "my_app", migrationsFS, "migrations")
 //	    if err != nil {
 //	        panic(err)
@@ -118,6 +118,59 @@
 //   - JSON tags with camelCase style
 //   - Proper UUID and timestamp handling
 //   - Null-safe type generation
+//
+// # Repeatable Migrations
+//
+// The pgutil package supports repeatable migrations alongside traditional versioned migrations.
+// Repeatable migrations are ideal for views, functions, procedures, and reference data that may
+// need to be recreated or updated when the underlying logic changes.
+//
+// ## File Naming Convention
+//
+// Repeatable migration files must follow the naming pattern: R_<description>.sql
+// Examples:
+//   - R_001_user_view.sql
+//   - R_002_lookup_data.sql
+//   - R_003_reporting_functions.sql
+//
+// ## Migration Process
+//
+// 1. Normal migrations run first (using golang-migrate/migrate library)
+// 2. Repeatable migrations run after normal migrations complete successfully
+// 3. Each repeatable migration is tracked by filename and SHA256 hash in schema_migrations_repeatable table
+// 4. Files are only re-executed if their content has changed (detected via hash comparison)
+// 5. All repeatable migrations execute within individual transactions for safety
+//
+// ## Example Directory Structure
+//
+//	migrations/
+//	├── 000001_initial_schema.up.sql    # Normal migration
+//	├── 000001_initial_schema.down.sql  # Normal migration
+//	├── 000002_add_users_table.up.sql   # Normal migration
+//	├── 000002_add_users_table.down.sql # Normal migration
+//	├── R_001_user_stats_view.sql       # Repeatable migration
+//	└── R_002_seed_lookup_data.sql      # Repeatable migration
+//
+// ## Example Repeatable Migration Content
+//
+//	-- R_001_user_stats_view.sql
+//	CREATE OR REPLACE VIEW user_stats AS
+//	SELECT 
+//	    user_id,
+//	    COUNT(*) as total_orders,
+//	    SUM(amount) as total_spent
+//	FROM orders 
+//	GROUP BY user_id;
+//
+// ## Usage with MigrateWithEmbeddedFS
+//
+// No changes to your existing code are needed. The function automatically handles both types:
+//
+//	//go:embed migrations/*.sql
+//	var migrationsFS embed.FS
+//
+//	err := pgutil.MigrateWithEmbeddedFS(ctx, uri, "my_app", migrationsFS, "migrations")
+//	// This will run normal migrations first, then repeatable migrations
 //
 // For a complete working example, see the examples/full directory which demonstrates
 // all pgutil features in a real application.

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	uuid "github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type FullExamplePost struct {
@@ -26,4 +27,20 @@ type FullExampleUser struct {
 	Email     string    `db:"email" json:"email"`
 	CreatedAt time.Time `db:"created_at" json:"createdAt"`
 	UpdatedAt time.Time `db:"updated_at" json:"updatedAt"`
+}
+
+type FullExampleUserPost struct {
+	UserID            uuid.UUID      `db:"user_id" json:"userId"`
+	UserName          string         `db:"user_name" json:"userName"`
+	UserEmail         string         `db:"user_email" json:"userEmail"`
+	UserCreatedAt     time.Time      `db:"user_created_at" json:"userCreatedAt"`
+	PostID            uuid.NullUUID  `db:"post_id" json:"postId"`
+	PostTitle         *string        `db:"post_title" json:"postTitle"`
+	PostContent       *string        `db:"post_content" json:"postContent"`
+	PostPublished     *bool          `db:"post_published" json:"postPublished"`
+	PostCreatedAt     *time.Time     `db:"post_created_at" json:"postCreatedAt"`
+	PostUpdatedAt     *time.Time     `db:"post_updated_at" json:"postUpdatedAt"`
+	PostStatus        string         `db:"post_status" json:"postStatus"`
+	ContentLength     float64        `db:"content_length" json:"contentLength"`
+	DaysSinceCreation pgtype.Numeric `db:"days_since_creation" json:"daysSinceCreation"`
 }

@@ -14,8 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 )
 
-// MigrateWithEmbeddedFS runs database migrations using an embedded filesystem.
-// This is a generic replacement for the migration code duplicated across all projects.
+// Migrate runs database migrations using an embedded filesystem.
 //
 // Parameters:
 //   - ctx: Context for cancellation
@@ -23,14 +22,11 @@ import (
 //   - schemaName: Name of the schema to create (e.g., "llm_gateway", "knowledge_base_bot")
 //   - migrationsFS: Embedded filesystem containing migration files
 //   - migrationsDir: Directory path within the embedded FS (e.g., "migrations")
-//
-// Example usage:
-//
-//	//go:embed migrations/*.sql
-//	var migrationsFS embed.FS
-//
-//	err := pgutil.MigrateWithEmbeddedFS(ctx, uri, "my_app", migrationsFS, "migrations")
-func MigrateWithEmbeddedFS(ctx context.Context, uri string, schemaName string, migrationsFS embed.FS, migrationsDir string) error {
+func Migrate(ctx context.Context, uri URI, schema Schema, migrationsFS MigrationFS) error {
+	return migrateWithEmbeddedFS(ctx, string(uri), string(schema), embed.FS(migrationsFS), "migrations")
+}
+
+func migrateWithEmbeddedFS(ctx context.Context, uri string, schemaName string, migrationsFS embed.FS, migrationsDir string) error {
 	config, err := pgx.ParseConfig(uri)
 	if err != nil {
 		return fmt.Errorf("parse database URI: %w", err)
@@ -44,6 +40,29 @@ func MigrateWithEmbeddedFS(ctx context.Context, uri string, schemaName string, m
 		return fmt.Errorf("create schema: %w", err)
 	}
 
+	// Run normal migrations first
+	err = runNormalMigrations(ctx, db, schemaName, migrationsFS, migrationsDir)
+	if err != nil {
+		return fmt.Errorf("failed to run normal migrations: %w", err)
+	}
+
+	// Run repeatable migrations after normal migrations
+	conn, err := pgx.Connect(ctx, uri)
+	if err != nil {
+		return fmt.Errorf("failed to create pgx connection for repeatable migrations: %w", err)
+	}
+	defer conn.Close(ctx)
+
+	err = runRepeatableMigrations(ctx, conn, schemaName, migrationsFS, migrationsDir)
+	if err != nil {
+		return fmt.Errorf("failed to run repeatable migrations: %w", err)
+	}
+
+	return nil
+}
+
+// runNormalMigrations handles the traditional versioned migrations using golang-migrate
+func runNormalMigrations(ctx context.Context, db *sql.DB, schemaName string, migrationsFS embed.FS, migrationsDir string) error {
 	sourceDriver, err := iofs.New(migrationsFS, migrationsDir)
 	if err != nil {
 		return fmt.Errorf("failed to load migration source driver: %w", err)
@@ -70,11 +89,6 @@ func MigrateWithEmbeddedFS(ctx context.Context, uri string, schemaName string, m
 	}
 
 	return nil
-}
-
-// Migrate runs database migrations using dependency injection types
-func Migrate(ctx context.Context, uri URI, schema Schema, migrationsFS MigrationFS) error {
-	return MigrateWithEmbeddedFS(ctx, string(uri), string(schema), embed.FS(migrationsFS), "migrations")
 }
 
 // createSchemaIfNotExists creates the specified schema if it doesn't exist
