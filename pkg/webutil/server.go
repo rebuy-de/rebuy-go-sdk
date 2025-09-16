@@ -72,6 +72,9 @@ type AssetPathPrefix string
 // year) for production and a second for development.
 type AssetCacheDuration time.Duration
 
+// AssetDisabled prevents the server creating a route for `/assets/`.
+type AssetDisabled bool
+
 // AssetDefaultProd provides the suggested defaults for production environments.
 func AssetDefaultProd() (AssetPathPrefix, AssetCacheDuration) {
 	return AssetPathPrefix(cmdutil.CommitHash),
@@ -106,6 +109,7 @@ type Server struct {
 	AssetFS            AssetFS
 	AssetPathPrefix    AssetPathPrefix
 	AssetCacheDuration AssetCacheDuration
+	AssetDisabled      AssetDisabled
 	Handlers           []Handler
 	Middlewares        Middlewares
 }
@@ -117,6 +121,7 @@ type ServerParams struct {
 	AssetFS            AssetFS            `optional:"true"`
 	AssetPathPrefix    AssetPathPrefix    `optional:"true"`
 	AssetCacheDuration AssetCacheDuration `optional:"true"`
+	AssetDisabled      AssetDisabled      `optional:"true"`
 	Handlers           []Handler          `group:"handler"`
 	Middlewares        Middlewares        `optional:"true"`
 }
@@ -167,7 +172,7 @@ func (s *Server) Run(ctx context.Context) error {
 		h.Register(router)
 	}
 
-	if s.AssetFS != nil {
+	if s.AssetFS != nil && !s.AssetDisabled {
 		assetPath := "/assets/" + string(s.AssetPathPrefix)
 		cacheControl := fmt.Sprintf("public, max-age=%d",
 			time.Duration(s.AssetCacheDuration).Truncate(time.Second)/time.Second)
