@@ -46,7 +46,7 @@ import (
 	_ "github.com/Khan/genqlient" // only when using graphql
 	_ "github.com/a-h/templ/cmd/templ" // only when using templ
 	_ "github.com/rebuy-de/rebuy-go-sdk/v9/cmd/buildutil" // always used
-	_ "github.com/rebuy-de/rebuy-go-sdk/v9/cmd/packageutil" // always used
+	_ "github.com/rebuy-de/rebuy-go-sdk/v9/cmd/packageutil" // only when building packages during CI
 	_ "github.com/sqlc-dev/sqlc/cmd/sqlc" // only when using a database with sqlc
 	_ "honnef.co/go/tools/cmd/staticcheck" // always used
 )
@@ -294,14 +294,14 @@ func (w *DataSyncWorker) syncData(ctx context.Context) error {
 
 ## Distributed Repeating Workers
 
-For multi-instance deployments, use `runutil.DistributedRepeat` to ensure only one instance executes a periodic task:
+For multi-instance deployments, use `runutil.NewDistributedRepeat` to ensure only one instance executes a periodic task at a time. This uses a Redis-based lease with cooldown that acts as a distributed lock:
 
 ```
 func (w *DataSyncWorker) Workers() []runutil.Worker {
 	return []runutil.Worker{
 		runutil.DeclarativeWorker{
 			Name:   "DataSyncWorker",
-			Worker: runutil.DistributedRepeat(
+			Worker: runutil.NewDistributedRepeat(
 				w.redisClient,
 				"data-sync-lock",
 				5*time.Minute,
@@ -312,7 +312,7 @@ func (w *DataSyncWorker) Workers() []runutil.Worker {
 }
 ```
 
-This uses Redis-based locking to coordinate between instances.
+The lease gets automatically refreshed during job execution to prevent lock expiry for long-running tasks.
 
 
 # Package pkg/app/handlers
@@ -514,19 +514,51 @@ templ (v *RequestAwareViewer) page(title string) {
 
 The package `./pkg/pgutil` provides utilities for PostgreSQL database operations and is the recommended way to handle database connections and migrations.
 
-## Connection Management
+## Integration with Dependency Injection
 
-Use `pgutil.NewConnection` to establish database connections:
+The recommended way to use `pgutil` is through dependency injection in `cmd/root.go` and `cmd/server.go`:
+
+In `cmd/root.go`, provide the database URI:
 
 ```go
-import "github.com/rebuy-de/rebuy-go-sdk/v9/pkg/pgutil"
+func (r *DaemonRunner) Run(ctx context.Context, _ []string) error {
+	c := dig.New()
 
-func NewQueries(ctx context.Context, uri string) (*Queries, error) {
-	conn, err := pgutil.NewConnection(ctx, uri)
+	err := errors.Join(
+		digutil.ProvideValue[pgutil.URI](c, "postgres://postgres:postgres@localhost/postgres?sslmode=disable"),
+		digutil.ProvideValue[pgutil.EnableTracing](c, true), // optional: enable tracing
+		// ... other dependencies
+	)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return New(conn), nil
+
+	return RunServer(ctx, c)
+}
+```
+
+In `cmd/server.go`, configure the database pool and run migrations:
+
+```go
+func RunServer(ctx context.Context, c *dig.Container) error {
+	err := errors.Join(
+		// Provide the context to the container
+		digutil.ProvideValue[context.Context](c, ctx),
+
+		// Configure Database
+		digutil.ProvideValue[pgutil.Schema](c, "my_schema"),
+		digutil.ProvideValue[pgutil.MigrationFS](c, pgutil.MigrationFS(sqlc.MigrationsFS)),
+		c.Provide(pgutil.NewPool, dig.As(new(sqlc.DBTX))),
+		c.Provide(sqlc.New),
+		c.Invoke(pgutil.Migrate), // runs migrations on startup
+
+		// ... other dependencies
+	)
+	if err != nil {
+		return err
+	}
+
+	return runutil.RunProvidedWorkers(ctx, c)
 }
 ```
 
@@ -542,17 +574,6 @@ Repeatable migrations are useful for:
 - Defining stored procedures and functions
 - Loading reference/demo data
 
-Example migration setup:
-
-```go
-//go:embed migrations/*.sql
-var migrationsFS embed.FS
-
-func Migrate(ctx context.Context, uri string) error {
-	return pgutil.Migrate(ctx, uri, migrationsFS, "migrations")
-}
-```
-
 ## Transactions
 
 Use `pgutil.WithTransaction` for transaction handling:
@@ -564,19 +585,11 @@ err := pgutil.WithTransaction(ctx, queries, func(tx *Queries) error {
 })
 ```
 
-## URI Handling
-
-Parse and construct database URIs with credentials:
-
-```go
-uri, err := pgutil.URI(baseURL, username, password)
-```
-
 # Package pkg/dal/sqlc
 
 The package `./pkg/dal/sqlc` contains all SQL queries, when using SQLC.
 
-SQL queries are stored in files with the name pattern `query_$table.sql`. SQL reads those files and writes Go code in `query_$table.sql`. The command for this is `go run github.com/sqlc-dev/sqlc/cmd/sqlc generate`, which gets executed by `go generate`.
+SQL queries are stored in files with the name pattern `query_$table.sql`. SQLC reads those files and writes Go code in `query_$table.sql.go`. The command for this is `go run github.com/sqlc-dev/sqlc/cmd/sqlc generate`, which gets executed by `go generate`.
 
 The file `./pkg/dal/sqlc/sqlc.go` should always look close like this:
 
@@ -584,30 +597,16 @@ The file `./pkg/dal/sqlc/sqlc.go` should always look close like this:
 package sqlc
 
 import (
-	"context"
 	"embed"
-	"fmt"
-
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/pgutil"
 )
 
 //go:generate go run github.com/sqlc-dev/sqlc/cmd/sqlc generate
 
-func NewQueries(ctx context.Context, uri string) (*Queries, error) {
-	conn, err := pgutil.NewConnection(ctx, uri)
-	if err != nil {
-		return nil, fmt.Errorf("create connection: %w", err)
-	}
-	return New(conn), nil
-}
-
 //go:embed migrations/*.sql
-var migrationsFS embed.FS
-
-func Migrate(ctx context.Context, uri string) error {
-	return pgutil.Migrate(ctx, uri, migrationsFS, "migrations")
-}
+var MigrationsFS embed.FS
 ```
+
+Note: When using `pgutil` with dependency injection (as shown in the pkg/pgutil section), you don't need manual `NewQueries` or `Migrate` functions. The `pgutil.NewPool` and `pgutil.Migrate` functions handle this through the dig container.
 
 The file `./pkg/dal/sqlc/tx.go` should always look close like this:
 
