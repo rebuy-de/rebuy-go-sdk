@@ -97,8 +97,8 @@ func NewRootCommand() *cobra.Command {
 
 		cmdutil.WithSubCommand(
 			cmdutil.New(
-				"prod", "Run the application as daemon",
-				cmdutil.WithRunner(new(ProdRunner)),
+				"daemon", "Run the application as daemon",
+				cmdutil.WithRunner(new(DaemonRunner)),
 			)),
 
 		cmdutil.WithSubCommand(cmdutil.New(
