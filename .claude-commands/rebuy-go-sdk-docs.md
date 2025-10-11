@@ -46,10 +46,39 @@ import (
 	_ "github.com/Khan/genqlient" // only when using graphql
 	_ "github.com/a-h/templ/cmd/templ" // only when using templ
 	_ "github.com/rebuy-de/rebuy-go-sdk/v9/cmd/buildutil" // always used
+	_ "github.com/rebuy-de/rebuy-go-sdk/v9/cmd/packageutil" // always used
 	_ "github.com/sqlc-dev/sqlc/cmd/sqlc" // only when using a database with sqlc
 	_ "honnef.co/go/tools/cmd/staticcheck" // always used
 )
 ```
+
+# Tool packageutil
+
+The tool `packageutil` creates distribution packages from Go binaries built with buildutil. It should be used after building with buildutil.
+
+## Usage
+
+```bash
+# Build binaries first
+./buildutil -x linux/amd64 -x darwin/amd64 -x windows/amd64
+
+# Create compressed archives for all platforms
+./packageutil --compressed dist/myapp-v*
+
+# Create system packages (only for Linux binaries)
+./packageutil --rpm --deb dist/myapp-v*-linux-*
+
+# Upload to S3
+./packageutil --compressed --s3-url s3://bucket/releases/ dist/myapp-v*
+```
+
+Package formats:
+- `--compressed`: Creates .tgz for POSIX and .zip for Windows
+- `--rpm`: Creates .rpm packages (Linux only)
+- `--deb`: Creates .deb packages (Linux only)
+- `--s3-url`: Uploads artifacts to S3
+
+See `cmd/packageutil/README.md` for detailed documentation.
 
 # File cmd/root.go
 
@@ -263,6 +292,28 @@ func (w *DataSyncWorker) syncData(ctx context.Context) error {
 }
 ```
 
+## Distributed Repeating Workers
+
+For multi-instance deployments, use `runutil.DistributedRepeat` to ensure only one instance executes a periodic task:
+
+```
+func (w *DataSyncWorker) Workers() []runutil.Worker {
+	return []runutil.Worker{
+		runutil.DeclarativeWorker{
+			Name:   "DataSyncWorker",
+			Worker: runutil.DistributedRepeat(
+				w.redisClient,
+				"data-sync-lock",
+				5*time.Minute,
+				runutil.JobFunc(w.syncData),
+			),
+		},
+	}
+}
+```
+
+This uses Redis-based locking to coordinate between instances.
+
 
 # Package pkg/app/handlers
 
@@ -459,99 +510,102 @@ templ (v *RequestAwareViewer) page(title string) {
 }
 ```
 
+# Package pkg/pgutil
+
+The package `./pkg/pgutil` provides utilities for PostgreSQL database operations and is the recommended way to handle database connections and migrations.
+
+## Connection Management
+
+Use `pgutil.NewConnection` to establish database connections:
+
+```go
+import "github.com/rebuy-de/rebuy-go-sdk/v9/pkg/pgutil"
+
+func NewQueries(ctx context.Context, uri string) (*Queries, error) {
+	conn, err := pgutil.NewConnection(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	return New(conn), nil
+}
+```
+
+## Migrations
+
+The migration system supports two types of migration files:
+
+1. **Versioned migrations**: `DDDD_$title.up.sql` - Run once in sequential order
+2. **Repeatable migrations**: `R__$title.sql` - Run every time (for views, functions, demo data)
+
+Repeatable migrations are useful for:
+- Creating/updating database views
+- Defining stored procedures and functions
+- Loading reference/demo data
+
+Example migration setup:
+
+```go
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
+
+func Migrate(ctx context.Context, uri string) error {
+	return pgutil.Migrate(ctx, uri, migrationsFS, "migrations")
+}
+```
+
+## Transactions
+
+Use `pgutil.WithTransaction` for transaction handling:
+
+```go
+err := pgutil.WithTransaction(ctx, queries, func(tx *Queries) error {
+	// Your transactional operations here
+	return nil
+})
+```
+
+## URI Handling
+
+Parse and construct database URIs with credentials:
+
+```go
+uri, err := pgutil.URI(baseURL, username, password)
+```
+
 # Package pkg/dal/sqlc
 
-The package `./pkg/app/sqlc` contains all SQL queries, when using SQLC.
+The package `./pkg/dal/sqlc` contains all SQL queries, when using SQLC.
 
 SQL queries are stored in files with the name pattern `query_$table.sql`. SQL reads those files and writes Go code in `query_$table.sql`. The command for this is `go run github.com/sqlc-dev/sqlc/cmd/sqlc generate`, which gets executed by `go generate`.
 
 The file `./pkg/dal/sqlc/sqlc.go` should always look close like this:
 
-```
+```go
 package sqlc
 
 import (
 	"context"
 	"embed"
-	"errors"
 	"fmt"
-	"net/url"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/pgutil"
 )
 
 //go:generate go run github.com/sqlc-dev/sqlc/cmd/sqlc generate
 
 func NewQueries(ctx context.Context, uri string) (*Queries, error) {
-	config, err := pgxpool.ParseConfig(uri)
+	conn, err := pgutil.NewConnection(ctx, uri)
 	if err != nil {
-		return nil, fmt.Errorf("parse uri: %w", err)
+		return nil, fmt.Errorf("create connection: %w", err)
 	}
-
-	db, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		return nil, fmt.Errorf("parse uri: %w", err)
-	}
-
-	return New(db), nil
+	return New(conn), nil
 }
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
 func Migrate(ctx context.Context, uri string) error {
-	config, err := pgx.ParseConfig(uri)
-	if err != nil {
-		return fmt.Errorf("parse uri: %w", err)
-	}
-
-	db := stdlib.OpenDB(*config)
-	defer db.Close()
-
-	_, err = db.ExecContext(ctx, "create schema if not exists platform_inventory;")
-	if err != nil {
-		return fmt.Errorf("create schema: %w", err)
-	}
-
-	sourceDriver, err := iofs.New(migrationsFS, "migrations")
-	if err != nil {
-		return fmt.Errorf("failed to load source driver: %w", err)
-	}
-
-	databaseDriver, err := postgres.WithInstance(db, &postgres.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to load database driver: %w", err)
-	}
-
-	m, err := migrate.NewWithInstance(
-		"iofs", sourceDriver,
-		"postgres", databaseDriver,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to setup migration: %w", err)
-	}
-
-	err = m.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to do migration: %w", err)
-	}
-
-	return nil
-}
-
-func URI(base, username, password string) (string, error) {
-	dbURI, err := url.Parse(base)
-	if err != nil {
-		return "", err
-	}
-
-	dbURI.User = url.UserPassword(username, password)
-	return dbURI.String(), nil
+	return pgutil.Migrate(ctx, uri, migrationsFS, "migrations")
 }
 ```
 
@@ -672,7 +726,16 @@ sql:
           # there might be other project-specific entries
 ```
 
-The directory `./pkg/dal/sqlc/migrations` contains all migration scripts. They have the file pattern `DDDD_$title.up.sql`, where DDDD is a number with 0 padding and $title is short title of the migration step.
+The directory `./pkg/dal/sqlc/migrations` contains two types of migration scripts:
+
+1. **Versioned migrations**: `DDDD_$title.up.sql` - Run once in sequential order
+   - DDDD is a number with 0 padding
+   - $title is a short title of the migration step
+   - Example: `0001_initial_schema.up.sql`
+
+2. **Repeatable migrations**: `R__$title.sql` - Run every time migrations are executed
+   - Useful for views, stored procedures, and demo data
+   - Example: `R__user_stats_view.sql`, `R__demo_data.sql`
 
 # Pakage web
 
