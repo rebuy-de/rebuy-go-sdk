@@ -46,10 +46,39 @@ import (
 	_ "github.com/Khan/genqlient" // only when using graphql
 	_ "github.com/a-h/templ/cmd/templ" // only when using templ
 	_ "github.com/rebuy-de/rebuy-go-sdk/v9/cmd/buildutil" // always used
+	_ "github.com/rebuy-de/rebuy-go-sdk/v9/cmd/packageutil" // only when building packages during CI
 	_ "github.com/sqlc-dev/sqlc/cmd/sqlc" // only when using a database with sqlc
 	_ "honnef.co/go/tools/cmd/staticcheck" // always used
 )
 ```
+
+# Tool packageutil
+
+The tool `packageutil` creates distribution packages from Go binaries built with buildutil. It should be used after building with buildutil.
+
+## Usage
+
+```bash
+# Build binaries first
+./buildutil -x linux/amd64 -x darwin/amd64 -x windows/amd64
+
+# Create compressed archives for all platforms
+./packageutil --compressed dist/myapp-v*
+
+# Create system packages (only for Linux binaries)
+./packageutil --rpm --deb dist/myapp-v*-linux-*
+
+# Upload to S3
+./packageutil --compressed --s3-url s3://bucket/releases/ dist/myapp-v*
+```
+
+Package formats:
+- `--compressed`: Creates .tgz for POSIX and .zip for Windows
+- `--rpm`: Creates .rpm packages (Linux only)
+- `--deb`: Creates .deb packages (Linux only)
+- `--s3-url`: Uploads artifacts to S3
+
+See `cmd/packageutil/README.md` for detailed documentation.
 
 # File cmd/root.go
 
@@ -68,8 +97,8 @@ func NewRootCommand() *cobra.Command {
 
 		cmdutil.WithSubCommand(
 			cmdutil.New(
-				"prod", "Run the application as daemon",
-				cmdutil.WithRunner(new(ProdRunner)),
+				"daemon", "Run the application as daemon",
+				cmdutil.WithRunner(new(DaemonRunner)),
 			)),
 
 		cmdutil.WithSubCommand(cmdutil.New(
@@ -262,6 +291,28 @@ func (w *DataSyncWorker) syncData(ctx context.Context) error {
 	return nil
 }
 ```
+
+## Distributed Repeating Workers
+
+For multi-instance deployments, use `runutil.NewDistributedRepeat` to ensure only one instance executes a periodic task at a time. This uses a Redis-based lease with cooldown that acts as a distributed lock:
+
+```
+func (w *DataSyncWorker) Workers() []runutil.Worker {
+	return []runutil.Worker{
+		runutil.DeclarativeWorker{
+			Name:   "DataSyncWorker",
+			Worker: runutil.NewDistributedRepeat(
+				w.redisClient,
+				"data-sync-lock",
+				5*time.Minute,
+				runutil.JobFunc(w.syncData),
+			),
+		},
+	}
+}
+```
+
+The lease gets automatically refreshed during job execution to prevent lock expiry for long-running tasks.
 
 
 # Package pkg/app/handlers
@@ -459,101 +510,103 @@ templ (v *RequestAwareViewer) page(title string) {
 }
 ```
 
+# Package pkg/pgutil
+
+The package `./pkg/pgutil` provides utilities for PostgreSQL database operations and is the recommended way to handle database connections and migrations.
+
+## Integration with Dependency Injection
+
+The recommended way to use `pgutil` is through dependency injection in `cmd/root.go` and `cmd/server.go`:
+
+In `cmd/root.go`, provide the database URI:
+
+```go
+func (r *DaemonRunner) Run(ctx context.Context, _ []string) error {
+	c := dig.New()
+
+	err := errors.Join(
+		digutil.ProvideValue[pgutil.URI](c, "postgres://postgres:postgres@localhost/postgres?sslmode=disable"),
+		digutil.ProvideValue[pgutil.EnableTracing](c, true), // optional: enable tracing
+		// ... other dependencies
+	)
+	if err != nil {
+		return err
+	}
+
+	return RunServer(ctx, c)
+}
+```
+
+In `cmd/server.go`, configure the database pool and run migrations:
+
+```go
+func RunServer(ctx context.Context, c *dig.Container) error {
+	err := errors.Join(
+		// Provide the context to the container
+		digutil.ProvideValue[context.Context](c, ctx),
+
+		// Configure Database
+		digutil.ProvideValue[pgutil.Schema](c, "my_schema"),
+		digutil.ProvideValue[pgutil.MigrationFS](c, pgutil.MigrationFS(sqlc.MigrationsFS)),
+		c.Provide(pgutil.NewPool, dig.As(new(sqlc.DBTX))),
+		c.Provide(sqlc.New),
+		c.Invoke(pgutil.Migrate), // runs migrations on startup
+
+		// ... other dependencies
+	)
+	if err != nil {
+		return err
+	}
+
+	return runutil.RunProvidedWorkers(ctx, c)
+}
+```
+
+## Migrations
+
+The migration system supports two types of migration files:
+
+1. **Versioned migrations**: `DDDD_$title.up.sql` - Run once in sequential order
+2. **Repeatable migrations**: `R__$title.sql` - Run every time (for views, functions, demo data)
+
+Repeatable migrations are useful for:
+- Creating/updating database views
+- Defining stored procedures and functions
+- Loading reference/demo data
+
+## Transactions
+
+Use `pgutil.WithTransaction` for transaction handling:
+
+```go
+err := pgutil.WithTransaction(ctx, queries, func(tx *Queries) error {
+	// Your transactional operations here
+	return nil
+})
+```
+
 # Package pkg/dal/sqlc
 
-The package `./pkg/app/sqlc` contains all SQL queries, when using SQLC.
+The package `./pkg/dal/sqlc` contains all SQL queries, when using SQLC.
 
-SQL queries are stored in files with the name pattern `query_$table.sql`. SQL reads those files and writes Go code in `query_$table.sql`. The command for this is `go run github.com/sqlc-dev/sqlc/cmd/sqlc generate`, which gets executed by `go generate`.
+SQL queries are stored in files with the name pattern `query_$table.sql`. SQLC reads those files and writes Go code in `query_$table.sql.go`. The command for this is `go run github.com/sqlc-dev/sqlc/cmd/sqlc generate`, which gets executed by `go generate`.
 
 The file `./pkg/dal/sqlc/sqlc.go` should always look close like this:
 
-```
+```go
 package sqlc
 
 import (
-	"context"
 	"embed"
-	"errors"
-	"fmt"
-	"net/url"
-
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
 )
 
 //go:generate go run github.com/sqlc-dev/sqlc/cmd/sqlc generate
 
-func NewQueries(ctx context.Context, uri string) (*Queries, error) {
-	config, err := pgxpool.ParseConfig(uri)
-	if err != nil {
-		return nil, fmt.Errorf("parse uri: %w", err)
-	}
-
-	db, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		return nil, fmt.Errorf("parse uri: %w", err)
-	}
-
-	return New(db), nil
-}
-
 //go:embed migrations/*.sql
-var migrationsFS embed.FS
-
-func Migrate(ctx context.Context, uri string) error {
-	config, err := pgx.ParseConfig(uri)
-	if err != nil {
-		return fmt.Errorf("parse uri: %w", err)
-	}
-
-	db := stdlib.OpenDB(*config)
-	defer db.Close()
-
-	_, err = db.ExecContext(ctx, "create schema if not exists platform_inventory;")
-	if err != nil {
-		return fmt.Errorf("create schema: %w", err)
-	}
-
-	sourceDriver, err := iofs.New(migrationsFS, "migrations")
-	if err != nil {
-		return fmt.Errorf("failed to load source driver: %w", err)
-	}
-
-	databaseDriver, err := postgres.WithInstance(db, &postgres.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to load database driver: %w", err)
-	}
-
-	m, err := migrate.NewWithInstance(
-		"iofs", sourceDriver,
-		"postgres", databaseDriver,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to setup migration: %w", err)
-	}
-
-	err = m.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to do migration: %w", err)
-	}
-
-	return nil
-}
-
-func URI(base, username, password string) (string, error) {
-	dbURI, err := url.Parse(base)
-	if err != nil {
-		return "", err
-	}
-
-	dbURI.User = url.UserPassword(username, password)
-	return dbURI.String(), nil
-}
+var MigrationsFS embed.FS
 ```
+
+Note: When using `pgutil` with dependency injection (as shown in the pkg/pgutil section), you don't need manual `NewQueries` or `Migrate` functions. The `pgutil.NewPool` and `pgutil.Migrate` functions handle this through the dig container.
 
 The file `./pkg/dal/sqlc/tx.go` should always look close like this:
 
@@ -672,7 +725,16 @@ sql:
           # there might be other project-specific entries
 ```
 
-The directory `./pkg/dal/sqlc/migrations` contains all migration scripts. They have the file pattern `DDDD_$title.up.sql`, where DDDD is a number with 0 padding and $title is short title of the migration step.
+The directory `./pkg/dal/sqlc/migrations` contains two types of migration scripts:
+
+1. **Versioned migrations**: `DDDD_$title.up.sql` - Run once in sequential order
+   - DDDD is a number with 0 padding
+   - $title is a short title of the migration step
+   - Example: `0001_initial_schema.up.sql`
+
+2. **Repeatable migrations**: `R__$title.sql` - Run every time migrations are executed
+   - Useful for views, stored procedures, and demo data
+   - Example: `R__user_stats_view.sql`, `R__demo_data.sql`
 
 # Pakage web
 
