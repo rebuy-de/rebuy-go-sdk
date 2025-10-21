@@ -1,0 +1,13 @@
+{
+  "name": "rebuy-go-sdk",
+  "owner": {
+    "name": "rebuy"
+  },
+  "plugins": [
+    {
+      "source": "./claude/plugin",
+      "name": "rebuy-go-sdk",
+      "description": "A plugin to assist with projects using rebuy-go-sdk"
+    }
+  ]
+}

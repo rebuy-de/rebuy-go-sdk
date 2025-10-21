@@ -1,0 +1,8 @@
+{
+    "name": "rebuy-go-sdk",
+    "description": "A plugin to assist with projects using rebuy-go-sdk",
+    "version": "0.0.1",
+    "author": {
+        "name": "rebuy"
+    }
+}

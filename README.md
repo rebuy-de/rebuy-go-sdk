@@ -24,23 +24,12 @@ The complete SDK documentation is available via standard Go documentation tools.
 
 ### Claude Code
 
-`.claude-commands` contains some commands for Claude Code that help it understanding the project structure and mostly
-prevent it from doing funny things. You can add these commands to Claude Code by symlinking it:
+This repository implements a Claude marketplace which add some assisting functionality to Claude. The most important one
+is a "Skill" that contains documentation tailored for Claude Code.
 
 ```
-ln -s "$(pwd)/.claude-commands" ~/.claude/commands/rebuy-go-sdk
+/plugin marketplace add rebuy-de/rebuy-go-sdk
 ```
-
-Afterwards those commands are available with the `/rebuy-go-sdk:` prefix.
-
-Most interesting command is `/rebuy-go-sdk:docs`, which loads documentation into the context that is tailored for LLMs.
-Afterwards you can enter the actual changing prompt.
-
-```
-> /rebuy-go-sdk:docs
-> Please add a new handler for managing coffee machines.
-```
-
 
 ## Examples
 
