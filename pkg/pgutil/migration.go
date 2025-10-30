@@ -32,6 +32,11 @@ func migrateWithEmbeddedFS(ctx context.Context, uri string, schemaName string, m
 		return fmt.Errorf("parse database URI: %w", err)
 	}
 
+	if config.RuntimeParams == nil {
+		config.RuntimeParams = make(map[string]string)
+	}
+	config.RuntimeParams["search_path"] = schemaName
+
 	db := stdlib.OpenDB(*config)
 	defer db.Close()
 
@@ -47,7 +52,7 @@ func migrateWithEmbeddedFS(ctx context.Context, uri string, schemaName string, m
 	}
 
 	// Run repeatable migrations after normal migrations
-	conn, err := pgx.Connect(ctx, uri)
+	conn, err := pgx.ConnectConfig(ctx, config)
 	if err != nil {
 		return fmt.Errorf("failed to create pgx connection for repeatable migrations: %w", err)
 	}
@@ -93,7 +98,7 @@ func runNormalMigrations(ctx context.Context, db *sql.DB, schemaName string, mig
 
 // createSchemaIfNotExists creates the specified schema if it doesn't exist
 func createSchemaIfNotExists(ctx context.Context, db *sql.DB, schemaName string) error {
-	query := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", schemaName)
+	query := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", pgx.Identifier{schemaName}.Sanitize())
 	_, err := db.ExecContext(ctx, query)
 	return err
 }
