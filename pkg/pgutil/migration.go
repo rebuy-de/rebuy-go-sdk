@@ -98,7 +98,7 @@ func runNormalMigrations(ctx context.Context, db *sql.DB, schemaName string, mig
 
 // createSchemaIfNotExists creates the specified schema if it doesn't exist
 func createSchemaIfNotExists(ctx context.Context, db *sql.DB, schemaName string) error {
-	query := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", schemaName)
+	query := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", pgx.Identifier{schemaName}.Sanitize())
 	_, err := db.ExecContext(ctx, query)
 	return err
 }
