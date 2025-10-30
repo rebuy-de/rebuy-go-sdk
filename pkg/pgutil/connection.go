@@ -23,18 +23,23 @@ type MigrationFS embed.FS
 type EnableTracing bool
 
 // NewPool creates a new PostgreSQL connection pool using typed parameters
-func NewPool(ctx context.Context, uri URI, enableTracing digutil.Optional[EnableTracing]) (*pgxpool.Pool, error) {
+func NewPool(ctx context.Context, uri URI, schema Schema, enableTracing digutil.Optional[EnableTracing]) (*pgxpool.Pool, error) {
+	config, err := pgxpool.ParseConfig(string(uri))
+	if err != nil {
+		return nil, fmt.Errorf("parse database URI: %w", err)
+	}
+
+	if config.ConnConfig.RuntimeParams == nil {
+		config.ConnConfig.RuntimeParams = make(map[string]string)
+	}
+	config.ConnConfig.RuntimeParams["search_path"] = string(schema)
+
 	if enableTracing.Value != nil && *enableTracing.Value {
-		pool, err := pgxtrace.NewPool(ctx, string(uri))
+		pool, err := pgxtrace.NewPoolWithConfig(ctx, config)
 		if err != nil {
 			return nil, fmt.Errorf("connect to database with tracing: %w", err)
 		}
 		return pool, nil
-	}
-
-	config, err := pgxpool.ParseConfig(string(uri))
-	if err != nil {
-		return nil, fmt.Errorf("parse database URI: %w", err)
 	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
