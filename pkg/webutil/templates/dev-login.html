@@ -44,6 +44,7 @@
   <body>
     <h1>SDK Dev Login</h1>
     <form method="post" action="/auth/callback">
+      <input type="hidden" name="redirect_uri" value="{{.redirectURI}}">
       <div>
         <label for="input-username">Username</label>
         <input id="input-username" name="username" value="{{.username}}">

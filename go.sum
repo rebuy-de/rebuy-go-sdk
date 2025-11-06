@@ -66,6 +66,8 @@ github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f h1:tCbYj7/299ek
 github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f/go.mod h1:gcr0kNtGBqin9zDW9GOHcVntrwnjrK+qdJ06mWYBybw=
 github.com/ProtonMail/gopenpgp/v2 v2.7.1 h1:Awsg7MPc2gD3I7IFac2qE3Gdls0lZW8SzrFZ3k1oz0s=
 github.com/ProtonMail/gopenpgp/v2 v2.7.1/go.mod h1:/BU5gfAVwqyd8EfC3Eu7zmuhwYQpKs+cGD8M//iiaxs=
+github.com/a-h/templ v0.3.960 h1:trshEpGa8clF5cdI39iY4ZrZG8Z/QixyzEyUnA7feTM=
+github.com/a-h/templ v0.3.960/go.mod h1:oCZcnKRf5jjsGpf2yELzQfodLphd2mwecwG4Crk5HBo=
 github.com/alicebob/miniredis/v2 v2.35.0 h1:QwLphYqCEAo1eu1TqPRN2jgVMPBweeQcR21jeqDCONI=
 github.com/alicebob/miniredis/v2 v2.35.0/go.mod h1:TcL7YfarKPGDAthEtl5NBeHZfeUQj6OXMm/+iu5cLMM=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=

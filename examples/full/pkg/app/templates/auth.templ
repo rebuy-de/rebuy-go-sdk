@@ -38,7 +38,7 @@ templ (v *RequestAwareViewer) authComponent() {
 			</div>
 		} else {
 			<div class="buttons">
-				<a href="/auth/login" class="button is-primary">
+				<a href={ webutil.AuthLoginURL(v.request) } class="button is-primary">
 					<span class="icon is-small">
 						<i class="fas fa-sign-in-alt"></i>
 					</span>
