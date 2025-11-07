@@ -3,7 +3,7 @@ module github.com/rebuy-de/rebuy-go-sdk/v9/examples/full
 go 1.24.0
 
 require (
-	github.com/a-h/templ v0.3.857
+	github.com/a-h/templ v0.3.960
 	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/google/uuid v1.6.0

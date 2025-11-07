@@ -14,10 +14,12 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
@@ -30,8 +32,12 @@ import (
 
 const (
 	authStateCookie = `oauthstate`
-	authSessionName = `oauth`
 )
+
+type authState struct {
+	CsrfToken   string `json:"csrf_token"`
+	RedirectURI string `json:"redirect_uri"`
+}
 
 type AuthInfo struct {
 	Username    string `json:"preferred_username"`
@@ -52,7 +58,7 @@ type AuthMiddleware func(http.Handler) http.Handler
 
 type authMiddleware struct {
 	getClaimFromRequest func(http.ResponseWriter, *http.Request) (*AuthInfo, error)
-	handleCallback      func(http.ResponseWriter, *http.Request) error
+	handleCallback      func(http.ResponseWriter, *http.Request) (string, error)
 	handleLogin         func(http.ResponseWriter, *http.Request)
 	handleLogout        func(http.ResponseWriter, *http.Request)
 }
@@ -76,14 +82,14 @@ func (m *authMiddleware) handler(next http.Handler) http.Handler {
 	router.HandleFunc("/auth/logout", m.handleLogout)
 
 	router.HandleFunc("/auth/callback", func(w http.ResponseWriter, r *http.Request) {
-		err := m.handleCallback(w, r)
+		redirectURI, err := m.handleCallback(w, r)
 		if err != nil {
-			fmt.Fprintf(w, "handle callback: %v", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "handle callback: %v", err.Error())
 			return
 		}
 
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, redirectURI, http.StatusSeeOther)
 	})
 
 	return router
@@ -132,7 +138,15 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 
 	m := authMiddleware{
 		handleLogin: func(w http.ResponseWriter, r *http.Request) {
-			oauthState := generateCookie(w)
+			redirectURI := r.URL.Query().Get("redirect")
+			redirectURI = validateRedirectURI(redirectURI)
+
+			oauthState, err := generateCookie(w, redirectURI)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("generate cookie: %v", err), http.StatusInternalServerError)
+				return
+			}
+
 			u := oauth2Config.AuthCodeURL(oauthState)
 			http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 		},
@@ -173,7 +187,7 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 				// This means the token was automatically refreshed by the
 				// oauth library when callind UserInfo(). We need to pass this
 				// token down to the user.
-				err = encrypter.WriteCookie(w, token)
+				err = encrypter.WriteCookie(w, freshToken)
 				if err != nil {
 					return nil, fmt.Errorf("write refreshed token cookie: %w", err)
 				}
@@ -187,42 +201,108 @@ func NewAuthMiddleware(ctx context.Context, config AuthConfig) (func(http.Handle
 
 			return &info, nil
 		},
-		handleCallback: func(w http.ResponseWriter, r *http.Request) error {
-			oauthState, err := r.Cookie(authStateCookie)
+		handleCallback: func(w http.ResponseWriter, r *http.Request) (string, error) {
+			stateCookie, err := r.Cookie(authStateCookie)
 			if err != nil {
-				return fmt.Errorf("get auth cookie: %w", err)
+				return "", fmt.Errorf("get auth cookie: %w", err)
 			}
 
-			if r.FormValue("state") != oauthState.Value {
-				return fmt.Errorf("invalid oauth state cookie")
+			// Decode the state cookie
+			stateJSON, err := base64.URLEncoding.DecodeString(stateCookie.Value)
+			if err != nil {
+				return "", fmt.Errorf("decode state cookie: %w", err)
+			}
+
+			var state authState
+			err = json.Unmarshal(stateJSON, &state)
+			if err != nil {
+				return "", fmt.Errorf("unmarshal state: %w", err)
+			}
+
+			// Verify CSRF token
+			if r.FormValue("state") != state.CsrfToken {
+				return "", fmt.Errorf("invalid oauth state cookie")
 			}
 
 			token, err := oauth2Config.Exchange(r.Context(), r.FormValue("code"))
 			if err != nil {
-				return fmt.Errorf("exchange token: %w", err)
+				return "", fmt.Errorf("exchange token: %w", err)
 			}
 
 			err = encrypter.WriteCookie(w, token)
 			if err != nil {
-				return fmt.Errorf("write token cookie: %w", err)
+				return "", fmt.Errorf("write token cookie: %w", err)
 			}
 
-			return nil
+			return state.RedirectURI, nil
 		},
 	}
 
 	return m.handler, nil
 }
 
-func generateCookie(w http.ResponseWriter) string {
+// validateRedirectURI validates and sanitizes a redirect URI.
+// It only allows relative paths starting with "/".
+// Returns "/" as default if the URI is invalid or empty.
+func validateRedirectURI(redirectURI string) string {
+	redirectURI = strings.TrimSpace(redirectURI)
+
+	if redirectURI == "" {
+		return "/"
+	}
+
+	// Parse the redirect URI
+	u, err := url.Parse(redirectURI)
+	if err != nil {
+		// Invalid URL, use default
+		return "/"
+	}
+
+	// Only allow relative URLs (no scheme and no host)
+	if u.Scheme != "" || u.Host != "" {
+		// Has scheme or host, reject it
+		return "/"
+	}
+
+	// Must start with / to be a valid path
+	if !strings.HasPrefix(u.Path, "/") {
+		return "/"
+	}
+
+	// Prevent protocol-relative URLs like //evil.com
+	if strings.HasPrefix(redirectURI, "//") {
+		return "/"
+	}
+
+	return redirectURI
+}
+
+func generateCookie(w http.ResponseWriter, redirectURI string) (string, error) {
 	var expiration = time.Now().Add(10 * time.Minute)
 
 	b := make([]byte, 16)
-	rand.Read(b)
-	state := base64.URLEncoding.EncodeToString(b)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", fmt.Errorf("generate random bytes: %w", err)
+	}
+	csrfToken := base64.URLEncoding.EncodeToString(b)
+
+	state := authState{
+		CsrfToken:   csrfToken,
+		RedirectURI: redirectURI,
+	}
+
+	stateJSON, err := json.Marshal(state)
+	if err != nil {
+		return "", fmt.Errorf("marshal state: %w", err)
+	}
+
+	stateEncoded := base64.URLEncoding.EncodeToString(stateJSON)
+
 	cookie := http.Cookie{
 		Name:     authStateCookie,
-		Value:    state,
+		Value:    stateEncoded,
+		Path:     "/",
 		Expires:  expiration,
 		Secure:   true,
 		HttpOnly: true,
@@ -230,7 +310,7 @@ func generateCookie(w http.ResponseWriter) string {
 	}
 	http.SetCookie(w, &cookie)
 
-	return state
+	return csrfToken, nil
 }
 
 //go:embed templates/*
@@ -252,10 +332,14 @@ func DevAuthMiddleware(roles ...string) AuthMiddleware {
 
 	m := authMiddleware{
 		handleLogin: WrapView(func(r *http.Request) Response {
+			redirectURI := r.URL.Query().Get("redirect")
+			redirectURI = validateRedirectURI(redirectURI)
+
 			return viewer.HTML(http.StatusOK, "dev-login.html", map[string]any{
-				"username": "dummy@example.com",
-				"name":     "John Doe",
-				"roles":    roleNames,
+				"username":    "dummy@example.com",
+				"name":        "John Doe",
+				"roles":       roleNames,
+				"redirectURI": redirectURI,
 			})
 		}),
 		handleLogout: func(w http.ResponseWriter, r *http.Request) {
@@ -293,7 +377,7 @@ func DevAuthMiddleware(roles ...string) AuthMiddleware {
 
 			return &claims, nil
 		},
-		handleCallback: func(w http.ResponseWriter, r *http.Request) error {
+		handleCallback: func(w http.ResponseWriter, r *http.Request) (string, error) {
 			var claims AuthInfo
 
 			claims.Username = r.PostFormValue("username")
@@ -308,7 +392,7 @@ func DevAuthMiddleware(roles ...string) AuthMiddleware {
 
 			jsonPayload, err := json.Marshal(claims)
 			if err != nil {
-				return fmt.Errorf("marshal cookie: %v", err)
+				return "", fmt.Errorf("marshal cookie: %v", err)
 			}
 
 			http.SetCookie(w, &http.Cookie{
@@ -321,11 +405,47 @@ func DevAuthMiddleware(roles ...string) AuthMiddleware {
 				SameSite: http.SameSiteLaxMode,
 			})
 
-			return nil
+			redirectURI := r.PostFormValue("redirect_uri")
+			redirectURI = validateRedirectURI(redirectURI)
+
+			return redirectURI, nil
 		},
 	}
 
 	return m.handler
+}
+
+// AuthLoginURL generates a safe login URL with a redirect parameter pointing
+// to the current request path. The redirect path is validated to ensure it's
+// a safe relative path. If the path is invalid or would redirect to root,
+// returns a login URL without a redirect parameter.
+//
+// This function is designed for use with Templ templates and returns a
+// templ.SafeURL that can be used directly in href attributes without additional
+// escaping.
+//
+// Example usage in Templ:
+//
+//	<a href={ webutil.AuthLoginURL(request) }>Login</a>
+func AuthLoginURL(r *http.Request) templ.SafeURL {
+	requestURI := r.URL.RequestURI()
+
+	// Validate the redirect path
+	validatedPath := validateRedirectURI(requestURI)
+
+	// Build URL using url.URL for proper construction
+	u := &url.URL{
+		Path: "/auth/login",
+	}
+
+	// If validation returned "/" (default for invalid paths), don't add redirect param
+	if validatedPath != "/" {
+		q := url.Values{}
+		q.Set("redirect", validatedPath)
+		u.RawQuery = q.Encode()
+	}
+
+	return templ.SafeURL(u.String())
 }
 
 // AuthTemplateFunctions returns auth related template functions.  These can
@@ -486,6 +606,10 @@ func (e cookieEncrypter[T]) Decrypt(value string) (*T, error) {
 }
 
 func (e cookieEncrypter[T]) DecryptBytes(encryptedData []byte) ([]byte, error) {
+	if len(encryptedData) < aes.BlockSize {
+		return nil, fmt.Errorf("encrypted data too short: got %d bytes, need at least %d", len(encryptedData), aes.BlockSize)
+	}
+
 	iv := encryptedData[:aes.BlockSize]
 	stream := cipher.NewCTR(e.block, iv)
 
