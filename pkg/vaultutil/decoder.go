@@ -6,7 +6,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func DecodeSecret[T any](manager *Manager, path string) (T, error) {
+func DecodeSecret[T any](manager *Manager, path string, opts ...DecodeSecretOption) (T, error) {
 	var result T
 
 	generic, err := manager.GetClient().Logical().Read(path)
@@ -18,6 +18,9 @@ func DecodeSecret[T any](manager *Manager, path string) (T, error) {
 		Result:     &result,
 		TagName:    "vault",
 		ErrorUnset: true,
+	}
+	for _, opt := range opts {
+		opt(config)
 	}
 
 	decoder, err := mapstructure.NewDecoder(config)
@@ -31,4 +34,12 @@ func DecodeSecret[T any](manager *Manager, path string) (T, error) {
 	}
 
 	return result, err
+}
+
+type DecodeSecretOption func(config *mapstructure.DecoderConfig)
+
+func DecodeSecretWithNoErrorUnset() DecodeSecretOption {
+	return func(config *mapstructure.DecoderConfig) {
+		config.ErrorUnset = false
+	}
 }
