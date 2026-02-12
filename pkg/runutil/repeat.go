@@ -71,6 +71,8 @@ func (w jobWorker) runOnce(ctx context.Context) error {
 		tracer.Tag(ext.ResourceName, logutil.GetSubsystem(ctx)),
 	)
 	err := w.job.RunOnce(ctx)
+	HealthCheckpoint(ctx, err)
+
 	if err != nil {
 		span.Finish(tracer.WithError(err))
 		return err
