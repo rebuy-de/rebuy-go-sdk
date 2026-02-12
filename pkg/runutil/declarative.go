@@ -18,6 +18,14 @@ type DeclarativeWorker struct {
 func (w DeclarativeWorker) Run(ctx context.Context) error {
 	worker := w.Worker
 
+	// Register health monitor in "init" state as soon as worker starts.
+	// Placed innermost so the full subsystem path is available.
+	inner := worker
+	worker = WorkerFunc(func(ctx context.Context) error {
+		GetHealthMonitor(ctx)
+		return inner.Run(ctx)
+	})
+
 	if w.Name != "" {
 		worker = NamedWorker(worker, w.Name)
 	}
