@@ -25,13 +25,13 @@ var (
 		Namespace: promNamespace,
 		Subsystem: promHealthSubsystem,
 		Name:      "checkpoints_total",
-	}, []string{"name", "state"})
+	}, []string{"worker_name", "state"})
 
 	instHealthState = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: promNamespace,
 		Subsystem: promHealthSubsystem,
 		Name:      "state",
-	}, []string{"name", "state"})
+	}, []string{"worker_name", "state"})
 )
 
 var healthRegistry = &healthRegistryImpl{
