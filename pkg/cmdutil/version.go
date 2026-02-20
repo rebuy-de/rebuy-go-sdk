@@ -2,8 +2,8 @@ package cmdutil
 
 import (
 	"fmt"
+	"log/slog"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -52,14 +52,14 @@ func WithVersionCommand() Option {
 	}
 }
 
-func WithVersionLog(level logrus.Level) Option {
+func WithVersionLog(level slog.Level) Option {
 	return func(cmd *cobra.Command) error {
 		cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-			logrus.WithFields(logrus.Fields{
-				"Version": Version,
-				"Date":    CommitDate,
-				"Commit":  CommitHash,
-			}).Logf(level, "%s started", Name)
+			slog.Log(cmd.Context(), level, fmt.Sprintf("%s started", Name),
+				"Version", Version,
+				"Date", CommitDate,
+				"Commit", CommitHash,
+			)
 		}
 		return nil
 	}

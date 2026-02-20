@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
-	"github.com/sirupsen/logrus"
 )
 
 type contextKeyTransitionCollector string
@@ -12,13 +11,13 @@ type contextKeyTransitionCollector string
 type Transition struct {
 	Name     string
 	From, To string
-	Fields   logrus.Fields
+	Fields   map[string]any
 }
 
 func GetTransitionCollector(ctx context.Context, name string) *TransitionCollector {
 	cache, ok := ctx.Value(contextKeyTransitionCollector(name)).(*map[string]string)
 	if !ok {
-		logutil.Get(ctx).Warnf("transition collector with name '%s' not found", name)
+		logutil.Get(ctx).Warn("transition collector not found", "name", name)
 		return nil
 	}
 
@@ -38,7 +37,7 @@ func NewTransitionCollector(ctx context.Context, name string) context.Context {
 	return context.WithValue(ctx, contextKeyTransitionCollector(name), &cache)
 }
 
-func (c *TransitionCollector) Observe(name string, state string, fields logrus.Fields) {
+func (c *TransitionCollector) Observe(name string, state string, fields map[string]any) {
 	if c == nil {
 		return
 	}

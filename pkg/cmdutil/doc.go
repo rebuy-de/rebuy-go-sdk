@@ -84,19 +84,20 @@
 //
 //	func main() {
 //	    defer cmdutil.HandleExit()
-//	
+//
 //	    cmd := cmdutil.New(
 //	        "myapp",                          // Short app name
 //	        "github.com/org/myapp",           // Full app name
 //	        cmdutil.WithLogVerboseFlag(),     // Add -v flag for verbose logging
 //	        cmdutil.WithLogToGraylog(),       // Add Graylog support
 //	        cmdutil.WithVersionCommand(),     // Add version command
-//	        cmdutil.WithVersionLog(logrus.DebugLevel),
+//	        cmdutil.WithVersionLog(slog.LevelDebug),
 //	        cmdutil.WithRunner(new(Runner)),  // Add main application runner
 //	    )
-//	
+//
 //	    if err := cmd.Execute(); err != nil {
-//	        logrus.Fatal(err)
+//	        slog.Error("command failed", "error", err)
+//	        os.Exit(1)
 //	    }
 //	}
 //
