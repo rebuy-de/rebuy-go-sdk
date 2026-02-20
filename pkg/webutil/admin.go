@@ -76,7 +76,7 @@ func AdminAPIListenAndServe(ctx context.Context, opts ...AdminAPIListenAndServeO
 	go func() {
 		serverAddress := net.JoinHostPort(config.host, config.port)
 
-		logutil.Get(ctx).Debugf("admin api listening on %s", serverAddress)
+		logutil.Get(ctx).Debug("admin api listening", "address", serverAddress)
 
 		err := ListenAndServeWithContext(bg, serverAddress, mux)
 		if err != nil {

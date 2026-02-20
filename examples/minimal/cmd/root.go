@@ -3,9 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +15,7 @@ func NewRootCommand() *cobra.Command {
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithLogToGraylog(),
 		cmdutil.WithVersionCommand(),
-		cmdutil.WithVersionLog(logrus.DebugLevel),
+		cmdutil.WithVersionLog(slog.LevelDebug),
 		cmdutil.WithRunner(new(Runner)),
 	)
 }

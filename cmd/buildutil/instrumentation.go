@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"log/slog"
+
 	"github.com/rebuy-de/rebuy-go-sdk/v9/cmd/buildutil/internal/typeutil"
-	"github.com/sirupsen/logrus"
 )
 
 type Instrumentation struct {
@@ -41,7 +42,7 @@ func NewInstrumentation() *Instrumentation {
 func (i *Instrumentation) ReadSize(name string) {
 	fi, err := os.Stat(path.Join("dist", name))
 	if err != nil {
-		logrus.WithError(err).Errorf("Failed to get size of %s", name)
+		slog.Error("failed to get size", "name", name, "error", err)
 		return
 	}
 

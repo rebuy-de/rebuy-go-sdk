@@ -1,7 +1,9 @@
 package main
 
 import (
-	"github.com/sirupsen/logrus"
+	"log/slog"
+	"os"
+
 	"github.com/spf13/cobra"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
@@ -10,7 +12,8 @@ import (
 func main() {
 	defer cmdutil.HandleExit()
 	if err := NewRootCommand().Execute(); err != nil {
-		logrus.Fatal(err)
+		slog.Error("command failed", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -19,7 +22,7 @@ func NewRootCommand() *cobra.Command {
 		"packageutil", "Package tool for Go binaries as part of the rebuy-go-sdk",
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithVersionCommand(),
-		cmdutil.WithVersionLog(logrus.DebugLevel),
+		cmdutil.WithVersionLog(slog.LevelDebug),
 
 		cmdutil.WithRunner(new(Runner)),
 	)
