@@ -1,7 +1,6 @@
 package cmdutil
 
 import (
-	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -17,37 +16,55 @@ import (
 // logLevel is the shared slog.LevelVar used to dynamically control the log level.
 var logLevel = new(slog.LevelVar)
 
-// newCLIHandler creates the appropriate CLI handler based on whether stderr is a TTY.
-// On a TTY it uses tint for colorized output, otherwise it falls back to slog.JSONHandler.
+// logJSON controls whether JSON output is forced.
+var logJSON bool
+
+// logAddSource controls whether source location is included in log output.
+var logAddSource bool
+
+// newCLIHandler creates the appropriate CLI handler based on configuration.
+// If logJSON is true, it always uses slog.JSONHandler.
+// Otherwise, on a TTY it uses tint for colorized output; on a non-TTY it uses
+// tint without color and with a longer timestamp.
 func newCLIHandler() slog.Handler {
+	if logJSON {
+		return slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+			Level:     logLevel,
+			AddSource: logAddSource,
+		})
+	}
+
 	if term.IsTerminal(int(os.Stderr.Fd())) {
-		addSource := false
-		fmt.Printf("%v", logLevel.Level())
-		if logLevel.Level() == slog.LevelDebug {
-			addSource = true
-		}
 		return tint.NewHandler(os.Stderr, &tint.Options{
 			Level:      logLevel,
 			TimeFormat: time.TimeOnly,
-			AddSource:  addSource,
+			AddSource:  logAddSource,
 		})
 	}
+
 	return tint.NewHandler(os.Stderr, &tint.Options{
 		Level:      logLevel,
 		TimeFormat: time.DateTime,
 		NoColor:    true,
+		AddSource:  logAddSource,
 	})
+}
+
+// reconfigureLogger rebuilds the default logger with the current settings.
+// This must be called after any change to logLevel, logJSON, or logAddSource.
+func reconfigureLogger() {
+	slog.SetDefault(slog.New(newCLIHandler()))
 }
 
 func init() {
 	logLevel.Set(slog.LevelInfo)
-	slog.SetDefault(slog.New(newCLIHandler()))
+	reconfigureLogger()
 }
 
+// WithLogVerboseFlag adds a -v/--verbose flag that sets the log level to debug
+// and enables source location in log output.
 func WithLogVerboseFlag() Option {
-	var (
-		enabled bool
-	)
+	var enabled bool
 
 	return func(cmd *cobra.Command) error {
 		cmd.PersistentFlags().BoolVarP(
@@ -55,15 +72,31 @@ func WithLogVerboseFlag() Option {
 			"prints debug log messages")
 
 		cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-			logLevel.Set(slog.LevelInfo)
 			if enabled {
-				fmt.Printf("%v", logLevel.Level())
 				logLevel.Set(slog.LevelDebug)
-				fmt.Printf("%v", logLevel.Level())
+				logAddSource = true
+			} else {
+				logLevel.Set(slog.LevelInfo)
+				logAddSource = false
 			}
+			reconfigureLogger()
 		}
-		fmt.Printf("%v", logLevel.Level())
-		slog.SetDefault(slog.New(newCLIHandler()))
+
+		return nil
+	}
+}
+
+// WithLogJSONFlag adds a --log-json flag that forces JSON log output
+// regardless of whether the output is a TTY.
+func WithLogJSONFlag() Option {
+	return func(cmd *cobra.Command) error {
+		cmd.PersistentFlags().BoolVar(
+			&logJSON, "log-json", false,
+			"force JSON log output")
+
+		cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+			reconfigureLogger()
+		}
 
 		return nil
 	}
@@ -74,9 +107,7 @@ func WithLogToGraylog() Option {
 }
 
 func WithLogToGraylogHostname(hostname string) Option {
-	var (
-		gelfAddress string
-	)
+	var gelfAddress string
 
 	return func(cmd *cobra.Command) error {
 		cmd.PersistentFlags().StringVar(
