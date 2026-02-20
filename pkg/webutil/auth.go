@@ -19,12 +19,13 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/a-h/templ"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/typeutil"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
@@ -68,7 +69,7 @@ func (m *authMiddleware) handler(next http.Handler) http.Handler {
 	router.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
 		claims, err := m.getClaimFromRequest(w, r)
 		if err != nil {
-			logutil.Get(r.Context()).Warnf("auth middleware: %v", err.Error())
+			slog.Warn("auth middleware", "error", err)
 		} else if claims != nil {
 			ctx := r.Context()
 			ctx = typeutil.ContextWithValueSingleton(ctx, claims)

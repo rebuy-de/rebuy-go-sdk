@@ -5,10 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // WrapView converts a function that returns a Response into an http.HandlerFunc.
@@ -25,12 +25,8 @@ func WrapView(fn func(*http.Request) Response) http.HandlerFunc {
 // If the error is a context.Canceled error, it changes the status code to 499 (client closed connection).
 func ViewError(status int, err error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		l := logrus.
-			WithField("stacktrace", fmt.Sprintf("%+v", err)).
-			WithError(errors.WithStack(err))
-
 		if errors.Is(err, context.Canceled) {
-			l.Debugf("request cancelled: %s", err)
+			slog.Debug("request cancelled", "error", err)
 
 			// The code is copied from nginx, where it means that the client
 			// closed the connection. It is necessary to alter the status code,
@@ -38,9 +34,15 @@ func ViewError(status int, err error) http.HandlerFunc {
 			// regardless of the connection state.
 			status = 499
 		} else if status >= 500 {
-			l.Errorf("request failed: %s", err)
+			slog.Error("request failed",
+				"error", err,
+				"stacktrace", fmt.Sprintf("%+v", err),
+			)
 		} else {
-			l.Warnf("request failed: %s", err)
+			slog.Warn("request failed",
+				"error", err,
+				"stacktrace", fmt.Sprintf("%+v", err),
+			)
 		}
 
 		w.WriteHeader(status)

@@ -18,7 +18,7 @@ func Retry(worker Worker, bo Backoff) Worker {
 			err := worker.Run(ctx)
 			if err != nil {
 				attempt += 1
-				logutil.Get(ctx).Warnf("worker failed %d times: %s", attempt, err.Error())
+				logutil.Get(ctx).Warn("worker failed", "attempt", attempt, "error", err)
 			} else {
 				attempt = 0
 			}
