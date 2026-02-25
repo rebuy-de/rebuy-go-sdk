@@ -15,9 +15,10 @@ const (
 )
 
 const (
-	HealthStateInit   = "init"
-	HealthStateOK     = "ok"
-	HealthStateFiring = "firing"
+	HealthStateInit    = "init"
+	HealthStateOK      = "ok"
+	HealthStateFiring  = "firing"
+	HealthStateBackoff = "backoff"
 )
 
 var (
@@ -41,6 +42,7 @@ var healthRegistry = &healthRegistryImpl{
 // HealthMonitor tracks the health state of a worker via Prometheus metrics.
 type HealthMonitor interface {
 	Checkpoint(err error)
+	Backoff()
 }
 
 // HealthCheckpoint records a health checkpoint for the current subsystem.
@@ -85,10 +87,11 @@ func (r *healthRegistryImpl) get(name string) *healthMonitor {
 
 func newHealthMonitor(name string) *healthMonitor {
 	m := &healthMonitor{
-		name: name,
+		name:  name,
+		state: HealthStateInit,
 	}
 
-	for _, state := range []string{HealthStateInit, HealthStateOK, HealthStateFiring} {
+	for _, state := range []string{HealthStateInit, HealthStateOK, HealthStateFiring, HealthStateBackoff} {
 		// Register zero values immediately to avoid null values in Prometheus.
 		instHealthCheckpointsTotal.
 			WithLabelValues(name, state).
@@ -106,7 +109,8 @@ func newHealthMonitor(name string) *healthMonitor {
 }
 
 type healthMonitor struct {
-	name string
+	name  string
+	state string
 }
 
 func (m *healthMonitor) Checkpoint(err error) {
@@ -121,7 +125,27 @@ func (m *healthMonitor) Checkpoint(err error) {
 	}
 }
 
+func (m *healthMonitor) Backoff() {
+	if m == nil {
+		return
+	}
+
+	// Only transition from firing to backoff; no-op for other states.
+	if m.state != HealthStateFiring {
+		return
+	}
+
+	m.state = HealthStateBackoff
+	instHealthState.
+		WithLabelValues(m.name, HealthStateFiring).
+		Set(0)
+	instHealthState.
+		WithLabelValues(m.name, HealthStateBackoff).
+		Set(1)
+}
+
 func (m *healthMonitor) resolve() {
+	m.state = HealthStateOK
 	instHealthCheckpointsTotal.
 		WithLabelValues(m.name, HealthStateOK).
 		Add(1)
@@ -133,10 +157,14 @@ func (m *healthMonitor) resolve() {
 		Set(1)
 	instHealthState.
 		WithLabelValues(m.name, HealthStateFiring).
+		Set(0)
+	instHealthState.
+		WithLabelValues(m.name, HealthStateBackoff).
 		Set(0)
 }
 
 func (m *healthMonitor) fire() {
+	m.state = HealthStateFiring
 	instHealthCheckpointsTotal.
 		WithLabelValues(m.name, HealthStateFiring).
 		Add(1)
@@ -149,4 +177,7 @@ func (m *healthMonitor) fire() {
 	instHealthState.
 		WithLabelValues(m.name, HealthStateFiring).
 		Set(1)
+	instHealthState.
+		WithLabelValues(m.name, HealthStateBackoff).
+		Set(0)
 }
