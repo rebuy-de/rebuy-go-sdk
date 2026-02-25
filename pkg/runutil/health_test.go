@@ -76,3 +76,48 @@ func TestHealthMonitor_NilCheckpoint(t *testing.T) {
 	m.Checkpoint(nil)
 	m.Checkpoint(errors.New("test"))
 }
+
+func TestHealthMonitor_BackoffFromFiring(t *testing.T) {
+	r := &healthRegistryImpl{
+		monitors: map[string]*healthMonitor{},
+	}
+	m := r.get("test-backoff-firing")
+
+	m.fire()
+	assert.Equal(t, HealthStateFiring, m.state)
+
+	m.Backoff()
+	assert.Equal(t, HealthStateBackoff, m.state)
+}
+
+func TestHealthMonitor_BackoffNoopFromInit(t *testing.T) {
+	r := &healthRegistryImpl{
+		monitors: map[string]*healthMonitor{},
+	}
+	m := r.get("test-backoff-init")
+
+	assert.Equal(t, HealthStateInit, m.state)
+
+	m.Backoff()
+	assert.Equal(t, HealthStateInit, m.state)
+}
+
+func TestHealthMonitor_BackoffNoopFromOK(t *testing.T) {
+	r := &healthRegistryImpl{
+		monitors: map[string]*healthMonitor{},
+	}
+	m := r.get("test-backoff-ok")
+
+	m.resolve()
+	assert.Equal(t, HealthStateOK, m.state)
+
+	m.Backoff()
+	assert.Equal(t, HealthStateOK, m.state)
+}
+
+func TestHealthMonitor_NilBackoff(t *testing.T) {
+	var m *healthMonitor
+
+	// Should not panic.
+	m.Backoff()
+}

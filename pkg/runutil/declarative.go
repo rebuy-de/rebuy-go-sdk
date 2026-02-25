@@ -22,7 +22,7 @@ func (w DeclarativeWorker) Run(ctx context.Context) error {
 	// Placed innermost so the full subsystem path is available.
 	inner := worker
 	worker = WorkerFunc(func(ctx context.Context) error {
-		GetHealthMonitor(ctx)
+		GetHealthMonitor(ctx).Backoff()
 		return inner.Run(ctx)
 	})
 
