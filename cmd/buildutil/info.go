@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 )
@@ -234,7 +235,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 
 	os.Setenv("GOPATH", "")
 
-	logrus.Info("Collecting build information")
+	slog.Info("Collecting build information")
 
 	gomod, err := ReadGoMod()
 	if err != nil {
@@ -260,12 +261,12 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 
 	info.SDKVersion, err = ParseVersion(e.OutputString(p.GoCommand, "list", "-mod=readonly", "-m", "-f", "{{.Version}}", "github.com/rebuy-de/rebuy-go-sdk/..."))
 	if err != nil {
-		logrus.WithError(err).Error("Failed to parse sdk-version")
+		slog.Error("Failed to parse sdk-version", "error", err)
 	}
 
 	info.Version, err = ParseVersion(e.OutputString("git", "describe", "--always", "--dirty", "--tags"))
 	if err != nil {
-		logrus.WithError(err).Error("Failed to parse version")
+		slog.Error("Failed to parse version", "error", err)
 	}
 
 	goVersionMatch := regexp.MustCompile(`(?m)go(\d.*) `).FindStringSubmatch(e.OutputString(p.GoCommand, "version"))
@@ -297,7 +298,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	for _, target := range p.TargetSystems {
 		parts := strings.Split(target, "/")
 		if len(parts) != 2 {
-			logrus.Errorf("Invalid format for cross compiling target '%s'.", target)
+			slog.Error("Invalid format for cross compiling target", "target", target)
 			cmdutil.Exit(1)
 		}
 
@@ -312,12 +313,12 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	}
 
 	if len(targetSystems) == 0 {
-		logrus.Info("No cross compiling targets specified. Using local machine.")
+		slog.Info("No cross compiling targets specified. Using local machine.")
 		targetSystems = append(targetSystems, info.System)
 	}
 
 	if len(p.TargetPackages) == 0 {
-		logrus.Debug("No targets specified. Discovering all packages.")
+		slog.Debug("No targets specified. Discovering all packages.")
 		p.TargetPackages = []string{"./..."}
 	}
 
@@ -334,7 +335,7 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 			if pkg.Name != "main" {
 				continue
 			}
-			logrus.Debugf("Found Package %s", pkg.PkgPath)
+			slog.Debug("Found Package", "path", pkg.PkgPath)
 
 			for _, targetSystem := range targetSystems {
 				tinfo := TargetInfo{

@@ -3,6 +3,7 @@ package webutil
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 )
 
 type sessionContextKeyType int
@@ -114,7 +114,7 @@ func sessionMiddlewareFunc(next http.Handler, secret SessionSecret, opts ...Sess
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, err := config.store.Get(r, config.name)
 		if err != nil {
-			logrus.WithError(err).Warn("failed to restore session; creating new one")
+			slog.Warn("failed to restore session; creating new one", "error", err)
 			session.Save(r, w)
 		}
 

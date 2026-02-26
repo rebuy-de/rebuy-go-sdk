@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/tidwall/pretty"
+	"golang.org/x/term"
 )
 
 func dumpJSON(data any) error {
@@ -14,7 +15,9 @@ func dumpJSON(data any) error {
 		return err
 	}
 
-	b = pretty.Color(b, pretty.TerminalStyle)
+	if term.IsTerminal(int(os.Stderr.Fd())) {
+		b = pretty.Color(b, pretty.TerminalStyle)
+	}
 	fmt.Fprintln(os.Stderr, string(b))
 
 	return nil

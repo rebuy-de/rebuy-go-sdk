@@ -13,15 +13,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	"log/slog"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/goreleaser/nfpm/v2"
 	_ "github.com/goreleaser/nfpm/v2/deb" // blank import to register the format
+
 	"github.com/goreleaser/nfpm/v2/files"
 	_ "github.com/goreleaser/nfpm/v2/rpm" // blank import to register the format
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -145,7 +147,7 @@ func parseBinaryName(filename string) (*BinaryInfo, error) {
 	}
 
 	var appName, version string
-	
+
 	versionIndex := -1
 	for i := 1; i < len(parts)-2; i++ {
 		if strings.HasPrefix(parts[i], "v") {
@@ -153,7 +155,7 @@ func parseBinaryName(filename string) (*BinaryInfo, error) {
 			break
 		}
 	}
-	
+
 	if versionIndex != -1 {
 		appName = strings.Join(parts[:versionIndex], "-")
 		version = strings.Join(parts[versionIndex:len(parts)-2], "-")
@@ -221,18 +223,18 @@ func (r *Runner) resolveSymlink(file string) (string, error) {
 		return "", fmt.Errorf("failed to resolve symlink: %w", err)
 	}
 
-	logrus.Debugf("Resolved symlink %s -> %s", file, resolved)
+	slog.Debug("Resolved symlink", "from", file, "to", resolved)
 	return resolved, nil
 }
 
 func (r *Runner) discoverBinaries(ctx context.Context, targetFiles []string) error {
-	logrus.Info("Processing target binaries")
+	slog.Info("Processing target binaries")
 
 	if len(targetFiles) == 0 {
 		return fmt.Errorf("no target binary files specified")
 	}
 
-	logrus.Debugf("Processing %d target files", len(targetFiles))
+	slog.Debug("Processing target files", "count", len(targetFiles))
 
 	for _, file := range targetFiles {
 		actualFile, err := r.resolveSymlink(file)
@@ -254,7 +256,7 @@ func (r *Runner) discoverBinaries(ctx context.Context, targetFiles []string) err
 		binary.Basename = actualBasename
 
 		r.Binaries = append(r.Binaries, *binary)
-		logrus.Debugf("Added binary: %s (%s)", binary.Basename, binary.System.Name())
+		slog.Debug("Added binary", "basename", binary.Basename, "system", binary.System.Name())
 	}
 
 	if len(r.Binaries) == 0 {
@@ -294,11 +296,11 @@ func (r *Runner) validatePackageCompatibility() error {
 
 func (r *Runner) createArtifacts(ctx context.Context) error {
 	if !r.Parameters.CreateCompressed && !r.Parameters.CreateRPM && !r.Parameters.CreateDEB {
-		logrus.Info("No artifact formats selected, skipping artifact creation")
+		slog.Info("No artifact formats selected, skipping artifact creation")
 		return nil
 	}
 
-	logrus.Info("Creating artifacts")
+	slog.Info("Creating artifacts")
 
 	systemBinaries := make(map[string][]BinaryInfo)
 	for _, binary := range r.Binaries {
@@ -366,7 +368,7 @@ func processArchiveFile(binary BinaryInfo, addToArchive func(binary BinaryInfo, 
 
 func (r *Runner) createTgzArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
 	filename := fmt.Sprintf("%s-%s.tar.gz", name, system.FileSuffix())
-	logrus.Infof("Creating tgz artifact: %s", filename)
+	slog.Info("Creating tgz artifact", "filename", filename)
 
 	dst, err := os.Create(filepath.Join("dist", filename))
 	if err != nil {
@@ -409,7 +411,7 @@ func (r *Runner) createTgzArtifact(name string, system SystemInfo, binaries []Bi
 
 func (r *Runner) createZipArtifact(name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
 	filename := fmt.Sprintf("%s-%s.zip", name, system.FileSuffix())
-	logrus.Infof("Creating zip artifact: %s", filename)
+	slog.Info("Creating zip artifact", "filename", filename)
 
 	dst, err := os.Create(filepath.Join("dist", filename))
 	if err != nil {
@@ -451,7 +453,7 @@ func (r *Runner) createZipArtifact(name string, system SystemInfo, binaries []Bi
 
 func (r *Runner) createSystemPackage(format, name string, system SystemInfo, binaries []BinaryInfo) (ArtifactInfo, error) {
 	filename := fmt.Sprintf("%s-%s.%s", name, system.FileSuffix(), format)
-	logrus.Infof("Creating %s artifact: %s", format, filename)
+	slog.Info("Creating artifact", "format", format, "filename", filename)
 
 	bindir := "/usr/bin"
 	contents := files.Contents{}
@@ -506,16 +508,16 @@ func (r *Runner) createSystemPackage(format, name string, system SystemInfo, bin
 
 func (r *Runner) uploadArtifacts(ctx context.Context) error {
 	if r.Parameters.S3URL == "" {
-		logrus.Info("No S3 URL specified, skipping upload")
+		slog.Info("No S3 URL specified, skipping upload")
 		return nil
 	}
 
 	if len(r.Artifacts) == 0 {
-		logrus.Info("No artifacts to upload")
+		slog.Info("No artifacts to upload")
 		return nil
 	}
 
-	logrus.Info("Uploading artifacts to S3")
+	slog.Info("Uploading artifacts to S3")
 
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithDefaultRegion("eu-west-1"))
 	if err != nil {
@@ -540,7 +542,7 @@ func (r *Runner) uploadArtifacts(ctx context.Context) error {
 
 func (r *Runner) uploadSingleArtifact(ctx context.Context, uploader *manager.Uploader, base *S3URL, artifact ArtifactInfo) error {
 	s3Location := base.Subpath(artifact.Filename)
-	logrus.Infof("Uploading %s", s3Location.String())
+	slog.Info("Uploading", "location", s3Location.String())
 
 	f, err := os.Open(filepath.Join("dist", artifact.Filename))
 	if err != nil {

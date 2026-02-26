@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/web"
@@ -11,7 +12,6 @@ import (
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/pgutil"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.uber.org/dig"
 )
@@ -22,7 +22,7 @@ func NewRootCommand() *cobra.Command {
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithLogToGraylog(),
 		cmdutil.WithVersionCommand(),
-		cmdutil.WithVersionLog(logrus.DebugLevel),
+		cmdutil.WithVersionLog(slog.LevelDebug),
 
 		cmdutil.WithSubCommand(
 			cmdutil.New(
