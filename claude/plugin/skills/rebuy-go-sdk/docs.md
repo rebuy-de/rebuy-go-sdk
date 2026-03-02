@@ -314,6 +314,23 @@ func (w *DataSyncWorker) Workers() []runutil.Worker {
 
 The lease gets automatically refreshed during job execution to prevent lock expiry for long-running tasks.
 
+## Retry vs RetryJob
+
+Use `runutil.RetryJob` to retry a `Job` and `runutil.Retry` to retry a `Worker`. When using `DistributedRepeat`, always use `RetryJob` to wrap the job **before** passing it to `NewDistributedRepeat`. This ensures retries happen while still holding the distributed lock. Using `DeclarativeWorker.Retry` (which wraps the entire worker) with a `DistributedRepeat` is likely a bug — the lock gets released on failure and the backoff runs without holding it, allowing another instance to grab the lock during the wait.
+
+```
+// Correct: retry inside the distributed lock
+runutil.DeclarativeWorker{
+	Name: "DataSyncWorker",
+	Worker: runutil.NewDistributedRepeat(
+		w.redisClient, "data-sync-lock", 5*time.Minute,
+		runutil.RetryJob(
+			runutil.JobFunc(w.syncData),
+			runutil.ExponentialBackoff{Initial: time.Minute, Max: 5 * time.Minute},
+		),
+	),
+}
+```
 
 # Package pkg/app/handlers
 
