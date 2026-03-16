@@ -2,12 +2,12 @@ package executil
 
 import (
 	"context"
+	"log/slog"
 	"os/exec"
 	"strings"
 	"syscall"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Run starts the specified command and waits for it to complete.
@@ -16,10 +16,11 @@ import (
 // instead of a kill, which gives the process time for a graceful shutdown.
 func Run(ctx context.Context, cmd *exec.Cmd) error {
 	commandline := strings.Join(cmd.Args, " ")
-	logrus.WithFields(logrus.Fields{
-		"Args": cmd.Args,
-		"Dir":  cmd.Dir,
-	}).Debugf("running command `%s`", commandline)
+	slog.Debug("running command",
+		"args", cmd.Args,
+		"dir", cmd.Dir,
+		"commandline", commandline,
+	)
 
 	err := cmd.Start()
 	if err != nil {
@@ -32,7 +33,7 @@ func Run(ctx context.Context, cmd *exec.Cmd) error {
 	go func() {
 		select {
 		case <-ctx.Done():
-			logrus.Debugf("sending interrupt signal to `%s`", commandline)
+			slog.Debug("sending interrupt signal", "commandline", commandline)
 			cmd.Process.Signal(syscall.SIGINT)
 		case <-done:
 			// This mean wait() already exited and we can stop to wait for the

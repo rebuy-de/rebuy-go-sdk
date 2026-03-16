@@ -83,7 +83,7 @@ func (r *DistributedRepeat) attemptExecution(ctx context.Context, hostname strin
 					err := r.client.Expire(expireCtx, r.name, r.cooldown).Err()
 					cancel()
 					if err != nil {
-						logutil.Get(ctx).Errorf("refreshing repeat lock: %s", err.Error())
+						logutil.Get(ctx).Error("refreshing repeat lock", "error", err)
 					}
 				}
 			}
@@ -106,7 +106,7 @@ func (r *DistributedRepeat) attemptExecution(ctx context.Context, hostname strin
 	// add jitter of 0% - 5% of total wait time
 	jitter := time.Duration(float64(r.cooldown) / 20. * rand.Float64())
 
-	logutil.Get(ctx).Debugf("distributed sleep is sleeping for %v + %v = %v", wait, jitter, wait+jitter)
+	logutil.Get(ctx).Debug("distributed sleep", "wait", wait, "jitter", jitter, "total", wait+jitter)
 
 	select {
 	case <-time.After(wait + jitter):

@@ -16,7 +16,7 @@ This is a comprehensive example application that demonstrates various features o
 
 ### Prerequisites
 
-- Go 1.24 or later
+- Go 1.26 or later
 - PostgreSQL database
 - Docker (optional, for running PostgreSQL locally)
 
