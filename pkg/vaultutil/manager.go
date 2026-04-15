@@ -90,15 +90,17 @@ func Init(ctx context.Context, params Params) (*Manager, error) {
 			WithError(errors.WithStack(err)).
 			Warnf("shutting down vault manager")
 		watcher.Stop()
-		err := client.Auth().Token().RevokeSelf("")
-		if err != nil {
-			logutil.Get(ctx).
-				WithError(errors.WithStack(err)).
-				Errorf("revoking own token failed")
-		} else {
-			logutil.Get(ctx).
-				WithError(errors.WithStack(err)).
-				Debugf("revoking own token succeeded")
+		if params.Token == "" {
+			err := client.Auth().Token().RevokeSelf("")
+			if err != nil {
+				logutil.Get(ctx).
+					WithError(errors.WithStack(err)).
+					Errorf("revoking own token failed")
+			} else {
+				logutil.Get(ctx).
+					WithError(errors.WithStack(err)).
+					Debugf("revoking own token succeeded")
+			}
 		}
 	}()
 
