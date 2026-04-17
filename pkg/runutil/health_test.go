@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/logutil"
 	"github.com/stretchr/testify/assert"
 )
 

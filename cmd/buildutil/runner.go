@@ -12,7 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/executil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/executil"
 )
 
 func call(ctx context.Context, command string, args ...string) error {
@@ -218,7 +218,7 @@ func (r *Runner) runBuild(ctx context.Context) error {
 		ldFlags := []string{}
 		for _, entry := range ldData {
 			ldFlags = append(ldFlags, fmt.Sprintf(
-				`-X 'github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil.%s=%s'`,
+				`-X 'github.com/rebuy-de/rebuy-go-sdk/v10/pkg/cmdutil.%s=%s'`,
 				entry.name, entry.value,
 			))
 		}

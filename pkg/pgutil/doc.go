@@ -22,7 +22,7 @@
 //	    "context"
 //	    "embed"
 //
-//	    "github.com/rebuy-de/rebuy-go-sdk/v9/pkg/pgutil"
+//	    "github.com/rebuy-de/rebuy-go-sdk/v10/pkg/pgutil"
 //	)
 //
 //	//go:embed migrations/*.sql
@@ -155,11 +155,11 @@
 //
 //	-- R_001_user_stats_view.sql
 //	CREATE OR REPLACE VIEW user_stats AS
-//	SELECT 
+//	SELECT
 //	    user_id,
 //	    COUNT(*) as total_orders,
 //	    SUM(amount) as total_spent
-//	FROM orders 
+//	FROM orders
 //	GROUP BY user_id;
 //
 // ## Usage with MigrateWithEmbeddedFS

@@ -1,4 +1,4 @@
-module github.com/rebuy-de/rebuy-go-sdk/v9/examples/full
+module github.com/rebuy-de/rebuy-go-sdk/v10/examples/full
 
 go 1.26.0
 
@@ -8,7 +8,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.1
-	github.com/rebuy-de/rebuy-go-sdk/v9 v9.0.0
+	github.com/rebuy-de/rebuy-go-sdk/v10 v10.0.0
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/spf13/cobra v1.10.2
 	github.com/sqlc-dev/sqlc v1.30.0
@@ -168,4 +168,4 @@ require (
 	modernc.org/sqlite v1.38.2 // indirect
 )
 
-replace github.com/rebuy-de/rebuy-go-sdk/v9 => ../../../rebuy-go-sdk
+replace github.com/rebuy-de/rebuy-go-sdk/v10 => ../../../rebuy-go-sdk

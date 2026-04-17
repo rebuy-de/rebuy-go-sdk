@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/templates"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/examples/full/pkg/app/templates"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/webutil"
 )
 
 // HealthHandler handles the health status page

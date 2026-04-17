@@ -1,4 +1,4 @@
-module github.com/rebuy-de/rebuy-go-sdk/v9
+module github.com/rebuy-de/rebuy-go-sdk/v10
 
 go 1.26.0
 

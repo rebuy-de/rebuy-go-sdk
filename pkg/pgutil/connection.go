@@ -7,7 +7,7 @@ import (
 
 	pgxtrace "github.com/DataDog/dd-trace-go/contrib/jackc/pgx.v5/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/digutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/digutil"
 )
 
 // URI represents a PostgreSQL connection string for dependency injection

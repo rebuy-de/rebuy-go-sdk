@@ -17,10 +17,10 @@ The file `./main.go` should look exactly like in the example project:
 package main
 
 import (
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/cmdutil"
 	"github.com/sirupsen/logrus"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/cmd"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/examples/full/cmd"
 )
 
 func main() {
@@ -45,8 +45,8 @@ package main
 import (
 	_ "github.com/Khan/genqlient" // only when using graphql
 	_ "github.com/a-h/templ/cmd/templ" // only when using templ
-	_ "github.com/rebuy-de/rebuy-go-sdk/v9/cmd/buildutil" // always used
-	_ "github.com/rebuy-de/rebuy-go-sdk/v9/cmd/packageutil" // only when building packages during CI
+	_ "github.com/rebuy-de/rebuy-go-sdk/v10/cmd/buildutil" // always used
+	_ "github.com/rebuy-de/rebuy-go-sdk/v10/cmd/packageutil" // only when building packages during CI
 	_ "github.com/sqlc-dev/sqlc/cmd/sqlc" // only when using a database with sqlc
 	_ "honnef.co/go/tools/cmd/staticcheck" // always used
 )
@@ -242,8 +242,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/runutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/runutil"
 )
 
 // DataSyncWorker is responsible for periodically syncing data
@@ -355,8 +355,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/templates"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/examples/full/pkg/app/templates"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/webutil"
 )
 
 // IndexHandler handles the home page
@@ -398,8 +398,8 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/webutil"
 )
 
 //go:generate go run github.com/a-h/templ/cmd/templ generate
@@ -636,7 +636,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/logutil"
 )
 
 type WithTxFunc func(*Queries) error
@@ -767,7 +767,7 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/webutil"
 )
 
 //go:generate yarn install

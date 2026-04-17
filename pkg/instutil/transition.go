@@ -3,7 +3,7 @@ package instutil
 import (
 	"context"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/logutil"
 )
 
 type contextKeyTransitionCollector string
