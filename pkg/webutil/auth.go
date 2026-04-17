@@ -13,13 +13,12 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 	"time"
-
-	"log/slog"
 
 	"github.com/a-h/templ"
 	"github.com/coreos/go-oidc/v3/oidc"

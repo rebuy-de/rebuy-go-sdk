@@ -8,7 +8,7 @@ strongly recommended to align projects using this SDK.
 ### Reasoning
 
 `logrus` is in maintenance mode and `log/slog` is now part of the Go standard library (since Go 1.21). Using `slog`
-reduces external dependencies, provides better performance, and aligns with the Go ecosystem's direction. The Graylog
+reduces external dependencies and aligns with the Go ecosystem's direction. The Graylog
 integration is now handled via `samber/slog-graylog` with `samber/slog-multi` for fanout to multiple handlers (CLI +
 Graylog).
 
@@ -27,21 +27,21 @@ Replace all `"github.com/sirupsen/logrus"` imports with `"log/slog"`.
 
 #### 2. Replace logrus calls
 
-| logrus | slog |
-|--------|------|
-| `logrus.Info("msg")` | `slog.Info("msg")` |
-| `logrus.Infof("msg %s", v)` | `slog.Info("msg", "key", v)` |
-| `logrus.WithField("k", v).Info("msg")` | `slog.Info("msg", "k", v)` |
-| `logrus.WithError(err).Error("msg")` | `slog.Error("msg", "error", err)` |
-| `logrus.Fatal(err)` | `slog.Error("msg", "error", err); os.Exit(1)` |
+| logrus                                 | slog                                          |
+| -------------------------------------- | --------------------------------------------- |
+| `logrus.Info("msg")`                   | `slog.Info("msg")`                            |
+| `logrus.Infof("msg %s", v)`            | `slog.Info("msg", "key", v)`                  |
+| `logrus.WithField("k", v).Info("msg")` | `slog.Info("msg", "k", v)`                    |
+| `logrus.WithError(err).Error("msg")`   | `slog.Error("msg", "error", err)`             |
+| `logrus.Fatal(err)`                    | `slog.Error("msg", "error", err); os.Exit(1)` |
 
 #### 3. Replace logutil calls
 
-| Before | After |
-|--------|-------|
-| `logutil.Get(ctx).Infof("msg %s", v)` | `logutil.Get(ctx).Info("msg", "key", v)` |
-| `logutil.Get(ctx).WithField("k", v).Info("msg")` | `logutil.Get(ctx).Info("msg", "k", v)` |
-| `logutil.Get(ctx).WithError(err).Error("msg")` | `logutil.Get(ctx).Error("msg", "error", err)` |
+| Before                                           | After                                         |
+| ------------------------------------------------ | --------------------------------------------- |
+| `logutil.Get(ctx).Infof("msg %s", v)`            | `logutil.Get(ctx).Info("msg", "key", v)`      |
+| `logutil.Get(ctx).WithField("k", v).Info("msg")` | `logutil.Get(ctx).Info("msg", "k", v)`        |
+| `logutil.Get(ctx).WithError(err).Error("msg")`   | `logutil.Get(ctx).Error("msg", "error", err)` |
 
 #### 4. Update WithVersionLog
 
@@ -98,7 +98,6 @@ Check release notes and upgrade to v9.
 * Removed `cdnmirror`. Use Yarn or similar instead.
 * Change signature of `cmdutil.Runner.Run` from `(context.Context)` to `(context.Context, []string)` in order to be able
   to access positional args.
-
 
 ## M0007 2024-11-08 Switch to Dependency Injection
 

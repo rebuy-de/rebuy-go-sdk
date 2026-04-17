@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path"
@@ -11,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"log/slog"
 
 	"github.com/pkg/errors"
 	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"

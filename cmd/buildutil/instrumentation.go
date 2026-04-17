@@ -2,12 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path"
 	"sync"
 	"time"
-
-	"log/slog"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v9/cmd/buildutil/internal/typeutil"
 )

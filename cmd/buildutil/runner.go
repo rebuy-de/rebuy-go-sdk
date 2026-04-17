@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
-
-	"log/slog"
 
 	"github.com/spf13/cobra"
 
