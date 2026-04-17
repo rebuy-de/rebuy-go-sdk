@@ -16,7 +16,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/goreleaser/nfpm/v2"
 	_ "github.com/goreleaser/nfpm/v2/deb" // blank import to register the format
@@ -528,10 +528,10 @@ func (r *Runner) uploadArtifacts(ctx context.Context) error {
 		return fmt.Errorf("failed to parse S3 URL: %w", err)
 	}
 
-	uploader := manager.NewUploader(s3.NewFromConfig(cfg))
+	s3Client := transfermanager.New(s3.NewFromConfig(cfg))
 
 	for _, artifact := range r.Artifacts {
-		if err := r.uploadSingleArtifact(ctx, uploader, base, artifact); err != nil {
+		if err := r.uploadSingleArtifact(ctx, s3Client, base, artifact); err != nil {
 			return err
 		}
 	}
@@ -539,7 +539,7 @@ func (r *Runner) uploadArtifacts(ctx context.Context) error {
 	return nil
 }
 
-func (r *Runner) uploadSingleArtifact(ctx context.Context, uploader *manager.Uploader, base *S3URL, artifact ArtifactInfo) error {
+func (r *Runner) uploadSingleArtifact(ctx context.Context, s3Client *transfermanager.Client, base *S3URL, artifact ArtifactInfo) error {
 	s3Location := base.Subpath(artifact.Filename)
 	slog.Info("Uploading", "location", s3Location.String())
 
@@ -553,7 +553,7 @@ func (r *Runner) uploadSingleArtifact(ctx context.Context, uploader *manager.Upl
 	tags.Set("System", artifact.System.Name())
 	tags.Set("Kind", artifact.Kind)
 
-	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
+	_, err = s3Client.UploadObject(ctx, &transfermanager.UploadObjectInput{
 		Bucket:  &s3Location.Bucket,
 		Key:     &s3Location.Key,
 		Tagging: aws.String(tags.Encode()),
