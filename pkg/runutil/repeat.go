@@ -6,7 +6,7 @@ import (
 
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/logutil"
 )
 
 type jobWorker struct {

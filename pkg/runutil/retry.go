@@ -3,7 +3,7 @@ package runutil
 import (
 	"context"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/logutil"
 )
 
 // RetryJob retries a Job with backoff until it succeeds or the context is

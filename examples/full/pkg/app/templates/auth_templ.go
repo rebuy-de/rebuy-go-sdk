@@ -5,10 +5,11 @@ package templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
-
-import "github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
+import (
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/webutil"
+)
 
 // isAuthenticated checks if the user is authenticated
 func (v *RequestAwareViewer) isAuthenticated() bool {

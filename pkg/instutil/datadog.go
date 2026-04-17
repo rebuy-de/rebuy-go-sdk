@@ -5,7 +5,7 @@ import (
 
 	httptrace "github.com/DataDog/dd-trace-go/contrib/net/http/v2"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/cmdutil"
 )
 
 func InitDefaultTracer() {

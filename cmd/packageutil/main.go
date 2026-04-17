@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/cmdutil"
 )
 
 func main() {

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/cmd/buildutil/internal/typeutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/cmd/buildutil/internal/typeutil"
 )
 
 type Instrumentation struct {

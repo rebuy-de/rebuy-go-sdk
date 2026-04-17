@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/full/pkg/app/templates"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/webutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/examples/full/pkg/app/templates"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/webutil"
 )
 
 // IndexHandler handles the home page

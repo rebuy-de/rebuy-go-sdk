@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/examples/minimal/cmd"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/examples/minimal/cmd"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/cmdutil"
 )
 
 func main() {

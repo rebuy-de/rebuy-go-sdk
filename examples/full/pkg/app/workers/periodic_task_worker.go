@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/logutil"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/runutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/logutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/runutil"
 )
 
 // PeriodicTaskWorker is a worker that performs a variety of periodic tasks

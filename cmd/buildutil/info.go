@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rebuy-de/rebuy-go-sdk/v9/pkg/cmdutil"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/cmdutil"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 )
