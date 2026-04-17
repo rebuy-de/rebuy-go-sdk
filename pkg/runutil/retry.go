@@ -20,7 +20,7 @@ func RetryJob(job Job, bo Backoff) Job {
 			}
 
 			attempt++
-			logutil.Get(ctx).Warnf("job failed %d times: %s", attempt, err.Error())
+			logutil.Get(ctx).Warn("job failed", "attempt", attempt, "error", err)
 
 			Wait(ctx, bo.Duration(attempt))
 		}
