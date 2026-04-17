@@ -5,7 +5,7 @@
 //
 // Main features:
 //   - Context-aware logging with automatic trace ID generation
-//   - Structured logging with logrus integration
+//   - Structured logging with slog integration
 //   - Subsystem path tracking for hierarchical services
 //   - Helper methods for adding fields to loggers
 //   - Converting structs to log fields with custom field name mapping

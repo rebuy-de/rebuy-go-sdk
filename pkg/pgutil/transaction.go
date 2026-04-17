@@ -65,7 +65,7 @@ func Hijack(ctx context.Context, pool *pgxpool.Pool) (*pgx.Conn, func(), error) 
 	closer := func() {
 		err := conn.Close(context.Background())
 		if err != nil {
-			logutil.Get(ctx).WithError(err).Error("failed to close hijacked connection")
+			logutil.Get(ctx).Error("failed to close hijacked connection", "error", err)
 		}
 	}
 
