@@ -40,7 +40,7 @@ func (h *UsersHandler) handleUsersList(r *http.Request) webutil.Response {
 	// Fetch users from database
 	dbUsers, err := h.queries.ListUsers(ctx)
 	if err != nil {
-		logger.WithError(err).Error("failed to fetch users from database")
+		logger.Error("failed to fetch users from database", "error", err)
 		return webutil.ViewError(http.StatusInternalServerError, err)
 	}
 

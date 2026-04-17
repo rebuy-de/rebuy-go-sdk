@@ -47,7 +47,7 @@ func View(status int, node templ.Component) webutil.Response {
 
 		err := node.Render(r.Context(), w)
 		if err != nil {
-			logutil.Get(r.Context()).Error(err)
+			logutil.Get(r.Context()).Error("failed to render templ component", "error", err)
 		}
 	}
 }
