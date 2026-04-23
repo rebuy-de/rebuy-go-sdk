@@ -22,7 +22,7 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/gosimple/slug v1.15.0
 	github.com/hashicorp/vault/api v1.23.0
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/lmittmann/tint v1.1.3
 	github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c
 	github.com/pkg/errors v0.9.1
