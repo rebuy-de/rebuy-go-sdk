@@ -17,16 +17,18 @@ The file `./main.go` should look exactly like in the example project:
 package main
 
 import (
-	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/cmdutil"
-	"github.com/sirupsen/logrus"
+	"log/slog"
+	"os"
 
 	"github.com/rebuy-de/rebuy-go-sdk/v10/examples/full/cmd"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/cmdutil"
 )
 
 func main() {
 	defer cmdutil.HandleExit()
 	if err := cmd.NewRootCommand().Execute(); err != nil {
-		logrus.Fatal(err)
+		slog.Error("command failed", "error", err)
+		os.Exit(1)
 	}
 }
 ```
@@ -93,7 +95,7 @@ func NewRootCommand() *cobra.Command {
 		cmdutil.WithLogVerboseFlag(),
 		cmdutil.WithLogToGraylog(),
 		cmdutil.WithVersionCommand(),
-		cmdutil.WithVersionLog(logrus.DebugLevel),
+		cmdutil.WithVersionLog(slog.LevelDebug),
 
 		cmdutil.WithSubCommand(
 			cmdutil.New(
@@ -442,7 +444,7 @@ func View(status int, node templ.Component) webutil.Response {
 
 		err := node.Render(r.Context(), w)
 		if err != nil {
-			logutil.Get(r.Context()).Error(err)
+			logutil.Get(r.Context()).Error("failed to render templ component", "error", err)
 		}
 	}
 }
@@ -593,14 +595,17 @@ Repeatable migrations are useful for:
 
 ## Transactions
 
-Use `pgutil.WithTransaction` for transaction handling:
+Use `pgutil.Tx` for transaction handling. It begins a transaction on the pool, commits on a nil return, rolls back otherwise:
 
 ```go
-err := pgutil.WithTransaction(ctx, queries, func(tx *Queries) error {
-	// Your transactional operations here
+err := pgutil.Tx(ctx, pool, func(tx pgx.Tx) error {
+	qtx := queries.WithTx(tx)
+	// Transactional operations on qtx
 	return nil
 })
 ```
+
+For operations that need a dedicated connection (advisory locks, `LISTEN`/`NOTIFY`, session-scoped settings), use `pgutil.Hijack(ctx, pool) (*pgx.Conn, func(), error)`. The returned closer must be called to release the connection back to the pool.
 
 # Package pkg/dal/sqlc
 
@@ -625,67 +630,9 @@ var MigrationsFS embed.FS
 
 Note: When using `pgutil` with dependency injection (as shown in the pkg/pgutil section), you don't need manual `NewQueries` or `Migrate` functions. The `pgutil.NewPool` and `pgutil.Migrate` functions handle this through the dig container.
 
-The file `./pkg/dal/sqlc/tx.go` should always look close like this:
+Transaction handling does not require a custom `tx.go` wrapper in this package anymore. Use `pgutil.Tx(ctx, pool, func(tx pgx.Tx) error { ... })` together with the sqlc-generated `Queries.WithTx(tx)` method (see the pkg/pgutil section above). For connection-scoped operations use `pgutil.Hijack(ctx, pool)`.
 
-```
-package sqlc
-
-import (
-	"context"
-	"fmt"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/logutil"
-)
-
-type WithTxFunc func(*Queries) error
-
-type beginner interface {
-	Begin(ctx context.Context) (pgx.Tx, error)
-}
-
-func (q *Queries) Tx(ctx context.Context, fn WithTxFunc) error {
-	db, ok := q.db.(beginner)
-	if !ok {
-		return fmt.Errorf("DB interface does not implement transactions: %T", q.db)
-	}
-
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	qtx := q.WithTx(tx)
-
-	err = fn(qtx)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
-}
-
-func (q *Queries) Hijack(ctx context.Context) (*Queries, func(), error) {
-	pool := q.db.(*pgxpool.Pool)
-	pconn, err := pool.Acquire(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	conn := pconn.Hijack()
-
-	closer := func() {
-		err := conn.Close(context.Background())
-		if err != nil {
-			logutil.Get(ctx).Error(err)
-		}
-	}
-
-	return New(conn), closer, nil
-}
-```
+The file `./pkg/dal/sqlc/sqlc.yaml` configures code generation and looks like this:
 
 ```
 version: 2
@@ -701,6 +648,7 @@ sql:
 
         emit_json_tags: true
         emit_pointers_for_null_types: true
+        emit_db_tags: true
 
         output_db_file_name: gen_db.go
         output_models_file_name: gen_models.go
