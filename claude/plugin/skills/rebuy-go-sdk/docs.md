@@ -672,6 +672,20 @@ func (w *FetchProjects) Work(ctx context.Context, job *river.Job[FetchProjectsAr
 }
 ```
 
+**Args fields must have JSON tags.** River computes a job's `unique_key` by JSON-serializing the Args struct. Fields without tags are not reliably included in the unique key, so deduplication via `UniqueOpts` silently misbehaves. Always tag every field:
+
+```go
+// CORRECT — fields included in unique_key
+type ProcessAlertEventArgs struct {
+	AlertEventID uuid.UUID `json:"alert_event_id"`
+}
+
+// WRONG — unique_key may not include the field correctly
+type ProcessAlertEventArgs struct {
+	AlertEventID uuid.UUID
+}
+```
+
 Most workers are triggered by inserts from handlers or other workers. For workers that should also run on a schedule, append a `PeriodicJob` in `Config`:
 
 ```go
@@ -682,9 +696,62 @@ config.PeriodicJobs = append(config.PeriodicJobs, river.NewPeriodicJob(
 ))
 ```
 
+Periodic jobs can back up if the worker is slow or the service was down. The job's `ScheduledAt` may then be far behind real time, and running it would produce stale work. Cancel the job at the top of `Work` instead of executing it:
+
+```go
+func (w *FetchProjects) Work(ctx context.Context, job *river.Job[FetchProjectsArgs]) error {
+	if time.Since(job.JobRow.ScheduledAt) > FetchInterval {
+		return river.JobCancel(fmt.Errorf("skipping stale job"))
+	}
+	// ...
+}
+```
+
+## Work Method Style
+
+Most workers need DB access. The default style is a plain `Work(ctx, job)` that opens a transaction with `pgutil.Tx` so DB writes and any follow-up `riverutil.Insert` calls commit atomically:
+
+```go
+func (w *Worker) Work(ctx context.Context, job *river.Job[Args]) error {
+	return pgutil.Tx(ctx, w.pool, func(tx pgx.Tx) error {
+		// transactional work using tx
+		return nil
+	})
+}
+```
+
+Workers that do not touch the database can implement `Work` directly without a transaction.
+
+Projects that adopt sqlc commonly add a thin project-level helper — e.g. `RiverTxWorkFunc` in `pkg/dal/sqlc/tx.go` — that wraps a work function, opens a transaction, hands it to the worker, and calls `river.JobCompleteTx` so the job-completion row is written in the same tx. This is a project-owned convenience built on top of `pgutil.Tx`; the SDK does not ship it. Use it when every worker in the project should run inside a transaction:
+
+```go
+func (w *Worker) Config(config *river.Config) error {
+	river.AddWorker(config.Workers, sqlc.RiverTxWorkFunc(w.db, w.work))
+	return nil
+}
+
+func (w *Worker) work(ctx context.Context, qtx *sqlc.Tx, job *river.Job[Args]) error {
+	// transactional work using qtx
+	return nil
+}
+```
+
+**Error handling inside Work methods:**
+
+- Use `errors.Is(err, pgx.ErrNoRows)` to detect missing rows; do not compare with `==`.
+- Wrap returned errors with context: `fmt.Errorf("fetch project %s: %w", id, err)`. River logs and retries based on the returned error, so the wrapper context shows up in failure traces.
+
 ## Enqueueing Jobs
 
-From inside a `Work` method or anywhere that already holds a `pgx.Tx`, use `riverutil.Insert`. It pulls the river client from the context and inserts the job in the same transaction, so the enqueue commits atomically with the surrounding work. `riverutil.UniqueOptsByArgs` is a pre-built `river.UniqueOpts` that deduplicates by job args across all non-completed states — re-inserting after the previous job finishes is allowed.
+**Default rule:** every `Insert` uses `UniqueOpts: riverutil.UniqueOptsByArgs` unless you have a specific reason not to.
+
+Without uniqueness, a flapping upstream worker that retries on error can flood the jobs table with duplicates of the same args, and the table grows unbounded. `UniqueOptsByArgs` deduplicates by JSON-serialized args across all active states.
+
+**Why `riverutil.UniqueOptsByArgs` instead of `river.UniqueOpts{ByArgs: true}`:** River's stock `ByState` includes `Completed`, which means a job with the same args cannot be re-inserted after it finishes. That breaks pipelines that need to re-run on a state change — e.g. an alert pipeline where `ProcessAlertEventArgs` runs once when the alert is created (and completes), and then needs to run again with the same args when the alert resolves so the Slack message can be updated. `riverutil.UniqueOptsByArgs` excludes `Completed` from `ByState` so re-insertion after completion works.
+
+**When to skip `UniqueOpts`:** only when multiple identical jobs are intentional. Add an inline comment explaining why uniqueness is not required.
+
+From inside a `Work` method or anywhere that already holds a `pgx.Tx`, use `riverutil.Insert`. It pulls the river client from the context and inserts the job in the same transaction, so the enqueue commits atomically with the surrounding work:
 
 ```go
 err := pgutil.Tx(ctx, pool, func(tx pgx.Tx) error {
@@ -700,6 +767,15 @@ From an HTTP handler or other code path without a transaction, inject `*river.Cl
 ```go
 _, err := h.riverClient.Insert(ctx, MyArgs{...}, &river.InsertOpts{
 	UniqueOpts: riverutil.UniqueOptsByArgs,
+})
+```
+
+**Delayed jobs:** use `ScheduleIn` in `river.InsertOpts` to stagger or rate-limit follow-up work:
+
+```go
+err := riverutil.Insert(ctx, tx, MyArgs{...}, &river.InsertOpts{
+	UniqueOpts: riverutil.UniqueOptsByArgs,
+	ScheduleIn: 30 * time.Second,
 })
 ```
 
