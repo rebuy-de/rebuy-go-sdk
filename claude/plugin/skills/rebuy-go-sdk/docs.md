@@ -607,6 +607,118 @@ err := pgutil.Tx(ctx, pool, func(tx pgx.Tx) error {
 
 For operations that need a dedicated connection (advisory locks, `LISTEN`/`NOTIFY`, session-scoped settings), use `pgutil.Hijack(ctx, pool) (*pgx.Conn, func(), error)`. The returned closer must be called to release the connection back to the pool.
 
+# Package pkg/riverutil
+
+The package `./pkg/riverutil` integrates [River](https://riverqueue.com), a Postgres-backed job queue, with the SDK's dependency injection, structured logging, and observability. It builds on `pgutil`'s pool, applies DataDog OpenTelemetry tracing and `logutil` middleware automatically, and exposes a Prometheus metric `rebuy_go_sdk_river_failing_jobs` for jobs that have failed more than five times. Workers register themselves with the dig container, so adding a new job type is a single line in `cmd/server.go`.
+
+## Integration with Dependency Injection
+
+In `cmd/server.go`, provide the client, run River's migrations, register each worker, and start the client. `runutil.RunProvidedWorkers` does **not** start the river client automatically — it must be invoked explicitly:
+
+```go
+err := errors.Join(
+	// ... pgutil setup above ...
+
+	c.Provide(riverutil.NewRiverClient),
+	c.Invoke(riverutil.Migrate),
+
+	// Register workers (each implements riverutil.Configer):
+	riverutil.Provide(c, workers.NewFetchProjects),
+	riverutil.Provide(c, workers.NewFetchUser),
+
+	// Optional: mount the River UI at /riverui/
+	webutil.ProvideHandler(c, riverutil.NewHandler),
+
+	// Start the river client. runutil.RunProvidedWorkers does not pick
+	// this up automatically — it must be invoked explicitly.
+	c.Invoke(func(ctx context.Context, client *river.Client[pgx.Tx]) error {
+		return client.Start(ctx)
+	}),
+)
+```
+
+`NewRiverClient` pulls `*pgxpool.Pool`, `*ddotel.TracerProvider`, and the `river_configer` dig group from the container. Tracing is skipped when no `TracerProvider` is provided.
+
+## Defining Workers
+
+Workers live in `./pkg/app/river_workers`, one per file (matching the convention for in-process workers). Each worker defines an args struct with a `Kind()` method, embeds `river.WorkerDefaults` for default lifecycle hooks, registers itself in `Config(*river.Config) error`, and implements `Work`:
+
+```go
+type FetchProjectsArgs struct{}
+
+func (FetchProjectsArgs) Kind() string { return "fetch_projects" }
+
+type FetchProjects struct {
+	river.WorkerDefaults[FetchProjectsArgs]
+	pool *pgxpool.Pool
+}
+
+func NewFetchProjects(pool *pgxpool.Pool) *FetchProjects {
+	return &FetchProjects{pool: pool}
+}
+
+func (w *FetchProjects) Config(config *river.Config) error {
+	river.AddWorker(config.Workers, w)
+	return nil
+}
+
+func (w *FetchProjects) Work(ctx context.Context, job *river.Job[FetchProjectsArgs]) error {
+	return pgutil.Tx(ctx, w.pool, func(tx pgx.Tx) error {
+		// do work, then enqueue a follow-up job in the same transaction:
+		return riverutil.Insert(ctx, tx, FetchUserArgs{ID: "..."}, &river.InsertOpts{
+			UniqueOpts: riverutil.UniqueOptsByArgs,
+		})
+	})
+}
+```
+
+Most workers are triggered by inserts from handlers or other workers. For workers that should also run on a schedule, append a `PeriodicJob` in `Config`:
+
+```go
+config.PeriodicJobs = append(config.PeriodicJobs, river.NewPeriodicJob(
+	river.PeriodicInterval(time.Hour),
+	func() (river.JobArgs, *river.InsertOpts) { return FetchProjectsArgs{}, nil },
+	&river.PeriodicJobOpts{RunOnStart: true},
+))
+```
+
+## Enqueueing Jobs
+
+From inside a `Work` method or anywhere that already holds a `pgx.Tx`, use `riverutil.Insert`. It pulls the river client from the context and inserts the job in the same transaction, so the enqueue commits atomically with the surrounding work. `riverutil.UniqueOptsByArgs` is a pre-built `river.UniqueOpts` that deduplicates by job args across all non-completed states — re-inserting after the previous job finishes is allowed.
+
+```go
+err := pgutil.Tx(ctx, pool, func(tx pgx.Tx) error {
+	// ... other transactional work ...
+	return riverutil.Insert(ctx, tx, MyArgs{...}, &river.InsertOpts{
+		UniqueOpts: riverutil.UniqueOptsByArgs,
+	})
+})
+```
+
+From an HTTP handler or other code path without a transaction, inject `*river.Client[pgx.Tx]` and call its `Insert` directly:
+
+```go
+_, err := h.riverClient.Insert(ctx, MyArgs{...}, &river.InsertOpts{
+	UniqueOpts: riverutil.UniqueOptsByArgs,
+})
+```
+
+## River UI
+
+Register `riverutil.NewHandler` like any other web handler to expose the River UI at `/riverui/` on the application's chi router:
+
+```go
+webutil.ProvideHandler(c, riverutil.NewHandler),
+```
+
+## Migrations
+
+River uses its own schema (separate from the app schema configured in `pgutil`). Run its built-in migrations on startup, after `pgutil.Migrate`:
+
+```go
+c.Invoke(riverutil.Migrate),
+```
+
 # Package pkg/dal/sqlc
 
 The package `./pkg/dal/sqlc` contains all SQL queries, when using SQLC.
