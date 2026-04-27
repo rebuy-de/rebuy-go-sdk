@@ -7,7 +7,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/rebuy-de/rebuy-go-sdk/v10 v10.0.0
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/spf13/cobra v1.10.2
