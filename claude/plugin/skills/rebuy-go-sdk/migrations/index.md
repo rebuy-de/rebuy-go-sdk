@@ -29,7 +29,7 @@ find . -type f -exec sed -i 's#github.com/rebuy-de/rebuy-go-sdk/vOLD#github.com/
 
 **Minor:**
 
-- _none yet_
+- [M0010 — Adopt riverutil for periodic and background jobs](v10/M0010-riverutil-periodic-jobs.md) · 2026-04-27
 
 ## v9
 
