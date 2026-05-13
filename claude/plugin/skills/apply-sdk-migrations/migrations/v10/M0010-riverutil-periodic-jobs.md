@@ -87,3 +87,51 @@ riverutil.Provide(c, river_workers.NewDataSync),
 ```
 
 River retries failed jobs automatically with exponential backoff, so the explicit `RetryJob` wrapper is not needed.
+
+## Tracer provider setup
+
+`riverutil.NewRiverClient` pulls `*ddotel.TracerProvider` from the dig container and skips tracing when none is provided. To get River traces in DataDog, build the provider in the DaemonRunner and register it.
+
+Older projects typically initialize the tracer in two steps and never register a provider:
+
+```go
+tracer.Start(
+	tracer.WithEnv("production"),
+	tracer.WithService(cmdutil.Name),
+	tracer.WithUDS("/var/run/datadog/apm.socket"),
+)
+defer tracer.Stop()
+
+tracerProvider := ddotel.NewTracerProvider()
+digutil.ProvideValue(c, tracerProvider)
+```
+
+`ddotel.NewTracerProvider` already calls `tracer.Start` internally, so the separate `tracer.Start` / `tracer.Stop` pair is redundant. Collapse to a single call, pass the tracer options to the provider, and shut the provider down on exit:
+
+```go
+provider := ddotel.NewTracerProvider(
+	tracer.WithEnv("production"),
+	tracer.WithService(cmdutil.Name),
+	tracer.WithUDS("/var/run/datadog/apm.socket"),
+)
+defer func() { _ = provider.Shutdown() }()
+
+digutil.ProvideValue[*ddotel.TracerProvider](c, provider)
+```
+
+Use the explicit type parameter on `digutil.ProvideValue` — it documents the dig type at the call site and matches the `digutil.ProvideValue[*ddotel.TracerProvider](c, nil)` pattern used in the `DevRunner` to opt out of tracing locally.
+
+## Skipping stale jobs
+
+Periodic jobs can back up if the worker is slow or the service was down. The job's `ScheduledAt` then trails real time, and running it would produce stale work. Cancel the job at the top of `Work` instead of executing it:
+
+```go
+func (w *DataSync) Work(ctx context.Context, job *river.Job[DataSyncArgs]) error {
+	if time.Since(job.JobRow.ScheduledAt) > 5*time.Minute {
+		return river.JobCancel(fmt.Errorf("skipping stale job"))
+	}
+	return pgutil.Tx(ctx, w.pool, w.syncData)
+}
+```
+
+Apply this guard only to periodic workers. Workers triggered by `riverutil.Insert` from a handler or another worker must run the work regardless of age — the enqueueing caller, not the wall clock, decides whether the job is still relevant.
