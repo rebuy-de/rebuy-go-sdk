@@ -639,6 +639,21 @@ err := errors.Join(
 
 `NewRiverClient` pulls `*pgxpool.Pool`, `*ddotel.TracerProvider`, and the `river_configer` dig group from the container. Tracing is skipped when no `TracerProvider` is provided.
 
+The provider is built in the `DaemonRunner` (the production runner in `cmd/root.go`) and registered into dig in a single step. `ddotel.NewTracerProvider` calls `tracer.Start` internally, so do not also call `tracer.Start` / `tracer.Stop` separately — pass the tracer options to the provider and shut it down on exit:
+
+```go
+provider := ddotel.NewTracerProvider(
+	tracer.WithEnv("production"),
+	tracer.WithService(cmdutil.Name),
+	tracer.WithUDS("/var/run/datadog/apm.socket"),
+)
+defer func() { _ = provider.Shutdown() }()
+
+digutil.ProvideValue[*ddotel.TracerProvider](c, provider)
+```
+
+Use the explicit type parameter on `digutil.ProvideValue` so the dig type is visible at the call site. The `DevRunner` mirrors the same shape but opts out of tracing with `digutil.ProvideValue[*ddotel.TracerProvider](c, nil)`, which `NewRiverClient` treats as "tracing disabled".
+
 ## Defining Workers
 
 Workers live in `./pkg/app/river_workers`, one per file (matching the convention for in-process workers). Each worker defines an args struct with a `Kind()` method, embeds `river.WorkerDefaults` for default lifecycle hooks, registers itself in `Config(*river.Config) error`, and implements `Work`:
