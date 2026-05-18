@@ -753,43 +753,93 @@ func (w *Worker) Work(ctx context.Context, job *river.Job[Args]) error {
 
 Workers that do not touch the database can implement `Work` directly without a transaction.
 
-For workers that should always run inside a transaction, use `riverutil.TxWorkFunc`. It wraps a work function in `pgutil.Tx` and calls `river.JobCompleteTx` so the job-completion row commits in the same transaction as the work itself. Register it via `river.AddWorker` from inside `Config`:
+For workers that should always run inside a transaction, the SDK does **not** ship a wrapper. Each project owns its own `pkg/dal/sqlc/tx.go` that wires the SDK primitives (`pgutil.Tx`, `riverutil.Insert`) into a `*sqlc.DB` / `*sqlc.Tx` / `RiverTxWorkFunc` triple. The reason is ergonomics: a project-local `*sqlc.Tx` can embed the generated `*Queries`, so worker bodies read `qtx.UpdateThing(ctx, id)` instead of `queries.WithTx(tx).UpdateThing(ctx, id)`. The SDK would have to take `pgx.Tx`, which loses that property at every call site.
+
+To keep the three projects converging on the same shape, copy the canonical `pkg/dal/sqlc/tx.go` below. Deviations (extra accessors, hooks) should be intentional and reviewed:
 
 ```go
-func (w *Worker) Config(config *river.Config) error {
-	river.AddWorker(config.Workers, riverutil.TxWorkFunc(w.pool, w.work))
-	return nil
+package sqlc
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/pgutil"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+)
+
+type DB struct {
+	*Queries
+	pool *pgxpool.Pool
 }
 
-func (w *Worker) work(ctx context.Context, tx pgx.Tx, job *river.Job[Args]) error {
-	qtx := queries.WithTx(tx)
-	// transactional work using qtx
-	return nil
+func NewDB(pool *pgxpool.Pool) *DB {
+	return &DB{pool: pool, Queries: New(pool)}
 }
-```
 
-Semantics worth knowing:
+type Tx struct {
+	*Queries
+	tx pgx.Tx
+}
 
-- The completion row is written only on a `nil` return from the work function. Returning `river.JobCancel`, `river.JobSnooze`, or any other error skips completion and rolls the transaction back. The cancel/snooze signal still reaches River because it is propagated through the returned error.
-- `JobCompleteTx` is one additional DB write per job. High-throughput workers should be aware; for most workloads the atomicity guarantee is worth it.
-- Retry policy is unchanged. River drives retries off the returned error, which is upstream of the completion write.
-- If the surrounding transaction commit fails *after* `JobCompleteTx` has written its row (rare, but possible — e.g. server crash between the row write and the commit ack), the job stays in `running` and River recovers it via the leadership/heartbeat mechanism. Not a bug, but counterintuitive.
+// Tx exposes the underlying pgx.Tx so callers can pass it to
+// riverutil.Insert (or any other helper that needs the raw tx).
+func (t *Tx) Tx() pgx.Tx { return t.tx }
 
-Projects that want a richer transaction parameter — e.g. an sqlc-aware `*sqlc.Tx` with a generated `*Queries` plus a `.Tx()` accessor — should keep that wrapper project-local and compose it over `riverutil.TxWorkFunc` in a few lines:
+func (db *DB) Tx(ctx context.Context, fn func(*Tx) error) error {
+	return pgutil.Tx(ctx, db.pool, func(tx pgx.Tx) error {
+		return fn(&Tx{Queries: db.WithTx(tx), tx: tx})
+	})
+}
 
-```go
-// pkg/dal/sqlc/tx.go
-func TxWorkFunc[T river.JobArgs](
+// RiverTxWorkFunc wraps fn so each invocation runs inside db.Tx and the
+// job-completion row commits in the same transaction as fn's DB writes.
+// Returning river.JobCancel, river.JobSnooze, or any other error from fn
+// skips completion and rolls the transaction back.
+func RiverTxWorkFunc[T river.JobArgs](
 	db *DB,
-	fn func(ctx context.Context, qtx *Tx, job *river.Job[T]) error,
+	fn func(context.Context, *Tx, *river.Job[T]) error,
 ) river.Worker[T] {
-	return riverutil.TxWorkFunc(db.Pool(), func(ctx context.Context, tx pgx.Tx, job *river.Job[T]) error {
-		return fn(ctx, &Tx{Queries: db.WithTx(tx), tx: tx}, job)
+	return river.WorkFunc(func(ctx context.Context, job *river.Job[T]) error {
+		return db.Tx(ctx, func(qtx *Tx) error {
+			err := fn(ctx, qtx, job)
+			if err != nil {
+				return err
+			}
+			_, err = river.JobCompleteTx[*riverpgxv5.Driver](ctx, qtx.Tx(), job)
+			return err
+		})
 	})
 }
 ```
 
-The SDK ships only the `pgx.Tx`-based core because anything richer depends on the project's generated sqlc package and would invert the dependency direction.
+Worker usage — the call site demonstrates the ergonomic win:
+
+```go
+func (w *ProcessThing) Config(config *river.Config) error {
+	river.AddWorker(config.Workers, sqlc.RiverTxWorkFunc(w.db, w.work))
+	return nil
+}
+
+func (w *ProcessThing) work(ctx context.Context, qtx *sqlc.Tx, job *river.Job[ProcessThingArgs]) error {
+	err := qtx.UpdateThing(ctx, job.Args.ID) // qtx embeds *Queries directly
+	if err != nil {
+		return err
+	}
+	return riverutil.Insert(ctx, qtx.Tx(), FollowupArgs{ID: job.Args.ID}, &river.InsertOpts{
+		UniqueOpts: riverutil.UniqueOptsByArgs,
+	})
+}
+```
+
+`JobCompleteTx` semantics worth knowing:
+
+- The completion row is written only on a `nil` return from `fn`. Returning `river.JobCancel`, `river.JobSnooze`, or any other error skips completion and rolls the transaction back. The cancel/snooze signal still reaches River because it is propagated through the returned error.
+- `JobCompleteTx` is one additional DB write per job. High-throughput workers should be aware; for most workloads the atomicity guarantee is worth it.
+- Retry policy is unchanged. River drives retries off the returned error, which is upstream of the completion write.
+- If the surrounding transaction commit fails *after* `JobCompleteTx` has written its row (rare, but possible — e.g. server crash between the row write and the commit ack), the job stays in `running` and River recovers it via the leadership/heartbeat mechanism. Not a bug, but counterintuitive.
 
 **Error handling inside Work methods:**
 
