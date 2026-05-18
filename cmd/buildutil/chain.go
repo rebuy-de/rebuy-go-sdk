@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -10,6 +11,16 @@ import (
 
 	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/executil"
 )
+
+// IsGitAvailable reports whether `git` is on PATH and the current working
+// directory is inside a git work tree. Stderr is suppressed so the probe is
+// silent in non-repo environments.
+func IsGitAvailable(ctx context.Context) bool {
+	c := exec.CommandContext(ctx, "git", "rev-parse", "--git-dir")
+	c.Stdout = io.Discard
+	c.Stderr = io.Discard
+	return c.Run() == nil
+}
 
 type ChainExecutor struct {
 	ctx context.Context
