@@ -28,8 +28,11 @@ var UniqueOptsByArgs = river.UniqueOpts{
 
 func Insert(ctx context.Context, tx pgx.Tx, args river.JobArgs, opts *river.InsertOpts) error {
 	response, err := river.ClientFromContext[pgx.Tx](ctx).InsertTx(ctx, tx, args, opts)
+	if err != nil {
+		return err
+	}
 	if response.UniqueSkippedAsDuplicate {
 		logutil.Get(ctx).Info("job was skipped as duplicate", "kind", args.Kind(), "args", args)
 	}
-	return err
+	return nil
 }
