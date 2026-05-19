@@ -1,6 +1,33 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"os"
+	"testing"
+)
+
+func TestIsGitAvailable(t *testing.T) {
+	ctx := context.Background()
+
+	if !IsGitAvailable(ctx) {
+		t.Fatal("expected git to be available in repo cwd")
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chdir(cwd) })
+
+	err = os.Chdir(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if IsGitAvailable(ctx) {
+		t.Fatal("expected git to be unavailable in non-repo tempdir")
+	}
+}
 
 func TestParseVersion(t *testing.T) {
 	cases := []struct {

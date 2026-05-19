@@ -253,9 +253,6 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 	info.System.OS = e.OutputString(p.GoCommand, "env", "GOOS")
 	info.System.Arch = e.OutputString(p.GoCommand, "env", "GOARCH")
 	info.System.Ext = e.OutputString(p.GoCommand, "env", "GOEXE")
-	info.Commit.Date = time.Unix(e.OutputInt64("git", "show", "-s", "--format=%ct"), 0).Format(time.RFC3339)
-	info.Commit.Hash = e.OutputString("git", "rev-parse", "HEAD")
-	info.Commit.Branch = e.OutputString("git", "rev-parse", "--abbrev-ref", "HEAD")
 	info.Go.Work = e.OutputString(p.GoCommand, "env", "GOWORK")
 
 	info.SDKVersion, err = ParseVersion(e.OutputString(p.GoCommand, "list", "-mod=readonly", "-m", "-f", "{{.Version}}", "github.com/rebuy-de/rebuy-go-sdk/..."))
@@ -263,9 +260,31 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		slog.Error("Failed to parse sdk-version", "error", err)
 	}
 
-	info.Version, err = ParseVersion(e.OutputString("git", "describe", "--always", "--dirty", "--tags"))
-	if err != nil {
-		slog.Error("Failed to parse version", "error", err)
+	if IsGitAvailable(ctx) {
+		if ts := e.OutputInt64("git", "show", "-s", "--format=%ct"); ts != 0 {
+			info.Commit.Date = time.Unix(ts, 0).Format(time.RFC3339)
+		}
+		info.Commit.Hash = e.OutputString("git", "rev-parse", "HEAD")
+		info.Commit.Branch = e.OutputString("git", "rev-parse", "--abbrev-ref", "HEAD")
+
+		info.Version, err = ParseVersion(e.OutputString("git", "describe", "--always", "--dirty", "--tags"))
+		if err != nil {
+			slog.Error("Failed to parse version", "error", err)
+		}
+
+		status := strings.TrimSpace(e.OutputString("git", "status", "-s"))
+		if status != "" {
+			for _, file := range strings.Split(status, "\n") {
+				info.Commit.DirtyFiles = append(info.Commit.DirtyFiles, strings.TrimSpace(file))
+			}
+		}
+	} else {
+		// No .git directory or no git binary on PATH. Build can still
+		// proceed, but commit metadata is unavailable.
+		slog.Warn("No git repository detected; building without commit info")
+		// Kind is left empty so Version.String() renders as "v0.0.0+unknown"
+		// instead of "v0.0.0+unknown.unknown".
+		info.Version = Version{Suffix: "unknown"}
 	}
 
 	goVersionMatch := regexp.MustCompile(`(?m)go(\d.*) `).FindStringSubmatch(e.OutputString(p.GoCommand, "version"))
@@ -273,13 +292,6 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		info.Go.Version = "unknown version"
 	} else {
 		info.Go.Version = goVersionMatch[1]
-	}
-
-	status := strings.TrimSpace(e.OutputString("git", "status", "-s"))
-	if status != "" {
-		for _, file := range strings.Split(status, "\n") {
-			info.Commit.DirtyFiles = append(info.Commit.DirtyFiles, strings.TrimSpace(file))
-		}
 	}
 
 	nameMatch := regexp.MustCompile(`([^/]+)(/v\d+)?$`).FindStringSubmatch(info.Go.Module)
