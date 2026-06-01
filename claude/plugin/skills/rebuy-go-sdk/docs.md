@@ -655,14 +655,10 @@ err := errors.Join(
 
 `NewRiverClient` pulls `*pgxpool.Pool`, `*ddotel.TracerProvider`, and the `river_configer` dig group from the container. Tracing is skipped when no `TracerProvider` is provided.
 
-The provider is built in the `DaemonRunner` (the production runner in `cmd/root.go`) and registered into dig in a single step. `ddotel.NewTracerProvider` calls `tracer.Start` internally, so do not also call `tracer.Start` / `tracer.Stop` separately — pass the tracer options to the provider and shut it down on exit:
+The provider is built in the `DaemonRunner` (the production runner in `cmd/root.go`) and registered into dig in a single step. Use `instutil.InitOtelTracer`, which builds the provider with the standard rebuy options and enables outbound HTTP client tracing. Do not also call `tracer.Start` / `tracer.Stop` (or the deprecated `instutil.InitDefaultTracer`) separately — `ddotel.NewTracerProvider` calls `tracer.Start` internally, so a second call discards the config and drops all spans. Shut the provider down on exit:
 
 ```go
-provider := ddotel.NewTracerProvider(
-	tracer.WithEnv("production"),
-	tracer.WithService(cmdutil.Name),
-	tracer.WithUDS("/var/run/datadog/apm.socket"),
-)
+provider := instutil.InitOtelTracer()
 defer func() { _ = provider.Shutdown() }()
 
 digutil.ProvideValue[*ddotel.TracerProvider](c, provider)

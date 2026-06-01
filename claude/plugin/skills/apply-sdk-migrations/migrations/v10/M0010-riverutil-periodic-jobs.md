@@ -106,14 +106,10 @@ tracerProvider := ddotel.NewTracerProvider()
 digutil.ProvideValue(c, tracerProvider)
 ```
 
-`ddotel.NewTracerProvider` already calls `tracer.Start` internally, so the separate `tracer.Start` / `tracer.Stop` pair is redundant. Collapse to a single call, pass the tracer options to the provider, and shut the provider down on exit:
+`ddotel.NewTracerProvider` already calls `tracer.Start` internally, so the separate `tracer.Start` / `tracer.Stop` pair is redundant. Replace both steps with `instutil.InitOtelTracer`, which builds the provider with these options and enables outbound HTTP client tracing, and shut the provider down on exit:
 
 ```go
-provider := ddotel.NewTracerProvider(
-	tracer.WithEnv("production"),
-	tracer.WithService(cmdutil.Name),
-	tracer.WithUDS("/var/run/datadog/apm.socket"),
-)
+provider := instutil.InitOtelTracer()
 defer func() { _ = provider.Shutdown() }()
 
 digutil.ProvideValue[*ddotel.TracerProvider](c, provider)
