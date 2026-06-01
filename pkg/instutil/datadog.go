@@ -8,6 +8,19 @@ import (
 	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/cmdutil"
 )
 
+// Deprecated: InitDefaultTracer calls tracer.Start, which conflicts with
+// ddotel.NewTracerProvider (it also calls tracer.Start and will discard this
+// config, dropping all spans). Build the provider with the tracer options
+// instead:
+//
+//	provider := ddotel.NewTracerProvider(
+//		tracer.WithEnv("production"),
+//		tracer.WithService(cmdutil.Name),
+//		tracer.WithUDS("/var/run/datadog/apm.socket"),
+//	)
+//	defer func() { _ = provider.Shutdown() }()
+//
+// For outbound HTTP client tracing, call InitHTTPTracing directly.
 func InitDefaultTracer() {
 	tracer.Start(
 		tracer.WithEnv("production"),
