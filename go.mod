@@ -3,6 +3,7 @@ module github.com/rebuy-de/rebuy-go-sdk/v10
 go 1.26.0
 
 require (
+	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/DataDog/dd-trace-go/contrib/go-chi/chi.v5/v2 v2.7.2
 	github.com/DataDog/dd-trace-go/contrib/jackc/pgx.v5/v2 v2.7.2
 	github.com/DataDog/dd-trace-go/contrib/net/http/v2 v2.7.2
@@ -55,6 +56,7 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/AlekSi/pointer v1.2.0 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
+	github.com/ClickHouse/ch-go v0.71.0 // indirect
 	github.com/DataDog/datadog-agent/comp/core/tagger/origindetection v0.77.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/obfuscate v0.77.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/opentelemetry-mapping-go/otlp/attributes v0.77.0 // indirect
@@ -112,6 +114,8 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
+	github.com/go-faster/city v1.0.1 // indirect
+	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.0 // indirect
 	github.com/go-git/go-git/v5 v5.19.1 // indirect
@@ -169,8 +173,10 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/outcaste-io/ristretto v0.2.3 // indirect
+	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/petermattis/goid v0.0.0-20260226131333-17d1149c6ac6 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
+	github.com/pierrec/lz4/v4 v4.1.25 // indirect
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
@@ -185,6 +191,7 @@ require (
 	github.com/samber/lo v1.53.0 // indirect
 	github.com/samber/slog-common v0.21.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.10.0 // indirect
+	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.2 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
