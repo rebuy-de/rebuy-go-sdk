@@ -83,7 +83,7 @@ const testSQL = "INSERT INTO test.rows (value)"
 
 func TestBatcherCountFlush(t *testing.T) {
 	conn := &fakeConn{}
-	b := New[testRow](conn, testSQL, 3, time.Hour) // long maxWait so only count triggers
+	b := NewWithConn[testRow](conn, testSQL, 3, time.Hour) // long maxWait so only count triggers
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -105,7 +105,7 @@ func TestBatcherCountFlush(t *testing.T) {
 
 func TestBatcherTimeFlush(t *testing.T) {
 	conn := &fakeConn{}
-	b := New[testRow](conn, testSQL, 1000, 20*time.Millisecond) // big maxSize so only time triggers
+	b := NewWithConn[testRow](conn, testSQL, 1000, 20*time.Millisecond) // big maxSize so only time triggers
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -125,7 +125,7 @@ func TestBatcherTimeFlush(t *testing.T) {
 
 func TestBatcherDrainOnCancel(t *testing.T) {
 	conn := &fakeConn{}
-	b := New[testRow](conn, testSQL, 1000, time.Hour) // neither count nor time triggers before cancel
+	b := NewWithConn[testRow](conn, testSQL, 1000, time.Hour) // neither count nor time triggers before cancel
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -152,7 +152,7 @@ func TestBatcherDropOnFull(t *testing.T) {
 	conn := &fakeConn{}
 	// maxSize 2 => buffer capacity 4. Do not Run, so nothing is consumed and the
 	// buffer fills up.
-	b := New[testRow](conn, testSQL, 2, time.Hour)
+	b := NewWithConn[testRow](conn, testSQL, 2, time.Hour)
 
 	for i := 0; i < 10; i++ {
 		b.Add(testRow{Value: i}) // must never block
@@ -163,7 +163,7 @@ func TestBatcherDropOnFull(t *testing.T) {
 
 func TestBatcherAppendErrorAborts(t *testing.T) {
 	conn := &fakeConn{appendErr: errors.New("boom")}
-	b := New[testRow](conn, testSQL, 2, time.Hour)
+	b := NewWithConn[testRow](conn, testSQL, 2, time.Hour)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
