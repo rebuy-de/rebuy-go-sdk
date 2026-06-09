@@ -11,7 +11,9 @@
 //
 // To wire it into a dig container, register the address and credentials, then
 // provide the batcher with Provide. Provide also registers the batcher as a
-// worker, so its Run loop executes without any extra wiring:
+// worker, so its Run loop executes without any extra wiring. If ClickHouse is
+// unreachable at startup, Provide logs a warning and supplies a nil *Batcher
+// rather than returning an error, so the server starts regardless:
 //
 //	digutil.ProvideValue[chutil.Addr](c, "clickhouse:9000")
 //	digutil.ProvideValue(c, auth) // chutil.Auth, e.g. from vaultutil.DecodeSecret
