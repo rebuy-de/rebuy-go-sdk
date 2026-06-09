@@ -11,10 +11,6 @@ import (
 	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/runutil"
 )
 
-// defaultSendTimeout bounds a single bulk insert so a stuck server cannot block
-// the worker indefinitely.
-const defaultSendTimeout = 30 * time.Second
-
 // Conn is the subset of driver.Conn the Batcher needs. A real clickhouse-go
 // connection satisfies it, and tests can provide a fake.
 type Conn interface {
@@ -24,10 +20,8 @@ type Conn interface {
 // Batcher buffers rows of type T and flushes them to ClickHouse in bulk,
 // triggered either by reaching maxSize or by the maxWait interval elapsing. It
 // satisfies runutil.WorkerConfiger via Workers, so it can be registered directly
-// with runutil.ProvideWorker:
-//
-//	b, err := chutil.New[Row](addr, auth, insertSQL)
-//	runutil.ProvideWorker(c, func() *chutil.Batcher[Row] { return b })
+// with runutil.ProvideWorker; see the package documentation for a full wiring
+// example.
 //
 // Run is a long-lived loop, so it must not be wrapped in runutil.Repeat.
 //

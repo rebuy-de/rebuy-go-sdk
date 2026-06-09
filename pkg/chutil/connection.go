@@ -11,6 +11,9 @@ import (
 const (
 	defaultMaxSize = 2000
 	defaultMaxWait = 2 * time.Second
+	// defaultSendTimeout bounds a single bulk insert so a stuck server cannot
+	// block the worker indefinitely.
+	defaultSendTimeout = 30 * time.Second
 )
 
 // Addr is the ClickHouse server address, for dependency injection.
@@ -35,41 +38,6 @@ type config struct {
 
 // Option overrides a connection or batcher default passed to New.
 type Option func(*config)
-
-// WithCompression sets the wire compression method (default LZ4).
-func WithCompression(method chgo.CompressionMethod) Option {
-	return func(c *config) {
-		c.options.Compression = &chgo.Compression{Method: method}
-	}
-}
-
-// WithDialTimeout sets the connection dial timeout (default 5s).
-func WithDialTimeout(d time.Duration) Option {
-	return func(c *config) {
-		c.options.DialTimeout = d
-	}
-}
-
-// WithMaxOpenConns sets the maximum number of open connections (default 4).
-func WithMaxOpenConns(n int) Option {
-	return func(c *config) {
-		c.options.MaxOpenConns = n
-	}
-}
-
-// WithMaxIdleConns sets the maximum number of idle connections (default 2).
-func WithMaxIdleConns(n int) Option {
-	return func(c *config) {
-		c.options.MaxIdleConns = n
-	}
-}
-
-// WithConnMaxLifetime sets how long a connection may be reused (default 1h).
-func WithConnMaxLifetime(d time.Duration) Option {
-	return func(c *config) {
-		c.options.ConnMaxLifetime = d
-	}
-}
 
 // WithMaxSize sets the row count that triggers a flush (default 2000).
 func WithMaxSize(n int) Option {
