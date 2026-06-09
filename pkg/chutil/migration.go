@@ -6,6 +6,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	chgo "github.com/ClickHouse/clickhouse-go/v2"
@@ -35,6 +36,11 @@ func Migrate(ctx context.Context, addr Addr, auth Auth, migrationsFS MigrationFS
 	// database to create it before opening a connection scoped to it.
 	bootstrap := openMigrationDB(addr, auth, "")
 	defer bootstrap.Close()
+
+	if err := bootstrap.PingContext(ctx); err != nil {
+		slog.WarnContext(ctx, "skipping clickhouse migrations: connection unavailable", "error", err)
+		return nil
+	}
 
 	err := createDatabaseIfNotExists(ctx, bootstrap, auth.Database)
 	if err != nil {
