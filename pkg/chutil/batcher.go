@@ -93,8 +93,9 @@ func (b *Batcher[T]) Dropped() uint64 {
 
 // Run consumes the queue until the context is cancelled, batching rows to
 // ClickHouse. On cancellation it drains the already-queued rows and flushes a
-// final partial batch before returning. Transient send errors are logged rather
-// than returned, so a single failed batch does not tear down sibling workers.
+// final partial batch before returning. Transient send errors are logged at
+// WARN rather than returned, so a single failed batch does not tear down
+// sibling workers or page on a self-recovering sink.
 func (b *Batcher[T]) Run(ctx context.Context) error {
 	ticker := time.NewTicker(b.maxWait)
 	defer ticker.Stop()
@@ -107,7 +108,7 @@ func (b *Batcher[T]) Run(ctx context.Context) error {
 
 		err := b.sendBatch(ctx, buffer)
 		if err != nil {
-			logutil.Get(ctx).Error("failed to send clickhouse batch", "error", err)
+			logutil.Get(ctx).Warn("failed to send clickhouse batch", "error", err)
 		}
 
 		buffer = buffer[:0]
