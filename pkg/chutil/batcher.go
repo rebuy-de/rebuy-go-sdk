@@ -19,9 +19,8 @@ type Conn interface {
 
 // Batcher buffers rows of type T and flushes them to ClickHouse in bulk,
 // triggered either by reaching maxSize or by the maxWait interval elapsing. It
-// satisfies runutil.WorkerConfiger via Workers, so it can be registered directly
-// with runutil.ProvideWorker; see the package documentation for a full wiring
-// example.
+// satisfies runutil.WorkerConfiger via Workers; Provide registers it as a worker
+// for you, see the package documentation for a full wiring example.
 //
 // Run is a long-lived loop, so it must not be wrapped in runutil.Repeat.
 //
@@ -60,8 +59,8 @@ func newBatcher[T any](conn Conn, insertSQL string, maxSize int, maxWait, sendTi
 	}
 }
 
-// Workers satisfies runutil.WorkerConfiger so the Batcher can be registered
-// directly with runutil.ProvideWorker. It returns itself as a single long-lived
+// Workers satisfies runutil.WorkerConfiger so the Batcher can be registered as a
+// worker (Provide does this for you). It returns itself as a single long-lived
 // worker; the subsystem name is derived from the Batcher type. Run must not be
 // wrapped in runutil.Repeat.
 func (b *Batcher[T]) Workers() []runutil.Worker {
