@@ -157,6 +157,8 @@ The file `./cmd/server.go` always contains the single function RunServer that re
 
 It looks similar to the example below. It is useful to group all `webutil.ProvideHandler` functions and all `runutil.ProvideWorker` functions.
 
+**Important:** `runutil.RunProvidedWorkers` must always be the final `return` statement in `RunServer`, never inside `errors.Join`. It blocks until the application exits, so placing it inside `errors.Join` would prevent any subsequent entries from ever executing, silently dropping initialization errors.
+
 ```
 func RunServer(ctx context.Context, c *dig.Container) error {
 	err := errors.Join(
