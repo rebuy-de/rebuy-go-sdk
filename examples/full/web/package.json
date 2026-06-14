@@ -11,7 +11,7 @@
     "idiomorph": "^0.7.3"
   },
   "devDependencies": {
-    "esbuild": "^0.25.1",
+    "esbuild": "^0.28.1",
     "nodemon": "^3.1.9"
   },
   "scripts": {
