@@ -26,7 +26,6 @@ func call(ctx context.Context, command string, args ...string) error {
 type BuildParameters struct {
 	TargetSystems  []string
 	TargetPackages []string
-	S3URL          string
 
 	CreateCompressed bool
 	CreateRPM        bool
@@ -53,9 +52,6 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringSliceVarP(
 		&r.Parameters.TargetPackages, "package", "p", []string{},
 		"Packages to build.")
-	cmd.PersistentFlags().StringVar(
-		&r.Parameters.S3URL, "s3-url", "",
-		"S3 URL to upload compiled releases.")
 
 	cmd.PersistentFlags().BoolVar(
 		&r.Parameters.CreateCompressed, "compress", false,
