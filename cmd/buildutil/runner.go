@@ -27,10 +27,6 @@ type BuildParameters struct {
 	TargetSystems  []string
 	TargetPackages []string
 
-	CreateCompressed bool
-	CreateRPM        bool
-	CreateDEB        bool
-
 	GoCommand string
 
 	CGO bool
@@ -53,15 +49,6 @@ func (r *Runner) Bind(cmd *cobra.Command) error {
 		&r.Parameters.TargetPackages, "package", "p", []string{},
 		"Packages to build.")
 
-	cmd.PersistentFlags().BoolVar(
-		&r.Parameters.CreateCompressed, "compress", false,
-		"Creates .tgz artifacts for POSIX targets and .zip for windows.")
-	cmd.PersistentFlags().BoolVar(
-		&r.Parameters.CreateRPM, "rpm", false,
-		"Creates .rpm artifacts for linux targets.")
-	cmd.PersistentFlags().BoolVar(
-		&r.Parameters.CreateDEB, "deb", false,
-		"Creates .deb artifacts for linux targets.")
 	cmd.PersistentFlags().BoolVar(
 		&r.Parameters.CGO, "cgo", false,
 		"Enable CGO.")

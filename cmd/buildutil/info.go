@@ -379,30 +379,5 @@ func CollectBuildInformation(ctx context.Context, p BuildParameters) (BuildInfo,
 		info.Test.Files = append(info.Test.Files, pkg.GoFiles...)
 	}
 
-	for _, targetSystem := range targetSystems {
-		if targetSystem.OS == "windows" && p.CreateCompressed {
-			info.Artifacts = append(info.Artifacts, info.NewArtifactInfo(
-				"zip", info.Go.Name, targetSystem, ".zip"))
-		}
-
-		if targetSystem.OS != "windows" && p.CreateCompressed {
-			if p.CreateCompressed {
-				info.Artifacts = append(info.Artifacts, info.NewArtifactInfo(
-					"tgz", info.Go.Name, targetSystem, ".tar.gz"))
-			}
-		}
-
-		if targetSystem.OS == "linux" {
-			if p.CreateDEB {
-				info.Artifacts = append(info.Artifacts, info.NewArtifactInfo(
-					"deb", info.Go.Name, targetSystem, ".deb"))
-			}
-			if p.CreateRPM {
-				info.Artifacts = append(info.Artifacts, info.NewArtifactInfo(
-					"rpm", info.Go.Name, targetSystem, ".rpm"))
-			}
-		}
-	}
-
 	return info, nil
 }
