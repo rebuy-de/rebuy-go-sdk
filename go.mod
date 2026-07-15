@@ -7,7 +7,7 @@ require (
 	github.com/DataDog/dd-trace-go/contrib/go-chi/chi.v5/v2 v2.7.2
 	github.com/DataDog/dd-trace-go/contrib/jackc/pgx.v5/v2 v2.7.2
 	github.com/DataDog/dd-trace-go/contrib/net/http/v2 v2.7.2
-	github.com/DataDog/dd-trace-go/v2 v2.7.2
+	github.com/DataDog/dd-trace-go/v2 v2.8.1
 	github.com/Graylog2/go-gelf v0.0.0-20170811154226-7ebf4f536d8f
 	github.com/a-h/templ v0.3.1001
 	github.com/alicebob/miniredis/v2 v2.37.0
@@ -220,6 +220,7 @@ require (
 	go.opentelemetry.io/otel v1.41.0 // indirect
 	go.opentelemetry.io/otel/metric v1.41.0 // indirect
 	go.opentelemetry.io/otel/trace v1.41.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
