@@ -38,6 +38,10 @@ func (*logutilMiddleware) Work(ctx context.Context, job *rivertype.JobRow, doInn
 		logutil.Get(ctx).Warn("river job cancelled", "error", err)
 	case errors.Is(err, new(river.JobSnoozeError)):
 		logutil.Get(ctx).Info("river job snoozed", "error", err)
+	case errors.Is(err, context.Canceled):
+		// Jobs interrupted by graceful shutdown return context.Canceled; this
+		// is expected, so avoid an error burst in the logs during shutdown.
+		logutil.Get(ctx).Info("river job cancelled by context", "error", err)
 	case err != nil:
 		logutil.Get(ctx).Error("river job failed", "error", err)
 	default:
