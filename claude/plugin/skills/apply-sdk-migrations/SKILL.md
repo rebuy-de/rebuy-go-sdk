@@ -35,6 +35,7 @@ can be adopted incrementally.
 
 **Minor:**
 
+- [M0011 — Use fully-qualified table names](migrations/v10/M0011-fully-qualified-table-names.md) · 2026-08-26
 - [M0010 — Adopt riverutil for periodic and background jobs](migrations/v10/M0010-riverutil-periodic-jobs.md) · 2026-04-27
 
 ### v9

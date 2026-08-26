@@ -5,6 +5,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rebuy-de/rebuy-go-sdk/v10/pkg/pgutil"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivertype"
@@ -13,6 +14,7 @@ import (
 
 func NewRiverClient(
 	pool *pgxpool.Pool,
+	schema pgutil.Schema,
 	tracerProvider *ddotel.TracerProvider,
 	configer ConfigGroup,
 ) (*river.Client[pgx.Tx], error) {
@@ -25,11 +27,12 @@ func NewRiverClient(
 		}))
 	}
 
-	prometheus.MustRegister(NewDatabaseCollector(pool))
+	prometheus.MustRegister(NewDatabaseCollector(pool, schema))
 
 	middlewares = append(middlewares, new(logutilMiddleware))
 
 	config := &river.Config{
+		Schema:     string(schema),
 		Workers:    river.NewWorkers(),
 		Middleware: middlewares,
 		Queues: map[string]river.QueueConfig{
