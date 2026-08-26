@@ -2,7 +2,7 @@
 //
 // The pgutil package consolidates common database patterns used across rebuy projects,
 // providing unified connection management, migration framework, transaction wrappers,
-// URI construction helpers, and standard SQLC configuration templates.
+// and URI construction helpers.
 //
 // # Features
 //
@@ -10,7 +10,6 @@
 //   - Migration Framework: Generic migration execution with embedded filesystems (both normal and repeatable)
 //   - Transaction Wrappers: Reusable transaction and connection hijacking utilities
 //   - URI Construction: Helper functions for database URI manipulation
-//   - SQLC Templates: Standard configuration templates for consistent project setup
 //
 // # Quick Start
 //
@@ -20,36 +19,34 @@
 //
 //	import (
 //	    "context"
-//	    "embed"
 //
+//	    "github.com/rebuy-de/rebuy-go-sdk/v10/pkg/digutil"
 //	    "github.com/rebuy-de/rebuy-go-sdk/v10/pkg/pgutil"
+//	    "github.com/myorg/myapp/pkg/dal/sqlc"
 //	)
-//
-//	//go:embed migrations/*.sql
-//	var migrationsFS embed.FS
 //
 //	func main() {
 //	    ctx := context.Background()
-//	    uri := "postgres://user:pass@localhost:5432/mydb"
+//	    uri := pgutil.URI("postgres://user:pass@localhost:5432/mydb")
+//	    schema := pgutil.Schema("my_app")
 //
-//	    // Run migrations (both normal and repeatable)
-//	    err := pgutil.MigrateWithEmbeddedFS(ctx, uri, "my_app", migrationsFS, "migrations")
+//	    // Run migrations (both versioned and repeatable)
+//	    err := pgutil.Migrate(ctx, uri, schema, pgutil.MigrationFS(sqlc.MigrationsFS))
 //	    if err != nil {
 //	        panic(err)
 //	    }
 //
-//	    // Create connection with tracing
-//	    queries, err := pgutil.NewQueriesInterface(ctx, uri, pgutil.ConnectionOptions{
-//	        EnableTracing: true,
-//	        SchemaName:   "my_app",
-//	    }, sqlc.New) // sqlc.New is your SQLC-generated constructor
-//
+//	    pool, err := pgutil.NewPool(ctx, uri, schema, digutil.Optional[pgutil.EnableTracing]{})
 //	    if err != nil {
 //	        panic(err)
 //	    }
+//
+//	    queries := sqlc.New(pool) // sqlc.New is your SQLC-generated constructor
 //
 //	    // Use queries...
 //	}
+//
+// In an application the wiring is done through dig instead, see below.
 //
 // # Dependency Injection with Dig
 //
@@ -107,13 +104,21 @@
 //	dedicatedQueries := sqlc.New(conn)
 //	// Use dedicatedQueries with exclusive connection
 //
-// # Configuration Templates
+// # Fully-qualified table names
 //
-// The package provides standard SQLC configuration templates. Copy the template to your project:
+// Every table, view and function reference must carry the application schema, both
+// in SQLC queries and in migration files:
 //
-//	cp pkg/pgutil/templates/sqlc.yaml pkg/dal/sqlc/sqlc.yaml
+//	select * from my_app.orders where id = $1;
 //
-// The template includes:
+// NewPool pins search_path to the Schema value, but that is only there so
+// golang-migrate finds its own bookkeeping table. Queries must never depend on
+// it: an unqualified name means a different table depending on which connection
+// runs it, and it cannot be pasted into psql, Grafana or a migration unchanged.
+//
+// # SQLC Configuration
+//
+// The canonical sqlc.yaml lives in examples/full/pkg/dal/sqlc/sqlc.yaml. It sets up:
 //   - PostgreSQL with pgx/v5 driver
 //   - JSON tags with camelCase style
 //   - Proper UUID and timestamp handling
@@ -154,23 +159,20 @@
 // ## Example Repeatable Migration Content
 //
 //	-- R_001_user_stats_view.sql
-//	CREATE OR REPLACE VIEW user_stats AS
+//	CREATE OR REPLACE VIEW my_app.user_stats AS
 //	SELECT
 //	    user_id,
 //	    COUNT(*) as total_orders,
 //	    SUM(amount) as total_spent
-//	FROM orders
+//	FROM my_app.orders
 //	GROUP BY user_id;
 //
-// ## Usage with MigrateWithEmbeddedFS
+// ## Usage with Migrate
 //
-// No changes to your existing code are needed. The function automatically handles both types:
+// No changes to your existing code are needed. Migrate automatically handles both types:
 //
-//	//go:embed migrations/*.sql
-//	var migrationsFS embed.FS
-//
-//	err := pgutil.MigrateWithEmbeddedFS(ctx, uri, "my_app", migrationsFS, "migrations")
-//	// This will run normal migrations first, then repeatable migrations
+//	err := pgutil.Migrate(ctx, uri, schema, pgutil.MigrationFS(sqlc.MigrationsFS))
+//	// This will run versioned migrations first, then repeatable migrations
 //
 // For a complete working example, see the examples/full directory which demonstrates
 // all pgutil features in a real application.

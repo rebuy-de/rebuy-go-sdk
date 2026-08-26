@@ -595,6 +595,8 @@ Repeatable migrations are useful for:
 - Defining stored procedures and functions
 - Loading reference/demo data
 
+All objects a migration creates or reads must carry the schema prefix, e.g. `create table my_schema.users (...)`. `pgutil.NewPool` and `pgutil.Migrate` pin `search_path` to the `pgutil.Schema` value, but that exists only so golang-migrate finds its own `schema_migrations` bookkeeping table. Nothing else may depend on it — see *Fully-qualified table names* in the pkg/dal/sqlc section.
+
 ## Transactions
 
 Use `pgutil.Tx` for transaction handling. It begins a transaction on the pool, commits on a nil return, rolls back otherwise:
@@ -892,17 +894,43 @@ webutil.ProvideHandler(c, riverutil.NewHandler),
 
 ## Migrations
 
-River uses its own schema (separate from the app schema configured in `pgutil`). Run its built-in migrations on startup, after `pgutil.Migrate`:
+River's tables (`river_job`, `river_leader`, `river_migration`, ...) live in the **app schema** — the same `pgutil.Schema` the application's own tables use. Run River's built-in migrations on startup, after `pgutil.Migrate`:
 
 ```go
 c.Invoke(riverutil.Migrate),
 ```
+
+`riverutil` names that schema explicitly instead of relying on `search_path`: `NewRiverClient` sets `river.Config.Schema` and `Migrate` sets `rivermigrate.Config.Schema`, both from the injected `pgutil.Schema`. A worker's `Config(*river.Config)` runs after that and can override it, but there is no reason to.
 
 # Package pkg/dal/sqlc
 
 The package `./pkg/dal/sqlc` contains all SQL queries, when using SQLC.
 
 SQL queries are stored in files with the name pattern `query_$table.sql`. SQLC reads those files and writes Go code in `query_$table.sql.go`. The command for this is `go run github.com/sqlc-dev/sqlc/cmd/sqlc generate`, which gets executed by `go generate`.
+
+## Fully-qualified table names
+
+Every table, view and function reference carries the application schema prefix — in the query files and in the migration files that define them. The prefix is the value the project provides as `pgutil.Schema`:
+
+```sql
+-- name: ListUsers :many
+select * from full_example.users
+order by created_at desc;
+```
+
+`pgutil.NewPool` pins `search_path` to that schema, so an unqualified name would also resolve. Do not rely on it. An unqualified query means a different table depending on which connection runs it, it cannot be pasted into `psql`, Grafana or a migration unchanged, and it cannot join across schemas. The same rule applies to hand-written SQL in Go (`pool.Query`, Prometheus collectors, `pgutil.Hijack` users).
+
+Two consequences for SQLC:
+
+- SQLC derives model struct names from the qualified name, so `users` in schema `full_example` becomes `FullExampleUser`. See `examples/full/pkg/dal/sqlc/gen_models.go`.
+- To keep short Go names, map the singularized qualified name back in the `rename:` block of `sqlc.yaml`:
+
+  ```yaml
+  rename:
+    full_example_user: User
+  ```
+
+SQLC builds its catalog from the migration files, so a query can only name a schema that the migrations actually create. Migrations must therefore start with `create schema if not exists $schema;` and prefix every object they define.
 
 The file `./pkg/dal/sqlc/sqlc.go` should always look close like this:
 
