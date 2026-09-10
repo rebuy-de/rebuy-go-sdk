@@ -208,4 +208,26 @@
 //	    // Run the server
 //	    return RunServer(ctx, c)
 //	}
+//
+// ## Authorization
+//
+// The AuthMiddleware injects an AuthInfo into the request context, which is
+// read with AuthInfoFromRequest. It carries both role sets that Keycloak
+// provides:
+//
+//	// realm_access.roles
+//	if info.HasRole("rebuy-tech") { ... }
+//
+//	// resource_access.dbreview.roles
+//	if info.HasResourceRole("dbreview", "approver") { ... }
+//
+// The roles come from the OIDC userinfo endpoint, not from the access token.
+// Therefore the Keycloak protocol mappers for realm and client roles need
+// "Add to userinfo" enabled, otherwise both role sets stay empty.
+//
+// For local development, DevAuthMiddleware defines the selectable roles. A
+// role in the form `client:role` is a resource role, everything else is a
+// realm role:
+//
+//	webutil.DevAuthMiddleware("rebuy-tech", "dbreview:approver")
 package webutil

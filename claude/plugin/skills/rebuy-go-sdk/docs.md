@@ -196,6 +196,14 @@ func RunServer(ctx context.Context, c *dig.Container) error {
 }
 ```
 
+The `webutil.AuthMiddleware` injects a `webutil.AuthInfo` into the request
+context, which is read with `webutil.AuthInfoFromRequest(r)`. Use
+`info.HasRole("rebuy-tech")` for realm roles and
+`info.HasResourceRole("dbreview", "approver")` for client roles. Roles come
+from the OIDC userinfo endpoint, so the Keycloak role mappers need "Add to
+userinfo" enabled. `webutil.DevAuthMiddleware` takes the selectable roles,
+where `client:role` declares a resource role.
+
 
 # Package pkg/bll
 
