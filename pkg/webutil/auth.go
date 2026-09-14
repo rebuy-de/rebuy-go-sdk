@@ -39,19 +39,26 @@ type authState struct {
 	RedirectURI string `json:"redirect_uri"`
 }
 
-type AuthInfo struct {
-	Username    string `json:"preferred_username"`
-	Name        string `json:"name"`
-	RealmAccess struct {
-		Roles []string `json:"roles"`
-	} `json:"realm_access"`
+type AuthRoles struct {
+	Roles []string `json:"roles"`
 }
 
-// HasRole returns true, if the user has the given role. The role name needs to
-// be allowlisted in the AuthMiddleware, otherwise it will return false even if
-// the user is in the team.
+type AuthInfo struct {
+	Username       string               `json:"preferred_username"`
+	Name           string               `json:"name"`
+	RealmAccess    AuthRoles            `json:"realm_access"`
+	ResourceAccess map[string]AuthRoles `json:"resource_access"`
+}
+
+// HasRole returns true, if the user has the given realm role.
 func (i AuthInfo) HasRole(want string) bool {
 	return slices.Contains(i.RealmAccess.Roles, want)
+}
+
+// HasResourceRole returns true, if the user has the given role for the given
+// client.
+func (i AuthInfo) HasResourceRole(client, want string) bool {
+	return slices.Contains(i.ResourceAccess[client].Roles, want)
 }
 
 type AuthMiddleware func(http.Handler) http.Handler
@@ -316,19 +323,44 @@ func generateCookie(w http.ResponseWriter, redirectURI string) (string, error) {
 //go:embed templates/*
 var templateFS embed.FS
 
+type devRole struct {
+	Field  string
+	Label  string
+	Client string
+	Role   string
+}
+
+func parseDevRoles(specs []string) []devRole {
+	result := make([]devRole, 0, len(specs))
+
+	for i, spec := range specs {
+		client, role, hasClient := strings.Cut(spec, ":")
+		if !hasClient {
+			client, role = "", spec
+		}
+
+		result = append(result, devRole{
+			Field:  fmt.Sprintf("role-%d", i),
+			Label:  spec,
+			Client: client,
+			Role:   role,
+		})
+	}
+
+	return result
+}
+
 // DevAuthMiddleware is a dummy auth middleware that does not any actual
 // authentication. It is supposed to be used for local development.
 // The roles parameter defines which roles can be selected in the dummy login
-// form.
+// form. A role in the form `client:role` is a resource role, everything else
+// is a realm role.
 func DevAuthMiddleware(roles ...string) AuthMiddleware {
 	subFS, _ := fs.Sub(templateFS, "templates")
 
 	viewer := NewGoTemplateViewer(subFS)
 
-	roleNames := map[string]string{}
-	for _, r := range roles {
-		roleNames[fmt.Sprintf("role-%s", r)] = r
-	}
+	devRoles := parseDevRoles(roles)
 
 	m := authMiddleware{
 		handleLogin: WrapView(func(r *http.Request) Response {
@@ -338,7 +370,7 @@ func DevAuthMiddleware(roles ...string) AuthMiddleware {
 			return viewer.HTML(http.StatusOK, "dev-login.html", map[string]any{
 				"username":    "dummy@example.com",
 				"name":        "John Doe",
-				"roles":       roleNames,
+				"roles":       devRoles,
 				"redirectURI": redirectURI,
 			})
 		}),
@@ -383,11 +415,24 @@ func DevAuthMiddleware(roles ...string) AuthMiddleware {
 			claims.Username = r.PostFormValue("username")
 			claims.Name = r.PostFormValue("name")
 
-			for name, role := range roleNames {
-				value := r.PostFormValue(name)
-				if strings.TrimSpace(value) != "" {
-					claims.RealmAccess.Roles = append(claims.RealmAccess.Roles, role)
+			for _, role := range devRoles {
+				value := r.PostFormValue(role.Field)
+				if strings.TrimSpace(value) == "" {
+					continue
 				}
+
+				if role.Client == "" {
+					claims.RealmAccess.Roles = append(claims.RealmAccess.Roles, role.Role)
+					continue
+				}
+
+				if claims.ResourceAccess == nil {
+					claims.ResourceAccess = map[string]AuthRoles{}
+				}
+
+				access := claims.ResourceAccess[role.Client]
+				access.Roles = append(access.Roles, role.Role)
+				claims.ResourceAccess[role.Client] = access
 			}
 
 			jsonPayload, err := json.Marshal(claims)

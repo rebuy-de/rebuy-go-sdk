@@ -56,10 +56,10 @@
       <div>
         <div>Roles</div>
         <div>
-          {{ range $name, $label := .roles }}
+          {{ range .roles }}
           <div>
-            <input type="checkbox" id="{{ $name }}" name="{{ $name }}">
-            <label class="container" for="{{ $name }}">{{ $label }}</label>
+            <input type="checkbox" id="{{ .Field }}" name="{{ .Field }}">
+            <label class="container" for="{{ .Field }}">{{ .Label }}</label>
           </div>
           {{ end }}
         </div>

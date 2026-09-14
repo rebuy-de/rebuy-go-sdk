@@ -77,7 +77,8 @@ func (r *DaemonRunner) Run(ctx context.Context, _ []string) error {
 }
 
 const (
-	SomeTeam = `team-name`
+	SomeTeam         = `team-name`
+	SomeResourceRole = `client-name:role-name`
 )
 
 type DevRunner struct {
@@ -113,7 +114,7 @@ func (r *DevRunner) Run(ctx context.Context, _ []string) error {
 				Addr: redisAddress,
 			})
 		}),
-		c.Provide(func() webutil.AuthMiddleware { return webutil.DevAuthMiddleware(SomeTeam) }),
+		c.Provide(func() webutil.AuthMiddleware { return webutil.DevAuthMiddleware(SomeTeam, SomeResourceRole) }),
 	)
 	if err != nil {
 		return err
