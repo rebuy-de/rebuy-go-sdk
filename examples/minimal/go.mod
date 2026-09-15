@@ -1,6 +1,6 @@
 module github.com/rebuy-de/rebuy-go-sdk/v10/examples/minimal
 
-go 1.26.0
+go 1.27.0
 
 replace github.com/rebuy-de/rebuy-go-sdk/v10 => ../..
 
