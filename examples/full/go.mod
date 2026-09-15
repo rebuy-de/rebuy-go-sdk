@@ -1,6 +1,6 @@
 module github.com/rebuy-de/rebuy-go-sdk/v10/examples/full
 
-go 1.26.0
+go 1.27.0
 
 require (
 	github.com/a-h/templ v0.3.1001
@@ -13,7 +13,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/sqlc-dev/sqlc v1.30.0
 	go.uber.org/dig v1.19.0
-	honnef.co/go/tools v0.7.0
+	honnef.co/go/tools v0.8.1
 )
 
 require (
@@ -153,7 +153,7 @@ require (
 	golang.org/x/term v0.42.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/tools v0.44.1-0.20260420230617-19499e7caabc // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260209200024-4cfbd4190f57 // indirect

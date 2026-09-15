@@ -1,6 +1,6 @@
 module github.com/rebuy-de/rebuy-go-sdk/v10
 
-go 1.26.0
+go 1.27.0
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
@@ -45,9 +45,9 @@ require (
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.42.0
-	golang.org/x/tools v0.44.0
+	golang.org/x/tools v0.44.1-0.20260420230617-19499e7caabc
 	gopkg.in/yaml.v3 v3.0.1
-	honnef.co/go/tools v0.7.0
+	honnef.co/go/tools v0.8.1
 	k8s.io/client-go v0.35.4
 	riverqueue.com/riverui v0.15.0
 )

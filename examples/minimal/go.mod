@@ -1,13 +1,13 @@
 module github.com/rebuy-de/rebuy-go-sdk/v10/examples/minimal
 
-go 1.26.0
+go 1.27.0
 
 replace github.com/rebuy-de/rebuy-go-sdk/v10 => ../..
 
 require (
 	github.com/rebuy-de/rebuy-go-sdk/v10 v10.0.0
 	github.com/spf13/cobra v1.10.2
-	honnef.co/go/tools v0.7.0
+	honnef.co/go/tools v0.8.1
 )
 
 require (
@@ -28,5 +28,5 @@ require (
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/term v0.42.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/tools v0.44.1-0.20260420230617-19499e7caabc // indirect
 )
